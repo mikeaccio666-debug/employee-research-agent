@@ -218,7 +218,7 @@ P2 起新增 `apps/mcp-server/`（对外 MCP 服务）和 A2A 网关，见 8.4�
 | 表 | 关键字段 |
 |---|---|
 | `users` | id、auth_user_id、email、locale、timezone、deleted_at |
-| `talent_profiles` | id、user_id、handle、display_name、pronouns、visibility_mode、index_opt_in、published_page_version |
+| `talent_profiles` | id、user_id、handle、display_name、pronouns、visibility_mode、index_opt_in、published_page_version、photo_path、intro_media（jsonb：类型、路径、时长、字幕） |
 | `aliases` | id、user_id、name（**随机生成**）、context_tags[] |
 | `companies` | id、slug、name、domain、website、stage、size_band、verification_status、verified_at、page_spec、accent_hue |
 | `company_members` | company_id、user_id、role（owner / admin / member） |
@@ -516,7 +516,7 @@ P2 新增的数据表：
 | Agent 工具 | 执行者身份由服务端决定，模型无法指定"别人"；企业端工具只能读到可发现的、匿名化或已授权的数据 |
 | 匿名隔离 | `anonymous_portraits` 独立存储；企业端按候选人的可见性模式选择数据源；接口测试断言响应中不含身份字段 |
 | 加密 | 传输 TLS；托管服务的静态加密；签证、薪资、联系方式等敏感字段做应用层信封加密，密钥放在 Supabase Vault（MVP）或 KMS |
-| 文件 | 校验类型和大小；PDF 在隔离环境解析；图片重新编码并去除 EXIF（含定位）；P1 增加恶意文件扫描 |
+| 文件 | 校验类型和大小；PDF 在隔离环境解析；图片重新编码并去除 EXIF（含定位）；头像和语音、视频经过内容审核，视频转码与字幕在 P1；P1 增加恶意文件扫描 |
 | 反滥用 | 未登录对话防机器人；按 IP、用户、公司分别限流 |
 | 审计 | 企业查看画像、身份揭示、数据导出、后台操作全部写入 `audit_logs` |
 | 数据生命周期 | 导出（JSON + PDF）；删除在 30 天内完成，覆盖向量、匿名版和缓存，备份按轮转周期过期；聊天记录保留策略可配置 |

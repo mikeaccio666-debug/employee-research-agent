@@ -36,7 +36,7 @@ Every claim on a portrait links to its source (the person's own words, a résum�
 - New users default to "anonymous · discoverable"; anonymous data must never leak identity.
 - Never collect, infer or use protected attributes (age, gender, ethnicity, etc.). AI recommends and explains; humans decide.
 - Membership on both sides; the referral subscription buys vetting, packaging and introductions, never a referral itself.
-- Undecided: brand name and domain; final visual direction (being re-explored, see `docs/design-brief.md` §12.5).
+- Undecided: brand name and domain; final visual direction (decided to re-explore away from common AI looks, see `docs/design-brief.md` §12.5; not yet chosen).
 
 ## Brand Commitments
 
