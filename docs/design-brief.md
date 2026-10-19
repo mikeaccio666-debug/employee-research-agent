@@ -10,7 +10,7 @@
 **怎么用这份文档**
 
 1. 在 Claude Design 新建项目，上传本文档（建议同时上传 `PRD.md`），然后粘贴 [§12.1 主提示词](#121-主提示词先建设计系统)。
-2. 先让 Claude Design 做**设计系统和风格样张**，确认后再按 [§7 的顺序](#7-屏幕清单p0)出页面；也可以用 [§12.4 的提示词](#124-一次性生成全部页面再逐页修改)一次出完全部页面，再逐页修改。
+2. 先让 Claude Design 做**设计系统和风格样张**，确认后再按 [§7 的顺序](#7-屏幕清单p0)出页面；也可以用 [§12.4 的提示词](#124-一次性生成全部页面再逐页修改)一次出完全部页面，再逐页修改。出页面之前，建议先用 [§12.5](#125-视觉方向重新探索按-impeccable-校准) 按 Impeccable 的校准调整视觉方向。
 3. 原型定稿后交接给 Claude Code 实现；实现过程用 [§13 的 Impeccable 流程](#13-用-impeccable-做设计把关)把关。
 
 ---
@@ -44,6 +44,8 @@
 
 ## 3. 视觉方向："活体杂志"与"编辑的红笔"
 
+> **Impeccable 校准提醒（待你决定）**：Impeccable 总结了 AI 生成界面最常见的几种外观，其中两种和本节的方向高度重合："暖白纸底 + 高对比衬线标题 + 红色强调"，以及"报纸式细线 + 斜体衬线标题 + 等宽小标签"。它的规则是：需求明确指定这种风格时可以用；但我们要的是"前卫"，落在最常见的外观里就违背了初衷。**建议保留本节的交互概念（证据脚注、点选即编辑、修改高亮、页边批注、印样圈选），视觉语言用 §12.5 的提示词重新探索。** 本节的配色和数值暂时只作参考。
+
 **核心隐喻**：agent 是采访你的记者；画像工作室是编辑部；个人画像页是刊出的人物特写；startup 看候选人像摄影师看印样（contact sheet），用红色油性笔圈出想聊的人。
 
 **贯穿全站的视觉母题**
@@ -57,15 +59,18 @@
 | 编辑的红笔（唯一的平台强调色） | 选中、修改高亮、圈选候选人、待确认标记 |
 | 页边批注（marginalia） | agent 的修改记录、匿名体检提醒，代替弹窗和 toast |
 
-### 3.1 字体（候选，最终由 `/impeccable typeset` 和实测决定）
+### 3.1 字体（需要重新选择）
 
-| 用途 | 拉丁字体候选 | 中文字体候选 | 说明 |
-|---|---|---|---|
-| 展示 / 标题 | **Fraunces**（可变：opsz、wght、SOFT、WONK）；备选 Instrument Serif | 思源宋体 Noto Serif SC（Heavy/Black）；前卫备选：得意黑 Smiley Sans | Fraunces 的可变轴可以给每个人不同的字形性格（写入 Page Spec 的 `typeAxes`） |
-| 正文 / 界面 | **Instrument Sans**（可变：wdth、wght）；备选 Schibsted Grotesk | 思源黑体 Noto Sans SC | 不用 Inter、Arial、系统默认字体 |
-| 元信息 / 数据 | **IBM Plex Mono**；备选 JetBrains Mono | 跟随正文字体 | 时间、编号、标签、状态行 |
+> **Impeccable 实测结果（v4.7）**：原先推荐的 Fraunces、Instrument Serif、Instrument Sans 都在它的"过度使用字体"清单里，检测器会直接报出来；IBM Plex 也在它的"训练数据默认字体"清单里。这几种字体都要换掉。
 
-以上均为开源授权（OFL）。
+**不要用**（Impeccable 的两份清单）：Inter、Roboto、Open Sans、Lato、Montserrat、Arial、Helvetica、Fraunces、Instrument Sans、Instrument Serif、Geist（全系列）、Mona Sans、Plus Jakarta Sans、Space Grotesk、Recoleta；以及 Playfair Display、Cormorant、Lora、Crimson、Newsreader、Syne、Space Mono、IBM Plex、DM Sans、DM Serif、Outfit。也不要把 Inter 当标题字体用。
+
+**怎么选**：
+
+- 从产品自己的世界里找字体，而不是靠品类联想。比如"简历就该用衬线"，正是 Impeccable 要你避开的联想。
+- 由 Claude Design 在新方向里提出字体搭配（见 §12.5），再用 `/impeccable typeset` 检查层级与搭配；最终以 `npx impeccable detect` 通过为准。
+- 中文：思源宋体、思源黑体可以作为基础字体；标题想要更有个性，可以评估得意黑 Smiley Sans 等开源字体。
+- 优先选择开源授权（OFL）、支持可变轴的字体：可变轴仍然可以给每个人不同的字形性格（Page Spec 的 `typeAxes`）。
 
 **中英混排规则**
 
@@ -370,7 +375,8 @@
 
 **Impeccable 列出的常见"AI 味"**
 
-- 过度使用的字体（Inter、Arial、系统默认字体）
+- 过度使用的字体（完整清单见 §3.1）
+- AI 生成界面最常见的四种外观（除非需求明确指定，否则落在任何一种里都要返工）：暖白纸底 + 高对比衬线标题 + 红色或赤陶色强调；近黑底 + 霓虹强调 + 发光边；报纸式细线 + 斜体衬线标题 + 等宽小标签；纯色块 + 黑框 + 硬投影 + 粗压缩标题
 - 紫到蓝的渐变；深色背景上的发光效果
 - 卡片套卡片；什么都包进卡片
 - 灰色文字压在彩色背景上
@@ -405,7 +411,7 @@
 - 画像页像杂志的人物特写：超大的展示字体、不对称的 12 栏编辑网格、细线分隔、§01 式的区块编号、证据脚注（上标）、页边批注。
 - 平台只有一个强调色：编辑红笔（oklch(0.60 0.20 32)），用于选中、修改高亮、圈选、待确认标记。
 - 纸张底色是暖白 oklch(0.975 0.008 85)，主文字是带色调的近黑 oklch(0.22 0.02 265)；暗色主题叫"暗房"。
-- 字体候选：标题 Fraunces（可变字体），正文 Instrument Sans，元信息 IBM Plex Mono；中文用思源宋体 / 思源黑体。
+- 字体：避开 §3.1 列出的过度使用字体（包括 Fraunces、Instrument Sans / Serif、IBM Plex），请提出 2–3 组新的搭配；中文用思源宋体 / 思源黑体。
 - 动效只讲因果：新内容像铅字一样逐行排入；被修改的文字被红笔扫过高亮；不用弹跳缓动。
 
 严格避免：Inter/Arial/系统字体、紫蓝渐变、发光效果、卡片套卡片、灰字压彩色底、纯黑纯灰、弹跳动效、标题上方的圆角方块图标、✨ 图标、图库照片、技能星级条。
@@ -467,7 +473,7 @@
 
 ### 12.4 一次性生成全部页面，再逐页修改
 
-设计系统确认后，可以把下面这段一次贴给 Claude Design，先拿到完整的第一版，再逐页细改。
+设计系统确认后，可以把下面这段一次贴给 Claude Design，先拿到完整的第一版，再逐页细改。**建议先完成 12.5 的方向调整，再用这段生成全部页面**，否则所有页面都要跟着返工。
 
 ```text
 设计系统已经确认。现在请把 design-brief.md 第 7 节里的全部页面一次做出第一版，之后我再逐页提修改意见。
@@ -492,26 +498,40 @@
 - 第一版出来后，先看整体是否统一；同一个问题出现在很多页面上（比如间距都偏挤），直接让它改设计系统，所有页面一起生效，不要一页页改。
 - 再逐页用评论细改；P0 页面都定稿后，再用 Impeccable 扫描导出的 HTML（见第 13 节）。
 
+### 12.5 视觉方向重新探索（按 Impeccable 校准）
+
+适合在设计系统已经做完、但还没有大量出页面的时候用。
+
+```text
+我们用 Impeccable 做设计把关。它指出现在的方向（暖白纸底 + 高对比衬线标题 + 红色强调 + 报纸式细线和等宽小标签）正好落在 AI 生成界面最常见的两种外观里，而我们要的是"前卫"。
+
+请保留这些交互概念：证据脚注、点选即编辑、修改高亮、页边批注、印样圈选、左右布局的对话，以及画像页开场"名字占 1–9 栏、状态占 10–12 栏"。
+
+在此基础上提出 3 个全新的视觉方向。每个方向给出：一句话概念、配色（OKLCH）、字体搭配（拉丁 + 中文），以及画像工作室和个人画像页各一张样张。要求：
+1. 三个方向彼此差异明显，并且都不落在这四种常见外观里：暖白纸底 + 高对比衬线 + 红色或赤陶色强调；近黑底 + 霓虹强调 + 发光边；报纸式细线 + 斜体衬线 + 等宽小标签；纯色块 + 黑框 + 硬投影 + 粗压缩标题。
+2. 字体不用：Inter、Roboto、Open Sans、Lato、Montserrat、Arial、Helvetica、Fraunces、Instrument Sans、Instrument Serif、Geist、Mona Sans、Plus Jakarta Sans、Space Grotesk、Recoleta、Playfair Display、Cormorant、Lora、Crimson、Newsreader、Syne、Space Mono、IBM Plex、DM Sans、DM Serif、Outfit。
+3. 灵感从产品自己的世界里找（成长、被看见、人和人的连接），不要从"简历、杂志、科技"这些品类联想里找。如果别人只凭"求职平台"几个字就能猜到你的设计，就换一个。
+4. 正文对比度满足 WCAG AA，亮色和暗色都要成立。
+我选定一个方向后，你再据此更新设计系统。
+```
+
 ---
 
 ## 13. 用 Impeccable 做设计把关
 
-[Impeccable](https://impeccable.style)（本文基于 v4.6）是给 AI 编程工具用的设计技能包：1 个技能、24 个命令，以及 59 条确定性的反模式检测规则（命令行可直接运行，不需要大模型）。
+[Impeccable](https://impeccable.style)（本文基于 v4.7）是给 AI 编程工具用的设计技能包：1 个技能、24 个命令，以及 61 条确定性的反模式检测规则（命令行可直接运行，不需要大模型）。
 
-### 13.1 安装（在代码仓库里）
+### 13.1 安装状态
 
-```bash
-# 在仓库根目录
-npx impeccable install          # 选择 Claude Code，作用域选 project
-# 或在 Claude Code 里：/plugin marketplace add pbakaus/impeccable，然后在 /plugin 中安装
-```
+**已安装（2026-10-19）**：Impeccable v4.7.0。技能在 `.claude/skills/impeccable/`，附带的 4 个子代理在 `.claude/agents/impeccable-*.md`，`.gitignore` 已加入官方规则。任何人用 Claude Code 打开这个仓库（本地或云端），都可以直接用 `/impeccable`。
 
-安装后：
-
-- 运行 `/impeccable init`，生成 `PRODUCT.md`（受众、目的、使用场景、约束、语气、依据）。可以直接用 §13.4 的素材回答它的问题。
-- 把 Impeccable README 中 `# impeccable-ignore-start` 到 `# impeccable-ignore-end` 的那段规则加进 `.gitignore`；`.impeccable/config.json`、`design.json`、`surfaces/*.md`、`critique/*.md` 要提交进仓库。
-- Claude Code 会装上一个设计钩子：每次编辑 UI 文件都会自动运行检测，把问题反馈给 agent。
-- 关于 `buildPath`：Impeccable 可以先出效果图再写代码（`comp`），也可以直接写代码（`code`）。我们的效果图由 Claude Design 负责，所以建议设为 `code`，把 Claude Design 的定稿作为参照。
+- **安装方式**：云端环境访问不了 impeccable.style，`npx impeccable install` 下载失败，所以改为从官方 GitHub 仓库的发布版（tag `skill-v4.7.0`）复制 Claude Code 插件目录里的技能和子代理，内容与官方安装一致。
+- **升级**：在能访问 impeccable.style 的电脑上，在仓库根目录运行 `npx impeccable update`；或者从新的发布 tag 重新复制 `plugin/skills/impeccable` 和 `plugin/agents`。
+- **检测器**：`npx impeccable detect` 在云端可以用（引擎来自 npm 上的官方平台包）。
+- **设计钩子（暂未启用）**：钩子会在每次改 UI 文件时自动检查。现在仓库里还没有界面代码，云端也下载不了技能自带启动器所需的引擎，所以先不装。开始写前端时：把 `impeccable` 加为 devDependency，让引擎从 npm 获取（必要时用环境变量 `IMPECCABLE_BIN` 指向它），再把钩子写进共享的 `.claude/settings.json`，每个云端会话就都会自动检查。
+- **PRODUCT.md**：`/impeccable init` 会把产品事实写进仓库根目录的 `PRODUCT.md`，素材见 §13.4；按 Impeccable 的规则，需要你确认后再写入。
+- `.impeccable/config.json`、`design.json`、`surfaces/*.md`、`critique/*.md` 生成后要提交进仓库，其余运行时文件已被 `.gitignore` 排除。
+- 关于 `buildPath`：只有在能生成图片的环境里才需要设置（先出效果图 `comp`，或直接写代码 `code`），并以你的选择为准。我们的效果图由 Claude Design 负责，实现时按直接写代码的方式即可。
 
 ### 13.2 每个阶段用哪些命令
 

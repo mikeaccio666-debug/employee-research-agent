@@ -15,6 +15,10 @@ agent 随时能聊，陪求职者持续更新简历、规划成长。找到工�
 | [docs/design-brief.md](docs/design-brief.md) | 交给 Claude Design 的设计简报（视觉方向、屏幕清单、组件、提示词）和 Impeccable 设计把关流程 | 设计、前端 |
 | [docs/architecture.md](docs/architecture.md) | MVP 技术栈（Vercel + Supabase + Claude）、数据模型、接口协议、规模化演进路线、成本模型 | 工程 |
 
+## 设计把关
+
+仓库已安装 [Impeccable](https://impeccable.style) v4.7.0（`.claude/skills/impeccable/`）。用 Claude Code 打开仓库即可使用 `/impeccable` 的各个命令；用法见 `docs/design-brief.md` 第 13 节。
+
 ## 下一步
 
 1. 评审 PRD 第 14 节的待决问题（界面语言、品牌名、startup 准入标准、定价等）；已确认的决定见第 16 节。
