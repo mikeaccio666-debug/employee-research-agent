@@ -15,7 +15,7 @@
 
 ## 下一步
 
-1. 评审 PRD 第 2 节的关键假设和第 14 节的待决问题（市场、品牌名、会员含义、默认可见性等）。
+1. 评审 PRD 第 14 节的待决问题（界面语言、品牌名、startup 准入标准、定价等）；已确认的决定见第 16 节。
 2. 把 `docs/design-brief.md` 交给 Claude Design，先做设计系统与风格样张，再按顺序出 P0 页面。
 3. 并行搭建 agent 原型与评测集（见 `docs/agent-design.md` 第 10 节）。
 4. 按 `docs/architecture.md` 第 5 节初始化单仓，并安装 Impeccable（`npx impeccable install`）。

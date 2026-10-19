@@ -2,7 +2,7 @@
 
 | 项 | 内容 |
 |---|---|
-| 版本 | v0.1（草案） |
+| 版本 | v0.2（草案） |
 | 日期 | 2026-10-19 |
 | 用途 | 1）交给 Claude Design 做高保真原型；2）实现阶段用 Impeccable 做设计把关 |
 | 关联 | [PRD](PRD.md) · [Agent 设计](agent-design.md) · [技术架构](architecture.md) |
@@ -196,7 +196,7 @@
 - 帧 3：右侧画像逐段排版，指纹被画出。
 - 帧 4：顶部打出链接 `{domain}/@lin`，旁边是 "Claim this link"。
 - 帧 5：登录面板（Google / LinkedIn / GitHub / Email）。
-- 帧 6：可见性选择（见 S15），推荐"Anonymous · discoverable"。
+- 帧 6：可见性设置（见 S15），默认选中 "Anonymous · discoverable"。
 
 ### S5 企业入口与 Brief 工作室（桌面）
 
@@ -243,7 +243,7 @@
 
 ### S12 隐私与可见性设置（桌面 + 移动）
 
-- 四个大选项（Public / Anonymous · discoverable / Link only / Hidden），每个选项写清楚"谁能看到什么"；右侧实时预览"startup 会看到的样子"。
+- 四个大选项（Public / Anonymous · discoverable / Link only / Hidden），新用户默认是 Anonymous · discoverable；每个选项写清楚"谁能看到什么"；右侧实时预览"startup 会看到的样子"。
 - 敏感字段逐项设置：签证需求、薪资期望、联系方式。
 - 数据导出、删除账号、化名管理。
 
@@ -258,7 +258,7 @@
 
 ### S15 首次发布前的可见性选择（可与 S12 共用组件）
 
-诞生时刻之后、第一次发布之前必须出现的一步：四个选项，"Anonymous · discoverable" 带推荐标记，每个选项用一句话说明谁能看到什么；用户必须主动选择，不能默认跳过。
+诞生时刻之后、第一次发布之前出现的一步：四个选项，默认选中 "Anonymous · discoverable"，每个选项用一句话说明谁能看到什么；用户可以一键确认，也可以改成其他模式。
 
 ### S16 邮件模板（P1，可后做）
 

@@ -2,7 +2,7 @@
 
 | 项 | 内容 |
 |---|---|
-| 版本 | v0.1（草案） |
+| 版本 | v0.2（草案） |
 | 日期 | 2026-10-19 |
 | 关联 | [PRD](PRD.md) · [Agent 设计](agent-design.md) · [前端设计简报](design-brief.md) |
 
@@ -443,24 +443,7 @@ flowchart TB
 
 ---
 
-## 10. 如果首发市场是中国大陆
-
-各层都已经包在接口后面，替换是可行的，但建议**独立部署一套**（数据不出境），而不是一套系统服务两个市场。
-
-| 层 | 北美方案 | 中国大陆替换 |
-|---|---|---|
-| 部署 | Vercel | 阿里云或腾讯云（Serverless 或容器）+ ICP 备案 + 国内 CDN |
-| 数据库 | Supabase | 云厂商托管 PostgreSQL（确认 pgvector 支持）或另配向量检索 |
-| 大模型 | Claude（Anthropic API） | 已完成备案的国内大模型（Anthropic API 不在中国大陆提供服务） |
-| 登录 | Google、LinkedIn、GitHub | 微信、手机号验证码 |
-| 支付 | Stripe | 微信支付、支付宝 |
-| 通知 | 邮件 | 短信、微信服务号或小程序订阅消息 |
-| 会议 | Zoom、Google Meet | 腾讯会议、飞书 |
-| 合规 | 美国各州隐私与招聘相关法规 | 《个人信息保护法》、数据出境规定、算法与生成式 AI 服务的备案要求 |
-
----
-
-## 11. 安全、隐私与合规实现
+## 10. 安全、隐私与合规实现
 
 | 方面 | 做法 |
 |---|---|
@@ -478,7 +461,7 @@ flowchart TB
 
 ---
 
-## 12. 可观测性、环境与 CI/CD
+## 11. 可观测性、环境与 CI/CD
 
 - **环境**：本地（Supabase CLI 本地栈）→ 预览（每个 PR 一个 Vercel 预览部署 + Supabase 分支数据库）→ 生产。
 - **CI（GitHub Actions）**：类型检查、lint、单元测试（Vitest）、关键流程端到端测试（Playwright，覆盖 PRD 的流程 A–D）、`npx impeccable detect`（反模式扫描，发现主要问题时失败）、agent 评测（PR 跑冒烟集，每晚跑全量）、数据库迁移检查。
