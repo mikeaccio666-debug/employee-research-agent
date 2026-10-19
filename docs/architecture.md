@@ -199,6 +199,8 @@ pnpm workspaces + Turborepo 的单仓：
 └── .impeccable/             # Impeccable 共享配置与评审记录
 ```
 
+P2 起新增 `apps/mcp-server/`（对外 MCP 服务）和 A2A 网关，见 8.4。
+
 **边界规则**（为以后拆服务做准备）：
 
 - `apps/web` 只调用 `packages/core` 暴露的服务，不直接写 SQL。
@@ -384,6 +386,7 @@ pnpm workspaces + Turborepo 的单仓：
 ```mermaid
 flowchart TB
   WEB["Next.js<br/>公开页 ISR + CDN"] --> GW["API 网关 / BFF"]
+  EXT["对外 MCP 服务 · A2A 网关<br/>（外部 agent 与 AI 助手）"] --> GW
   subgraph SVC["领域服务（沿 MVP 模块边界拆分）"]
     ID["身份与组织"]
     PO["画像"]
@@ -430,6 +433,36 @@ flowchart TB
 10. **后台任务幂等**：每个任务有幂等键，可安全重放。
 11. **公开画像页走 ISR + 按需重新验证**：读多写少，天然适合 CDN，规模化成本很低。
 12. **特性开关**从第一天就有（PostHog）。
+
+### 8.4 开放生态的架构预留（MCP、技能、Agent 协作）
+
+PRD 7.17 是 P2，但 MVP 阶段就把扩展点留好：
+
+| 现在就做 | 为什么 |
+|---|---|
+| 统一的工具注册表 + 权限与确认模型（只读 / 写入 / 对外发送 / 付费），内部工具也走这套 | 以后接 MCP 工具、技能时不用改 agent 主循环 |
+| `core` 的领域服务接口清晰、带权限检查 | 以后可以几乎原样包装成对外的 MCP 工具 |
+| 审计日志覆盖所有工具调用 | 外部 agent 接入后，每一步都可追溯、对本人可见 |
+| 第三方凭据统一放进加密保管（Vault / KMS） | 连接器的 OAuth 令牌有地方安全存放、可以撤销 |
+
+P2 新增的组件：
+
+| 组件 | 说明 |
+|---|---|
+| `apps/mcp-server` | 对外 MCP 服务（远程、OAuth 授权），开放画像、成长计划、收件箱、人才搜索（企业权限）等工具 |
+| MCP 客户端代理 | 后端代理外部 MCP 服务的调用，统一门控、确认、审计；只读低风险的服务也可以直接用 Claude API 的 MCP connector |
+| A2A 网关 | 与外部 agent 对话协作：发布 agent 能力说明、管理协作任务的状态、执行用户的委托规则 |
+| `packages/agent/skills/` | 技能目录，格式兼容 Agent Skills 规范（`SKILL.md`） |
+
+P2 新增的数据表：
+
+| 表 | 关键字段 |
+|---|---|
+| `connections` | id、user_id、provider、scopes[]、token_ref（指向加密保管）、status、created_at、revoked_at |
+| `agent_skills` | id、name、version、source（first_party / third_party）、review_status、enabled_for |
+| `external_agents` | id、owner_type、owner_id、name、agent_card_url、verified、scopes[]、status |
+| `delegation_policies` | user_id、can_share（jsonb）、can_commit（jsonb）、must_ask（jsonb） |
+| `agent_interactions` | id、conversation_id、external_agent_id、transcript_ref、outcome、created_at |
 
 ---
 
@@ -492,6 +525,7 @@ flowchart TB
 | 评价 | 只能在真实 coffee chat 之后提交；双盲公开；文字审核；申诉流程；评价者信誉加权 |
 | 企业数据 | 成长建议只读聚合表 `market_insights`，低于样本门槛的行不对外 |
 | 核验材料 | 证明文件单独加密存储，核验完成后按保留期删除，只保留核验结果 |
+| 外部 agent 与连接器（P2） | 外部内容当作不可信数据；按授权范围最小化访问；令牌加密保存、可撤销；企业 agent 必须属于已验证公司；所有交互可审计、对本人可见 |
 | 安全开发 | 依赖与密钥扫描；参照 OWASP ASVS L2 的检查表；P1 上线前做渗透测试 |
 
 ---
