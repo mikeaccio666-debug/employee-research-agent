@@ -40,7 +40,7 @@ Every claim on a portrait links to its source (the person's own words, a résum�
 
 ## Brand Commitments
 
-Working codename "Portrait" (placeholder). Voice: warm, direct and curious with talent; crisp and honest with startups; no hype, no flattery, no "AI-powered" clichés. Chat uses the conventional left/right layout (agent left, user right). No signature glyph or avatar graphics for now.
+Working codename "Portrait" (placeholder). Voice: warm, direct and curious with talent; crisp and honest with startups; no hype, no flattery, no "AI-powered" clichés. Chat uses the conventional left/right layout (agent left, user right). No signature glyph. Real-name users may optionally add a profile photo and a short voice or video intro; photos are hidden in anonymous mode and by default in startups' candidate lists, and never used for matching.
 
 ## Evidence on Hand
 
