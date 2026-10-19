@@ -306,7 +306,7 @@ P2 起新增 `apps/mcp-server/`（对外 MCP 服务）和 A2A 网关，见 8.4�
 | `vetting_cases` | id、talent_id、status（pending / needs_info / approved / rejected）、checks（jsonb：学籍、经历、技能、工作许可、身份）、reviewer_id、completed_at |
 | `referral_packs` | id、talent_id、version、target_roles[]、resume_id、blurb、top_evidence[]、status |
 | `referral_requests` | id、talent_id、insider_user_id、initiated_by、company_id、role、status（requested / accepted / chatted / referred / declined / expired）、referred_at、outcome |
-| `reviews` | id、coffee_chat_id、reviewer_user_id、reviewee_user_id、overall（1–5）、dimensions（jsonb）、comment、flagged_claim_ids[]、status（pending / published / hidden / appealed）、submitted_at、published_at |
+| `reviews` | id、coffee_chat_id、reviewer_user_id、reviewee_user_id、reviewer_role（insider / talent）、overall（1–5）、dimensions（jsonb）、comment、flagged_claim_ids[]、status（pending / published / hidden / appealed）、submitted_at、published_at |
 | `review_appeals` | id、review_id、appellant_user_id、reason、status、resolved_by |
 | `integrity_scores` | user_id、display_score、review_count、distribution（jsonb）、penalties（jsonb）、updated_at —— 由评价计算的物化视图 |
 
@@ -441,6 +441,7 @@ PRD 7.17 是 P2，但 MVP 阶段就把扩展点留好：
 | 现在就做 | 为什么 |
 |---|---|
 | 统一的工具注册表 + 权限与确认模型（只读 / 写入 / 对外发送 / 付费），内部工具也走这套 | 以后接 MCP 工具、技能时不用改 agent 主循环 |
+| 确认由独立的策略层执行：按动作的风险等级和用户的预先授权，决定自动执行、拦截或请求确认 | 不让模型自己决定要不要问用户；低风险动作免确认，避免用户习惯性点"同意" |
 | `core` 的领域服务接口清晰、带权限检查 | 以后可以几乎原样包装成对外的 MCP 工具 |
 | 审计日志覆盖所有工具调用 | 外部 agent 接入后，每一步都可追溯、对本人可见 |
 | 第三方凭据统一放进加密保管（Vault / KMS） | 连接器的 OAuth 令牌有地方安全存放、可以撤销 |
