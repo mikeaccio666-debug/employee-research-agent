@@ -2,7 +2,7 @@
 
 | 项 | 内容 |
 |---|---|
-| 版本 | v0.2（草案） |
+| 版本 | v0.3（草案） |
 | 日期 | 2026-10-19 |
 | 关联 | [PRD](PRD.md) · [Agent 设计](agent-design.md) · [前端设计简报](design-brief.md) |
 
@@ -44,6 +44,7 @@
 | 内容审核 | Claude 分类 + 规则 + 人工队列 | | 独立的信任与安全服务 |
 | 搜索 | Postgres 全文检索 + pgvector（HNSW 索引） | MVP 规模足够 | OpenSearch / Typesense + 专用向量库 |
 | 防机器人 | Cloudflare Turnstile 或 Vercel BotID（保护未登录对话） | 未登录即可对话，必须防刷 | 保留 |
+| 身份核验（P2） | 第三方服务（如 Stripe Identity） | 内推订阅防冒用身份 | 保留 |
 
 ---
 
@@ -188,9 +189,9 @@ pnpm workspaces + Turborepo 的单仓：
 │           └── api/         # agent/chat（SSE）、webhooks、uploads ...
 ├── packages/
 │   ├── agent/               # 提示词、工具 schema（zod）、规划器、Page Spec schema、匿名化、重排
-│   ├── core/                # 领域服务：portrait / company / matching / messaging / feed / events / billing / trust
+│   ├── core/                # 领域服务：portrait / company / matching / messaging / feed / events / billing / trust / growth / insider / referral / reviews
 │   ├── db/                  # Drizzle schema、迁移、种子数据、RLS 策略
-│   ├── ui/                  # 设计系统：令牌、组件、指纹生成器（Claude Design /design-sync 的落点）
+│   ├── ui/                  # 设计系统：令牌、组件（Claude Design /design-sync 的落点）
 │   ├── emails/              # React Email 模板
 │   └── config/              # tsconfig、eslint、tailwind 预设
 ├── evals/                   # 评测数据集与脚本
@@ -215,8 +216,8 @@ pnpm workspaces + Turborepo 的单仓：
 | 表 | 关键字段 |
 |---|---|
 | `users` | id、auth_user_id、email、locale、timezone、deleted_at |
-| `talent_profiles` | id、user_id、handle、display_name、pronouns、visibility_mode、index_opt_in、published_page_version、glyph_seed |
-| `aliases` | id、user_id、name、glyph_seed（**独立随机**）、context_tags[] |
+| `talent_profiles` | id、user_id、handle、display_name、pronouns、visibility_mode、index_opt_in、published_page_version |
+| `aliases` | id、user_id、name（**随机生成**）、context_tags[] |
 | `companies` | id、slug、name、domain、website、stage、size_band、verification_status、verified_at、page_spec、accent_hue |
 | `company_members` | company_id、user_id、role（owner / admin / member） |
 
@@ -225,7 +226,7 @@ pnpm workspaces + Turborepo 的单仓：
 | 表 | 关键字段 |
 |---|---|
 | `sources` | id、talent_id、type（chat / resume / link / github / post …）、uri、storage_path、status、text_snapshot、captured_at |
-| `claims` | id、talent_id、layer、kind、statement、data（jsonb）、basis、confidence、status、visibility、sensitive、pinned、created_by、supersedes |
+| `claims` | id、talent_id、layer、kind、statement、data（jsonb）、basis、confidence、status（draft / confirmed / verified / disputed / rejected）、visibility、sensitive、pinned、created_by、supersedes |
 | `evidence` | id、claim_id、source_id、locator（jsonb）、quote、captured_at |
 | `artifacts` | id、talent_id、kind、url、title、media（jsonb）、claim_id |
 | `preferences` | talent_id、roles[]、domains[]、stages[]、locations[]、remote、start_date、employment_types[]、sponsorship（加密）、comp_min（加密）、deal_breakers[] |
@@ -238,8 +239,9 @@ pnpm workspaces + Turborepo 的单仓：
 
 | 表 | 关键字段 |
 |---|---|
-| `conversations` | id、owner_type（talent / company）、owner_id、purpose（onboarding / update / brief …）、status、planner_state（jsonb）、model |
-| `conversation_messages` | id、conversation_id、role、content（jsonb，**保存完整的 API 内容块**）、created_at |
+| `conversations` | id、owner_type（user / company）、owner_id、purpose（companion / onboarding / brief / insider …）、status、planner_state（jsonb）—— 用户看到的连续对话 |
+| `conversation_segments` | id、conversation_id、model、seed_summary、started_at、ended_at —— API 层面的会话段（见 agent-design 11.3） |
+| `conversation_messages` | id、segment_id、role、content（jsonb，**保存完整的 API 内容块**）、page_context（jsonb）、created_at |
 | `model_calls` | id、conversation_id、route、model、effort、input_tokens、output_tokens、cache_read_tokens、cache_write_tokens、cost_usd、latency_ms、stop_reason、error |
 
 > 会话历史**只追加、不修改**，并原样保存模型返回的内容块（包括 thinking 块），下一轮原样回传。新一代模型的 thinking 块与所在会话绑定，改写历史会导致请求被拒绝，也会让缓存失效。每轮的画像快照用"对话中的 system 消息"追加，而不是改写旧消息。
@@ -280,7 +282,7 @@ pnpm workspaces + Turborepo 的单仓：
 
 | 表 | 关键字段 |
 |---|---|
-| `plans` | id、audience、name、price_cents、interval、quotas（jsonb）、stripe_price_id |
+| `plans` | id、audience（talent / company / insider）、name、price_cents、interval、quotas（jsonb）、stripe_price_id |
 | `subscriptions` | id、owner_type、owner_id、plan_id、stripe_customer_id、stripe_subscription_id、status、current_period_end |
 | `credit_ledger` | id、owner_type、owner_id、delta、reason、ref_type、ref_id —— 只追加，余额 = 求和 |
 | `notifications` | id、user_id、kind、payload、read_at |
@@ -289,7 +291,24 @@ pnpm workspaces + Turborepo 的单仓：
 | `audit_logs` | actor_user_id、actor_company_id、action、target_type、target_id、metadata |
 | `outbox` | id、topic、aggregate_id、payload、created_at、processed_at |
 
-### 6.8 索引与权限
+### 6.8 求职陪伴、在职者、内推与评价
+
+| 表 | 关键字段 |
+|---|---|
+| `resumes` | id、talent_id、target_role、version、file_path、generated_from_page_version |
+| `growth_plans` | id、talent_id、target_role、items（jsonb：类型、目标、完成标准、状态、截止时间）、updated_at |
+| `market_insights` | role_family、signal、company_count、brief_count、share、window —— 聚合表；`company_count < 5` 的行不对外 |
+| `insider_profiles` | user_id、company_id、title、team_area、topics[]、open_to_refer、monthly_chat_capacity、verified_via（work_email / document）、verified_at、expires_at |
+| `employment_verifications` | id、user_id、method、evidence_path（加密）、status、reviewed_by、reviewed_at |
+| `referral_profiles` | insider_user_id、roles、signals（jsonb）—— 在职者的"内推画像" |
+| `vetting_cases` | id、talent_id、status（pending / needs_info / approved / rejected）、checks（jsonb：学籍、经历、技能、工作许可、身份）、reviewer_id、completed_at |
+| `referral_packs` | id、talent_id、version、target_roles[]、resume_id、blurb、top_evidence[]、status |
+| `referral_requests` | id、talent_id、insider_user_id、initiated_by、company_id、role、status（requested / accepted / chatted / referred / declined / expired）、referred_at、outcome |
+| `reviews` | id、coffee_chat_id、reviewer_user_id、reviewee_user_id、overall（1–5）、dimensions（jsonb）、comment、flagged_claim_ids[]、status（pending / published / hidden / appealed）、submitted_at、published_at |
+| `review_appeals` | id、review_id、appellant_user_id、reason、status、resolved_by |
+| `integrity_scores` | user_id、display_score、review_count、distribution（jsonb）、penalties（jsonb）、updated_at —— 由评价计算的物化视图 |
+
+### 6.9 索引与权限
 
 - `evidence_units.embedding`、`brief_embeddings.embedding`：HNSW 索引（余弦距离）。
 - 条目陈述、动态正文：tsvector + GIN 全文索引。
@@ -304,7 +323,7 @@ pnpm workspaces + Turborepo 的单仓：
 
 | 接口 | 说明 |
 |---|---|
-| `POST /api/agent/chat` | 对话（求职者与企业共用，按会话类型加载不同的提示词和工具）；SSE 流式返回 |
+| `POST /api/agent/chat` | 常驻对话（求职者、在职者、企业共用，按会话类型加载不同的提示词和工具；请求带上当前页面上下文）；SSE 流式返回 |
 | `POST /api/uploads` | 申请签名上传 URL；上传后登记来源并触发摄取 |
 | `GET /@[handle]` | 公开画像页（RSC + ISR，发布时按需重新验证） |
 | `POST /api/portrait/publish` | 发布（需用户确认） |
@@ -317,6 +336,13 @@ pnpm workspaces + Turborepo 的单仓：
 | `GET / POST /api/events`、`POST /api/events/:id/rsvp` | 活动 |
 | `POST /api/billing/checkout`、`POST /api/webhooks/stripe` | 支付 |
 | `POST /api/reports` | 举报 |
+| `POST /api/resume` | 由画像生成简历 PDF（可指定岗位） |
+| `GET / PATCH /api/grow/plan` | 成长计划 |
+| `POST /api/insider/verify` | 在职者验证（公司邮箱或证明文件） |
+| `GET /api/insider/recommendations` | 在职者推荐（付费） |
+| `POST /api/referrals/subscribe`、`GET /api/referrals/vetting` | 内推订阅、核验进度 |
+| `POST /api/referral-requests`、`PATCH /api/referral-requests/:id` | 内推相关的 coffee chat 请求、"已内推"标记 |
+| `POST /api/reviews`、`POST /api/reviews/:id/appeal` | 评价与申诉 |
 
 表单类修改优先用 Server Actions；流式和 webhook 用 Route Handlers。所有输入用 zod 校验，schema 前后端共享。
 
@@ -334,6 +360,8 @@ pnpm workspaces + Turborepo 的单仓：
 | `ui.options` | `{ field, candidates[] }` | 渲染备选（如三个标题） |
 | `ui.warning` | `{ target, risk, message }` | 页边红笔提示 |
 | `ui.confirm` | `{ action, summary }` | 确认对话框（如发布） |
+| `plan.patch` | `{ ops: JSONPatch[] }` | 更新成长计划 |
+| `ui.file` | `{ kind, url }` | 展示生成的文件（如简历 PDF） |
 | `error` | `{ code, retryable, message }` | 错误提示，保留用户输入 |
 
 - 每个事件带递增序号；断线后带 `Last-Event-ID` 重连。进行中的回合状态保存在服务端，刷新页面后可以续上或拿到最终结果。
@@ -436,6 +464,9 @@ flowchart TB
 | 每周一次更新 | 约 $0.05–0.2 / 人 | 新会话从画像摘要起步，不带全部历史 |
 | 一次匹配（50 人重排 + 解释） | 约 $0.5–1.2 / 次 | Brief 作为缓存前缀；夜间刷新走 Batch API（价格减半） |
 | 一条动态审核 | < $0.01 | effort 设为 low |
+| 一次成长建议（含联网搜索） | 约 $0.05–0.3 / 次 | 联网搜索另按次计费；常见岗位的聚合统计预先算好 |
+| 一份内推包 | 约 $0.1–0.3 / 份 | 低频 |
+| 每周在职者推荐 | 约 $0.1–0.3 / 位在职者 | 走 Batch API |
 
 - 估算假设：每轮对话新增约 1–2K token 输入、约 0.8K token 输出（含思考）；匹配每位候选人约 2K token 未缓存输入、约 0.7K token 输出。
 - 上线后以 `model_calls` 表的真实用量为准建看板：每份画像成本、每次匹配成本、缓存命中率。
@@ -456,7 +487,11 @@ flowchart TB
 | 审计 | 企业查看画像、身份揭示、数据导出、后台操作全部写入 `audit_logs` |
 | 数据生命周期 | 导出（JSON + PDF）；删除在 30 天内完成，覆盖向量、匿名版和缓存，备份按轮转周期过期；聊天记录保留策略可配置 |
 | 合规文件 | 隐私政策、服务条款、社区规范、AI 使用告知 |
-| 合规审查 | 自动化招聘工具相关法规（如纽约市 Local Law 144）、隐私法规（如 CCPA）、公开职位的薪资透明法规；仅限 18 岁以上 |
+| 合规审查 | 自动化招聘工具相关法规（如纽约市 Local Law 144）、隐私法规（如 CCPA）、公开职位的薪资透明法规、诚信分与 FCRA、各公司的内推政策；仅限 18 岁以上 |
+| 内推与付款 | 求职者与在职者之间没有付款通道；消息中的付款请求会被识别并提醒；条款明确禁止 |
+| 评价 | 只能在真实 coffee chat 之后提交；双盲公开；文字审核；申诉流程；评价者信誉加权 |
+| 企业数据 | 成长建议只读聚合表 `market_insights`，低于样本门槛的行不对外 |
+| 核验材料 | 证明文件单独加密存储，核验完成后按保留期删除，只保留核验结果 |
 | 安全开发 | 依赖与密钥扫描；参照 OWASP ASVS L2 的检查表；P1 上线前做渗透测试 |
 
 ---
