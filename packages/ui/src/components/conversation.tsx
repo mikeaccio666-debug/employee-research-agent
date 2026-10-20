@@ -101,6 +101,8 @@ export type ComposerProps = {
   /** A <ContextTag> shown above the text box. */
   context?: ReactNode;
   rows?: number;
+  /** Text already in the box when it first renders (a draft carried over from elsewhere). */
+  defaultText?: string;
   /** Return false when the send failed: the text stays in the box (show `error` alongside). */
   onSend?: (text: string) => void | boolean;
   /** Composer background. Chips take the other surface so they stay visible. */
@@ -109,6 +111,8 @@ export type ComposerProps = {
   clipSuggestions?: boolean;
   /** Shown when the last send failed; the text stays in the box. */
   error?: ReactNode;
+  /** What Attach does (open a file picker). Without it the chip is decoration. */
+  onAttach?: () => void;
   disabled?: boolean;
   className?: string;
   style?: CSSProperties;
@@ -125,17 +129,19 @@ export function Composer({
   onSuggestion,
   context,
   rows = 2,
+  defaultText = '',
   onSend,
   surface = 'trim',
   clipSuggestions,
   error,
+  onAttach,
   disabled,
   className,
   style,
 }: ComposerProps) {
   const auto = useId();
   const inputId = id ?? `${auto}-msg`;
-  const [text, setText] = useState('');
+  const [text, setText] = useState(defaultText);
   const chipTone = surface === 'trim' ? 'wall' : 'trim';
   const send = (value: string) => {
     const v = value.trim();
@@ -182,7 +188,7 @@ export function Composer({
         </p>
       ) : null}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Chip size="sm" tone={chipTone} aria-label="Attach a file">
+        <Chip size="sm" tone={chipTone} aria-label="Attach a file" onClick={onAttach} disabled={disabled && !!onAttach}>
           Attach
         </Chip>
         <Button icon aria-label="Send" style={{ minHeight: 40, width: 40 }} onClick={() => send(text)} disabled={disabled}>

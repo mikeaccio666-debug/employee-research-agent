@@ -24,7 +24,7 @@ export default function PricingPage() {
             Events
           </Link>
           <AccountLink variant="quiet" />
-          <Link className={buttonClass({ variant: 'secondary', size: 'sm' })} href={routes.birth}>
+          <Link className={buttonClass({ variant: 'secondary', size: 'sm' })} href={routes.studio}>
             Draw yours
           </Link>
         </nav>
@@ -111,7 +111,7 @@ export default function PricingPage() {
                 price: '$0',
                 col: true,
                 foot: (
-                  <Link className={buttonClass({ size: 'sm', className: 'mt-1.5' })} href={routes.birth}>
+                  <Link className={buttonClass({ size: 'sm', className: 'mt-1.5' })} href={routes.studio}>
                     Draw yours
                   </Link>
                 ),

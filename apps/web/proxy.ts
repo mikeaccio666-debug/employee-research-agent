@@ -6,6 +6,16 @@ import { supabaseEnv } from '@/lib/supabase/env';
 // so an expiring session is refreshed here, before the page renders.
 export async function proxy(request: NextRequest) {
   if (!supabaseEnv) return NextResponse.next();
+  // Supabase sends people to the Site URL with ?code= when the callback address isn't on its
+  // Redirect URLs list. Finish the sign-in anyway instead of leaving them on the landing page.
+  const { pathname, searchParams } = request.nextUrl;
+  const code = searchParams.get('code');
+  if (code && pathname !== '/auth/callback') {
+    const to = new URL('/auth/callback', request.url);
+    to.searchParams.set('code', code);
+    to.searchParams.set('next', pathname === '/' ? '/studio' : pathname);
+    return NextResponse.redirect(to);
+  }
   let response = NextResponse.next({ request });
   const supabase = createServerClient(supabaseEnv.url, supabaseEnv.key, {
     cookies: {

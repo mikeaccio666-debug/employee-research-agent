@@ -26,7 +26,7 @@
 |---|---|---|---|
 | Web 与 BFF | Next.js（App Router）+ TypeScript，部署在 Vercel | 一体化开发；每个 PR 自动预览；公开画像页用 ISR + CDN | 保留（Vercel 或自托管） |
 | UI | React + Tailwind CSS（令牌用 CSS 变量，OKLCH）+ Radix 或 React Aria 无障碍原语 + Motion | 原语保证无障碍，视觉完全自定义（避免默认组件库的模板感） | 沉淀为 `packages/ui` 设计系统 |
-| 大模型 | Anthropic API，官方 TypeScript SDK `@anthropic-ai/sdk`；默认 Claude Opus 5.5 | 工具调用、结构化输出、长上下文、提示词缓存、Batch API | 内部 LLM 网关服务 |
+| 大模型 | OpenAI Responses API 与 Anthropic API（官方 SDK `openai`、`@anthropic-ai/sdk`），用环境变量切换；测试期线上用 OpenAI，也支持 Claude Opus 5.5 | 工具调用、结构化输出、长上下文、提示词缓存、Batch API | 内部 LLM 网关服务 |
 | 向量 | Voyage AI 多语言 embedding 模型（Anthropic 自己不提供 embedding） | 中英双语检索 | 接口可替换 |
 | 数据库 | Supabase Postgres + pgvector + 全文检索（tsvector / pg_trgm） | 一个服务同时提供数据库、认证、存储、实时；支持 RLS | Aurora / AlloyDB 或 Supabase 企业版；读写分离 |
 | ORM 与迁移 | Drizzle ORM + drizzle-kit | 类型安全、贴近 SQL、可移植 | 保留 |

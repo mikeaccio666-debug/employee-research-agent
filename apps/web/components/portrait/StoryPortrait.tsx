@@ -139,7 +139,7 @@ export function StoryPortrait({ data, anonymous = false }: { data: StoryPortrait
       </PhoneBar>
 
       <PublicHeader className="max-sm:hidden">
-        <Link href={routes.birth} className={buttonClass({ variant: 'quiet' })}>
+        <Link href={routes.studio} className={buttonClass({ variant: 'quiet' })}>
           Draw yours
         </Link>
       </PublicHeader>
@@ -457,7 +457,7 @@ export function StoryPortrait({ data, anonymous = false }: { data: StoryPortrait
       <footer className="wrap flex flex-wrap items-center justify-between gap-3 pt-8 pb-14">
         <p className="t-s">
           Drawn with Portrait ·{' '}
-          <Link href={routes.birth} className="b">
+          <Link href={routes.studio} className="b">
             Draw yours
           </Link>
         </p>

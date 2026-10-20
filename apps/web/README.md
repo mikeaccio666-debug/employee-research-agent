@@ -56,6 +56,60 @@ link's one-time code into the session; `/auth/signout` (POST) ends it.
   cached and refreshed when someone publishes or changes visibility. Only Public portraits show
   there; link-only pages need the view widened first.
 
+## The studio agent (step 2)
+
+Signed in, `/studio` is the person's own portrait: a conversation with the agent on the left and
+the portrait it draws on the right. Without a model key the studio still loads and says the agent
+isn't connected; without Supabase it stays the canvas's Lin example.
+
+1. **Schema.** Run `supabase/migrations/20261022000000_agent_conversations.sql` after step 1's. It
+   adds `conversations`, `conversation_messages` (append-only: people read and add to their own,
+   nobody edits) and `model_calls`, plus `portraits.published_spec`. The `public_portraits` view
+   now reads `published_spec`, so drafts, rejected lines and the chat quotes behind each line never
+   leave the studio.
+2. **Model.** Set `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` (server-only) in Vercel. With both,
+   `AGENT_PROVIDER` picks one (default `openai`). `OPENAI_MODEL`, `ANTHROPIC_MODEL`, `AGENT_EFFORT`,
+   the `*_BASE_URL`s and `AGENT_DAILY_MESSAGES` are optional (see `.env.example`). Changing them
+   needs a redeploy, not new code. People listed in `AGENT_ADMIN_EMAILS` get a switcher in the
+   studio's top bar (desktop) to pick any provider with a key, message by message.
+
+How a turn works (`app/api/agent/chat/route.ts` → `lib/agent/turn.ts`): the person's message is
+saved, the model gets the instructions (`lib/agent/prompt.ts`), the history replayed verbatim and
+the portrait as it stands, and answers as server-sent events (`message.delta`, `portrait.patch`,
+`message.done`, `error`). It changes the portrait only through four tools (`lib/agent/tools.ts`):
+`upsert_claim`, `remove_claim`, `set_headline`, `move_section`. Each call is checked before it
+touches `portraits.spec`: every line must quote the person's own messages, drafts the person
+rejected can't come back, pinned lines are theirs. Refusals go back to the model in plain words.
+
+Each provider lives in `lib/agent/providers/`. Every stored history item is marked with the
+provider that wrote it: that provider gets it back verbatim (its reasoning and cache carry over),
+the other gets the plain text of the conversation, so switching providers keeps old conversations
+going.
+
+The portrait (`lib/portrait/spec.ts`) is a list of claims (one line of the page each, with its
+layer, basis and status), a headline and the section order. New lines are drafts, dashed in the
+studio with **Right / Not right** under them (`lib/portrait-actions.ts`). Publishing copies the
+confirmed lines, without their quotes, to `published_spec`; after that the studio offers **Update
+page** whenever the draft moves ahead. `/@handle` renders the published copy
+(`components/portrait/SpecSections.tsx`).
+
+## Résumés and links (step 3)
+
+In the studio, **Attach** takes a PDF or Word (.docx) résumé up to 10 MB, and any link pasted in a
+message is read too: a GitHub profile through GitHub's API (`GITHUB_TOKEN` optional, for rate
+limits), any other public page as plain text. LinkedIn can't be read; the agent asks for the
+profile's PDF export instead.
+
+1. **Schema.** Run `supabase/migrations/20261023000000_sources.sql`. It adds `sources` (what was
+   read, page by page; people read, add and remove their own, nobody edits) and a private
+   `sources` storage bucket where each person can only touch their own folder.
+2. The browser uploads the file straight to storage (Vercel functions cap request bodies at
+   4.5 MB), then `POST /api/agent/chat` gets its path, reads it (`lib/agent/sources.ts`: `unpdf`
+   for PDFs, `mammoth` for DOCX), saves the text and hands it to the model as a `<source>` block.
+   Lines drawn from it must quote it word for word; the evidence records the source and page.
+3. Links are fetched only if they resolve to public addresses (rechecked on every redirect), at
+   most 2 MB and 8 seconds. Everything read is data for the model, never instructions.
+
 ## Where things live
 
 | Path | What |
