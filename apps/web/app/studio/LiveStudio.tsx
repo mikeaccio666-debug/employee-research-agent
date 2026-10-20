@@ -92,6 +92,8 @@ export function LiveStudio(props: LiveStudioProps) {
   const [announce, setAnnounce] = useState('');
   const [saving, startSaving] = useTransition();
   const end = useRef<HTMLDivElement>(null);
+  const [host, setHost] = useState('');
+  useEffect(() => setHost(window.location.host), []);
 
   useEffect(() => {
     end.current?.scrollIntoView({ block: 'end' });
@@ -185,7 +187,7 @@ export function LiveStudio(props: LiveStudioProps) {
   const top = (
     <>
       <span className={s.cap}>
-        <span className="t-s">{handle ? `{domain}/@${handle}` : 'No link yet'}</span>
+        <span className="t-s">{handle ? `${host}/@${handle}` : 'No link yet'}</span>
         <span className={s.pill}>{visibilityLabel}</span>
       </span>
       <span className="flex-1" />

@@ -110,7 +110,10 @@ export function toThread(rows: Row[]): ThreadMessage[] {
   let pending: Receipt[] = [];
   for (const row of rows) {
     if (row.role === 'tool') {
-      for (const item of row.items as { receipt?: Receipt }[]) if (item.receipt) pending.push(item.receipt);
+      for (const item of row.items as { receipt?: Receipt; receipts?: Receipt[] }[]) {
+        if (item.receipt) pending.push(item.receipt);
+        if (item.receipts) pending.push(...item.receipts);
+      }
       continue;
     }
     if (row.role === 'user') {

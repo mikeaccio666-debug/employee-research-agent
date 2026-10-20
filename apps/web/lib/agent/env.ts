@@ -1,19 +1,42 @@
 // The model behind the studio agent comes from the deployment's environment (Vercel project
-// settings, or .env.local). OpenAI first, as decided for the MVP; the provider sits behind
-// lib/agent/turn.ts so it can change without touching the screens. Server-only: never NEXT_PUBLIC.
-const apiKey = process.env.OPENAI_API_KEY;
+// settings, or .env.local), so it can change without new code. Two providers sit behind
+// lib/agent/turn.ts: OpenAI and Anthropic. AGENT_PROVIDER picks one; left unset, it is whichever
+// has a key, OpenAI first. Server-only: never NEXT_PUBLIC.
 
-export const agentEnv = apiKey
+export type Provider = 'openai' | 'anthropic';
+export type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+
+const keys: Record<Provider, string | undefined> = {
+  openai: process.env.OPENAI_API_KEY,
+  anthropic: process.env.ANTHROPIC_API_KEY,
+};
+
+const chosen = process.env.AGENT_PROVIDER as Provider | undefined;
+const provider: Provider | null =
+  chosen === 'openai' || chosen === 'anthropic' ? (keys[chosen] ? chosen : null) : keys.openai ? 'openai' : keys.anthropic ? 'anthropic' : null;
+
+const MODELS: Record<Provider, string> = {
+  openai: process.env.OPENAI_MODEL || 'gpt-6.1-sol',
+  anthropic: process.env.ANTHROPIC_MODEL || 'claude-opus-5-5',
+};
+const BASE_URLS: Record<Provider, string | undefined> = {
+  // Optional: another endpoint for the same API (a gateway, or a local stand-in in tests).
+  openai: process.env.OPENAI_BASE_URL || undefined,
+  anthropic: process.env.ANTHROPIC_BASE_URL || undefined,
+};
+
+export const agentEnv = provider
   ? {
-      provider: 'openai' as const,
-      apiKey,
-      model: process.env.OPENAI_MODEL || 'gpt-5',
-      // Reasoning models only; leave unset for models without reasoning.
-      effort: (process.env.OPENAI_REASONING_EFFORT || null) as 'minimal' | 'low' | 'medium' | 'high' | null,
-      // Optional: an OpenAI-compatible endpoint (a proxy or gateway).
-      baseURL: process.env.OPENAI_BASE_URL || undefined,
+      provider,
+      apiKey: keys[provider]!,
+      model: MODELS[provider],
+      // How hard the model thinks before answering; medium suits a live interview.
+      effort: (process.env.AGENT_EFFORT || 'medium') as Effort,
+      baseURL: BASE_URLS[provider],
     }
   : null;
+
+export type AgentEnv = NonNullable<typeof agentEnv>;
 
 /** How many messages one person may send the agent in 24 hours (a cost backstop). */
 export const DAILY_MESSAGES = Number(process.env.AGENT_DAILY_MESSAGES || 200);

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { agentEnv, DAILY_MESSAGES } from '@/lib/agent/env';
 import { append, conversationFor, history, loadPortrait, sentToday } from '@/lib/agent/store';
-import { runTurn, type TurnEvent } from '@/lib/agent/turn';
+import { runTurn, unansweredToolCalls, userItems, type TurnEvent } from '@/lib/agent/turn';
 import { supabaseServer } from '@/lib/supabase/server';
 
 // POST /api/agent/chat — one message to the studio agent, answered as a stream of server-sent
@@ -39,17 +39,29 @@ export async function POST(req: Request) {
   }
 
   const text = parsed.data.message;
-  const messageId = await append(supabase, conversationId, 'user', [{ role: 'user', content: text }], text);
-  const [rows, portrait] = await Promise.all([history(supabase, conversationId), loadPortrait(supabase, user.id)]);
+  const [before, portrait] = await Promise.all([history(supabase, conversationId), loadPortrait(supabase, user.id)]);
+  const unanswered = unansweredToolCalls(before);
+  if (unanswered.length) await append(supabase, conversationId, 'tool', unanswered, null);
+  const messageId = await append(supabase, conversationId, 'user', userItems(text, portrait.spec, before), text);
+  const rows = await history(supabase, conversationId);
 
   const encoder = new TextEncoder();
   let seq = 0;
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
-      const emit = (e: TurnEvent) =>
-        controller.enqueue(encoder.encode(`id: ${++seq}\nevent: ${e.event}\ndata: ${JSON.stringify(e.data)}\n\n`));
+      // If the person closes the tab mid-turn, the stream is gone but the turn still finishes and
+      // saves, so the history never stops between a tool call and its result.
+      let open = true;
+      const emit = (e: TurnEvent) => {
+        if (!open) return;
+        try {
+          controller.enqueue(encoder.encode(`id: ${++seq}\nevent: ${e.event}\ndata: ${JSON.stringify(e.data)}\n\n`));
+        } catch {
+          open = false;
+        }
+      };
       try {
-        await runTurn({ supabase, ownerId: user.id, conversationId, rows, spec: portrait.spec, emit, signal: req.signal });
+        await runTurn({ supabase, ownerId: user.id, conversationId, rows, spec: portrait.spec, emit });
       } catch (e) {
         console.error('agent turn failed', { messageId, error: e instanceof Error ? e.message : e });
         emit({
@@ -57,7 +69,7 @@ export async function POST(req: Request) {
           data: { code: 'turn_failed', retryable: true, message: 'Something went wrong on my side. Your message is saved; try again.' },
         });
       }
-      controller.close();
+      if (open) controller.close();
     },
   });
 
