@@ -1,0 +1,377 @@
+/* V2-S02-Portrait, V2-S02-Portrait-Mobile and the shared parts of V2-S02-Portrait-Maya. */
+@layer theme, base, components, utilities;
+
+@layer components {
+  /* The board root clips the ruler and pencil marks; clip (not hidden) keeps the phone bar sticky. */
+  .root {
+    position: relative;
+    min-height: 100vh;
+    overflow: clip;
+    /* Top of the photo placeholder: color-mix(in oklch, var(--me) 30%, var(--wall-2)) on the canvas.
+       The CSS build ships the tokens as lab(), and Chromium then reads the light --wall-2 (chroma 0.020)
+       as grey inside an oklch mix and drops its hue, so light mode uses the canvas's result as is. */
+    --photo: oklch(0.7835 0.044 200.9);
+  }
+  :global(.pv.dark) .root {
+    --photo: color-mix(in oklch, var(--me) 30%, var(--wall-2));
+  }
+  @media (prefers-color-scheme: dark) {
+    :global(.pv:not(.light)) .root {
+      --photo: color-mix(in oklch, var(--me) 30%, var(--wall-2));
+    }
+  }
+
+  /* hero */
+  .photo {
+    aspect-ratio: 1 / 1;
+    border-radius: 3px;
+    background: linear-gradient(170deg, var(--photo), var(--wall-2));
+    display: flex;
+    align-items: flex-end;
+    padding: 12px;
+  }
+  .nowline {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .voice {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 46px;
+    margin-top: 8px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 4px;
+    background: var(--trim);
+    cursor: pointer;
+    color: var(--ink);
+    text-align: left;
+  }
+  .vicon {
+    flex: none;
+    width: 26px;
+    height: 26px;
+    border-radius: 3px;
+    background: var(--ink);
+    color: var(--wall);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+  }
+
+  /* sections */
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .xlist {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 10px;
+    margin-left: -20px;
+  }
+  .work {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+  }
+  .wk {
+    display: block;
+    text-decoration: none;
+    border-radius: 4px;
+    padding: 12px;
+    background: var(--trim);
+    transition: transform var(--t-m) var(--spring);
+  }
+  .wk:hover {
+    transform: translateY(-3px);
+  }
+  .wkImg {
+    aspect-ratio: 2 / 1;
+    border-radius: 3px;
+    display: flex;
+    align-items: flex-end;
+    padding: 12px;
+    background: var(--wall-2);
+  }
+  .wkImg.wall {
+    background: var(--wall);
+  }
+  .how {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+  }
+  .howIt {
+    border-radius: 4px;
+    background: var(--trim);
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  /* "Book a coffee chat" jumps here; leave room above it. */
+  .ask {
+    scroll-margin-top: 24px;
+  }
+
+  /* the story: one line first, grows in place */
+  .story .storyHead {
+    margin-top: 10px;
+    max-width: 30ch;
+  }
+  .story .storyText {
+    margin-top: 16px;
+    max-width: 64ch;
+  }
+  .storyText > p + p {
+    margin-top: 10px;
+  }
+  .story .storyToggle {
+    margin-top: 8px;
+    margin-left: -8px;
+  }
+
+  /* phone chrome (S02-Mobile): a sticky bar, a dock within thumb reach, a sheet for proofs */
+  .bar,
+  .dockArea,
+  .phoneHero {
+    display: none;
+  }
+  .bar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 48px;
+    padding: 0 16px;
+    background: var(--wall);
+  }
+  .dockArea {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+  }
+  .dock {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+    background: var(--wall);
+  }
+  .dock > :global(.btn) {
+    flex: 1;
+    justify-content: center;
+  }
+  .dock > .fixed {
+    flex: 0 0 auto;
+  }
+  .dock.col {
+    flex-direction: column;
+    gap: 6px;
+  }
+  .sent {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .mphoto {
+    flex: none;
+    width: 112px;
+    height: 112px;
+    border-radius: 3px;
+    background: linear-gradient(170deg, var(--photo), var(--wall-2));
+    display: flex;
+    align-items: flex-end;
+    padding: 8px;
+  }
+  .mvoice {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 44px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 4px;
+    background: var(--trim);
+    cursor: pointer;
+    color: var(--ink);
+    text-align: left;
+  }
+  .pl {
+    flex: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 3px;
+    background: var(--ink);
+    color: var(--wall);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+  }
+  .anonbox {
+    border-radius: 4px;
+    background: var(--wall-2);
+    padding: 12px 14px;
+  }
+  .sheet {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    z-index: 1;
+    max-height: 72vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: var(--trim);
+    border-radius: 12px 12px 0 0;
+    padding: 10px 16px 20px;
+    transform: translateY(100%);
+    visibility: hidden;
+    transition:
+      transform var(--t-m) var(--spring),
+      visibility 0s linear var(--t-m);
+  }
+  .sheet.open {
+    transform: none;
+    visibility: visible;
+    transition:
+      transform var(--t-m) var(--spring),
+      visibility 0s;
+  }
+  .hdl {
+    display: block;
+    width: 40px;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--edge);
+    margin: 0 auto 14px;
+    padding: 0;
+    border: 0;
+  }
+  .prow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 2px;
+    padding: 10px 0;
+  }
+  .sheet.open .prow {
+    animation: row-in var(--t-m) var(--spring) both;
+  }
+  /* rows follow the handle and the title: the first row is the third child */
+  .sheet.open .prow:nth-child(4) {
+    animation-delay: 60ms;
+  }
+  .sheet.open .prow:nth-child(5) {
+    animation-delay: 120ms;
+  }
+  @keyframes row-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* wide screens below the canvas width */
+  @media (max-width: 900px) {
+    .how {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  @media (max-width: 760px) {
+    .bar {
+      display: flex;
+    }
+    .dockArea,
+    .phoneHero {
+      display: block;
+    }
+    .phoneHero {
+      padding-top: 10px;
+    }
+    .root.docked {
+      padding-bottom: 88px;
+    }
+    .root.dockedTall {
+      padding-bottom: 124px;
+    }
+    .work,
+    .how {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .chips {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .chips > :global(.chip) {
+      gap: 8px;
+    }
+    /* rows run edge to edge; their text keeps the 16px gutter */
+    .xlist {
+      margin-left: -16px;
+      margin-right: -16px;
+    }
+    .xlist :global(.xh) {
+      padding: 18px 16px;
+    }
+    .xlist :global(.xb) {
+      padding: 0 16px 20px;
+    }
+    .story {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .story .storyHead {
+      margin-top: 6px;
+      font-size: 20px;
+      line-height: 1.28;
+      letter-spacing: 0;
+    }
+    .story .storyToggle {
+      order: 1;
+      min-height: 36px;
+      padding: 0 12px;
+      font-size: 13px;
+      margin: 6px 0 0 -8px;
+    }
+    .story .storyBody {
+      order: 2;
+      align-self: stretch;
+    }
+    .story .storyText {
+      margin-top: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+    .storyText > p + p {
+      margin-top: 0;
+    }
+  }
+}

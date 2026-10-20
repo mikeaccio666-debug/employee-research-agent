@@ -1,0 +1,213 @@
+/* V2-S06 contact sheet: nav · sheet · brief rail. The canvas draws a 3-column grid;
+   here the AppShell row holds the nav, the page and this rail. */
+@layer theme, base, components, utilities;
+
+@layer components {
+  .main {
+    flex: 1;
+    min-width: 0;
+    padding: 28px 32px 64px;
+    container: sheet / inline-size;
+    transition: padding-right var(--t-m) var(--spring);
+  }
+  /* The agent panel takes the rail's place; the page makes room for it. */
+  .main.withp {
+    padding-right: 480px;
+  }
+  .crumb {
+    text-decoration: none;
+  }
+  .crumb:hover {
+    text-decoration: underline;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .tab {
+    min-height: 40px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink-2);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .tab.on {
+    background: var(--trim);
+    color: var(--ink);
+  }
+  .tab[aria-disabled='true'] {
+    cursor: default;
+  }
+  .ct {
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+  }
+  .main .key {
+    height: 24px;
+    box-shadow: inset 0 0 0 2px var(--edge);
+  }
+
+  .sheet {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+    grid-auto-flow: row dense;
+    margin-top: 22px;
+  }
+  .f {
+    padding: 16px 18px 18px;
+    cursor: pointer;
+    user-select: none;
+    transition:
+      opacity var(--t-m) var(--spring),
+      background-color var(--t-m) var(--spring),
+      transform var(--t-m) var(--spring);
+  }
+  .f:hover {
+    background: color-mix(in oklch, var(--trim) 70%, var(--warm));
+  }
+  .f:active {
+    transform: scale(0.99);
+  }
+  .f.open {
+    grid-column: span 2;
+    grid-row: span 2;
+    cursor: default;
+    box-shadow: inset 0 0 0 2px var(--ink);
+  }
+  .f.open:hover {
+    background: var(--trim);
+  }
+  .f.struck {
+    padding: 12px 16px;
+    cursor: default;
+    align-self: start;
+  }
+  .f.struck:hover {
+    background: var(--trim);
+  }
+  .hint {
+    position: absolute;
+    top: 12px;
+    font-size: 13px;
+    font-weight: 700;
+    opacity: 0;
+    pointer-events: none;
+    padding: 4px 8px;
+    border-radius: 3px;
+    background: var(--chalk);
+    color: var(--on-chalk);
+  }
+  .hint.r {
+    right: 12px;
+  }
+  .hint.l {
+    left: 12px;
+    background: var(--ink);
+    color: var(--wall);
+  }
+  .fh {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .fno {
+    font-family: var(--hand);
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .meta {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+  .reason {
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr);
+    column-gap: 8px;
+    align-items: baseline;
+  }
+  .reason .k {
+    font-family: var(--hand);
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .rail {
+    flex: none;
+    width: 340px;
+    background: var(--wall-2);
+    padding: 28px 26px 64px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .rail.away {
+    display: none;
+  }
+  .mrow {
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr);
+    column-gap: 10px;
+    padding: 8px 0;
+  }
+
+  @media (max-width: 1100px) {
+    .rail {
+      display: none;
+    }
+    .sheet {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 900px) {
+    .main.withp {
+      padding-right: 32px;
+    }
+  }
+  @media (max-width: 760px) {
+    /* Room at the end for the floating Talk button. */
+    .main {
+      padding: 20px 16px 112px;
+    }
+    .main.withp {
+      padding-right: 16px;
+    }
+  }
+  @media (max-width: 640px) {
+    .sheet {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .f.open {
+      grid-column: auto;
+      grid-row: auto;
+    }
+  }
+  /* The page narrows further while the agent panel is open. */
+  @container sheet (max-width: 760px) {
+    .sheet {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @container sheet (max-width: 480px) {
+    .sheet {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .f.open {
+      grid-column: auto;
+      grid-row: auto;
+    }
+  }
+}

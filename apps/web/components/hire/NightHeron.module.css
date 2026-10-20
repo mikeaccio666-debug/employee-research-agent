@@ -1,0 +1,48 @@
+/* V2-S01b company: frame 07A drawn with the agent panel open, and V2-S13b on the same frame. */
+@layer theme, base, components, utilities;
+
+@layer components {
+  .page {
+    container-type: inline-size;
+  }
+  .page .name {
+    font-size: min(96px, 17.5cqi);
+  }
+  .mrow {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    column-gap: 10px;
+    padding: 10px 0;
+    align-items: baseline;
+    border-radius: 4px;
+    transition: background-color var(--t-m) var(--spring);
+  }
+  .hilite {
+    background: var(--warm);
+    border-radius: 4px;
+    transition: background-color var(--t-m) var(--spring);
+  }
+  .confirm {
+    border-radius: 4px;
+    background: var(--trim);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 12px;
+  }
+  .c7 {
+    grid-column: 1 / span 7;
+  }
+  .c5 {
+    grid-column: 8 / span 5;
+  }
+  /* The 12-column grid folds to one column whenever the page column is narrow
+     (the agent panel open on a laptop), not only on phones. */
+  @container (max-width: 700px) {
+    .c7,
+    .c5 {
+      grid-column: 1 / -1;
+    }
+  }
+}

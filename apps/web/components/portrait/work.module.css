@@ -1,0 +1,230 @@
+/* V2-S02-Portrait-Maya: work first — tiles that open into their case, six rounds as six marks. */
+@layer theme, base, components, utilities;
+
+@layer components {
+  /* Maya's persona colour (hue 305) in place of the default. */
+  .root {
+    --me: oklch(0.5 0.12 305);
+    --me-wash: oklch(0.93 0.035 305);
+  }
+  /* Light photo placeholder, mixed as on the canvas (see portrait.module.css); dark mixes live. */
+  div.root {
+    --photo: oklch(0.7835 0.05 242);
+  }
+  :global(.pv.dark) .root {
+    --me: oklch(0.76 0.1 305);
+    --me-wash: oklch(0.32 0.05 168);
+  }
+  @media (prefers-color-scheme: dark) {
+    :global(.pv:not(.light)) .root {
+      --me: oklch(0.76 0.1 305);
+      --me-wash: oklch(0.32 0.05 168);
+    }
+  }
+
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 20px;
+  }
+  .tile {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    border: 0;
+    border-radius: 4px;
+    padding: 12px 12px 16px;
+    background: var(--trim);
+    text-align: left;
+    cursor: pointer;
+    color: var(--ink);
+    transition:
+      transform var(--t-press) var(--spring),
+      background-color var(--t-s) var(--spring);
+  }
+  .tile:active {
+    transform: scale(0.98);
+  }
+  .tile.on {
+    background: var(--warm);
+  }
+  .img {
+    border-radius: 3px;
+    background: var(--wall-2);
+    display: flex;
+    align-items: flex-end;
+    padding: 10px;
+    position: relative;
+    overflow: hidden;
+  }
+  .img svg {
+    position: absolute;
+    inset: 14px 14px 34px;
+    width: calc(100% - 28px);
+    height: calc(100% - 48px);
+  }
+  .img svg * {
+    fill: none;
+    stroke: var(--ink-3);
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+  .img svg .f {
+    fill: var(--ink-3);
+    stroke: none;
+  }
+  .img > span {
+    position: relative;
+  }
+  .feat {
+    grid-column: 1 / span 6;
+    grid-row: 1 / span 2;
+  }
+  .feat .img {
+    aspect-ratio: 4 / 3;
+  }
+  .sm .img {
+    aspect-ratio: 3 / 2;
+  }
+  .second {
+    grid-column: 7 / span 3;
+  }
+  .third {
+    grid-column: 10 / span 3;
+  }
+  .more {
+    grid-column: 7 / span 6;
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    justify-content: center;
+  }
+
+  .casebox {
+    border-radius: 4px;
+    background: var(--trim);
+    padding: 28px 32px 32px;
+    view-transition-name: grow;
+  }
+  .rounds {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 10px;
+    align-items: end;
+    margin-top: 22px;
+  }
+  .rd {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    padding: 8px 0 4px;
+    border-radius: 4px;
+    color: var(--ink);
+  }
+  .rd:hover {
+    background: color-mix(in oklch, var(--wall-2) 60%, transparent);
+  }
+  .rd svg {
+    width: 14px;
+    overflow: visible;
+  }
+  .rd svg path {
+    stroke: var(--ink-3);
+    stroke-width: 3;
+    stroke-linecap: round;
+    fill: none;
+  }
+  .rd.on svg path {
+    stroke: var(--ink);
+  }
+  .rn {
+    font: 700 13px/1 var(--f);
+  }
+  .dt {
+    font-family: var(--hand);
+    font-size: 14px;
+    color: var(--ink-2);
+  }
+  .rd.on .rn {
+    background: var(--chalk);
+    color: var(--on-chalk);
+    border-radius: 3px;
+    padding: 3px 6px;
+  }
+  .casebox.open .rd svg path {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: mz-draw var(--t-draw) var(--spring) forwards;
+  }
+  .casebox.open .rd:nth-child(2) svg path {
+    animation-delay: 70ms;
+  }
+  .casebox.open .rd:nth-child(3) svg path {
+    animation-delay: 140ms;
+  }
+  .casebox.open .rd:nth-child(4) svg path {
+    animation-delay: 210ms;
+  }
+  .casebox.open .rd:nth-child(5) svg path {
+    animation-delay: 280ms;
+  }
+  .casebox.open .rd:nth-child(6) svg path {
+    animation-delay: 350ms;
+  }
+  @keyframes mz-draw {
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+  .base {
+    height: 3px;
+    border-radius: 2px;
+    background: var(--ink);
+    margin-top: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .casebox.open .rd svg path {
+      animation: none;
+      stroke-dashoffset: 0;
+    }
+  }
+
+  /* narrower than the canvas: the feature tile takes the row, the two small ones share the next */
+  @media (max-width: 900px) {
+    .feat {
+      grid-column: 1 / -1;
+      grid-row: auto;
+    }
+    .second {
+      grid-column: 1 / span 6;
+    }
+    .third {
+      grid-column: 7 / span 6;
+    }
+    .more {
+      grid-column: 1 / -1;
+    }
+  }
+
+  @media (max-width: 760px) {
+    .feat,
+    .second,
+    .third,
+    .more {
+      grid-column: 1 / -1;
+      grid-row: auto;
+    }
+    .rounds {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .casebox {
+      padding: 22px 18px 24px;
+    }
+  }
+}

@@ -1,0 +1,78 @@
+/* V2-S13b: out of requests on frame 07A. The plans grow in place; the draft keeps. */
+@layer theme, base, components, utilities;
+
+@layer components {
+  .main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 420px;
+    column-gap: 40px;
+  }
+  .pane {
+    min-width: 0;
+    container-type: inline-size;
+  }
+  .pane .name {
+    font-size: min(112px, 17.5cqi);
+  }
+  .aside {
+    padding: 18px 20px;
+    align-self: start;
+    min-width: 0;
+  }
+  .draft {
+    border-radius: 4px;
+    background: var(--wall-2);
+    padding: 12px 14px;
+    font-size: 15px;
+    line-height: 1.55;
+  }
+  .used {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .used svg {
+    width: 56px;
+    height: 26px;
+    overflow: visible;
+    flex: none;
+  }
+  .used path {
+    stroke: var(--ink);
+    stroke-width: 3;
+    stroke-linecap: round;
+    fill: none;
+  }
+  .cmpp {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .cmpp > div {
+    border-radius: 4px;
+    padding: 12px 14px;
+  }
+
+  /* One column while the agent panel is open, and below 1180px. */
+  .main.stack {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 32px;
+  }
+  .main.stack .aside {
+    max-width: 640px;
+  }
+  @media (max-width: 1180px) {
+    .main {
+      grid-template-columns: minmax(0, 1fr);
+      row-gap: 32px;
+    }
+    .aside {
+      max-width: 640px;
+    }
+  }
+  @media (max-width: 760px) {
+    .cmpp {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+}
