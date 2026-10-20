@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Button, MarginNote, Ruler, SectionMark, buttonClass } from '@portrait/ui';
+import { AccountLink } from '@/components/account/Account';
 import { PublicHeader } from '@/components/chrome';
 import { peopleRows, startupRows } from '@/lib/data/entry';
 import { routes } from '@/lib/routes';
@@ -22,9 +23,7 @@ export default function PricingPage() {
           <Link className={quiet} href={routes.events}>
             Events
           </Link>
-          <Link className={quiet} href={routes.login}>
-            Log in
-          </Link>
+          <AccountLink variant="quiet" />
           <Link className={buttonClass({ variant: 'secondary', size: 'sm' })} href={routes.birth}>
             Draw yours
           </Link>

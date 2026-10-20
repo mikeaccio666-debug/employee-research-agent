@@ -13,8 +13,8 @@ pnpm typecheck
 ```
 
 The backend is arriving in steps (see `docs/architecture.md`). Step 1 adds Supabase sign-in (email
-code and Google) and the accounts schema; screens still show the canvas's fixture data
-(`lib/data`), and composers answer with an honest "not connected" note (`lib/preview.ts`).
+code and Google), the accounts schema, handles, visibility and the public `/@handle` page; other
+screens still show the canvas's fixture data (`lib/data`), and composers answer with an honest "not connected" note (`lib/preview.ts`).
 
 ## Supabase (step 1)
 
@@ -40,6 +40,21 @@ everything still runs and `/login` says sign-in is not set up. To switch it on:
 
 `proxy.ts` refreshes the session on each request; `/auth/callback` turns Google's or the email
 link's one-time code into the session; `/auth/signout` (POST) ends it.
+
+### Accounts in the screens
+
+- **Who is signed in.** `useViewer()` (`lib/supabase/use-viewer.ts`) reads the session in the
+  browser, so static pages stay static. The left nav's footer shows the person (and `@handle`)
+  with Sign out; public headers swap "Log in" for "Your studio".
+- **Settings and publish.** `/settings/privacy` and `/studio/publish` send signed-out people to
+  `/login` and back (`accountFor` in `lib/supabase/server.ts`). Visibility saves as it changes;
+  "Your link" claims or changes the handle; publishing sets the visibility and the portrait's
+  status. The writes are Server Actions in `lib/account-actions.ts`; RLS and the column grants
+  in the migration are what limit them. Sensitive-field levels are still example data.
+- **`/@handle`.** The canvas's `lin` and `maya` stay; any other handle is read from the
+  `public_portraits` view with a cookie-less client (`lib/supabase/public.ts`), so the page is
+  cached and refreshed when someone publishes or changes visibility. Only Public portraits show
+  there; link-only pages need the view widened first.
 
 ## Where things live
 
