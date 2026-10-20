@@ -11,7 +11,8 @@ import type { Source } from './sources';
  * Where evidence quotes may come from: the person's messages in this conversation, and the
  * résumés and links they shared.
  */
-export type Said = { id: number; text: string }[];
+/** The person's messages: id, words, and when they were sent. */
+export type Said = { id: number; text: string; at: string }[];
 export type Grounds = { said: Said; sources: Source[] };
 
 export type ToolResult = {
@@ -197,11 +198,19 @@ export function runTool(name: string, rawArgs: string, spec: Spec, grounds: Grou
         statement: args.statement,
         basis: args.basis,
       };
-      if (args.id) {
-        const old = spec.claims.find((c) => c.id === args.id);
+      // A rejected line comes back only when the person asks for it again: the quote is from a
+      // message they sent after rejecting it.
+      const askedAgain = (c: Claim) => {
+        const message = evidence.source === 'chat' ? grounds.said.find((m) => m.id === evidence.messageId) : undefined;
+        return !!message && Date.parse(message.at) > Date.parse(c.updatedAt);
+      };
+      const NOT_AGAIN = 'the person rejected this line. Bring it back only if they ask for it again in a new message, quoting that message.';
+      const same = args.id ? undefined : spec.claims.find((c) => fold(c.statement) === fold(args.statement));
+      if (args.id || (same?.status === 'rejected' && askedAgain(same))) {
+        const old = same ?? spec.claims.find((c) => c.id === args.id);
         if (!old) return refuse(spec, `there is no line ${args.id}.`);
         if (old.pinned) return refuse(spec, 'the person wrote this line themselves. Ask before changing it.');
-        if (old.status === 'rejected') return refuse(spec, 'the person rejected this line. Don’t bring it back.');
+        if (old.status === 'rejected' && !askedAgain(old)) return refuse(spec, NOT_AGAIN);
         const updated: Claim = {
           ...old,
           ...fields,
@@ -217,8 +226,7 @@ export function runTool(name: string, rawArgs: string, spec: Spec, grounds: Grou
           change: { claimId: old.id, note: `Changed ${label(updated)}`, dashed: true },
         };
       }
-      const same = spec.claims.find((c) => fold(c.statement) === fold(args.statement));
-      if (same?.status === 'rejected') return refuse(spec, 'the person already rejected this line. Don’t propose it again.');
+      if (same?.status === 'rejected') return refuse(spec, NOT_AGAIN);
       if (same) return refuse(spec, `this line is already on the portrait as ${same.id}. Pass that id to change it.`);
       if (spec.claims.length >= LIMITS.claims) return refuse(spec, 'the portrait is full. Remove or merge lines first.');
       const claim: Claim = { id: newId(), ...fields, status: 'draft', pinned: false, evidence: [evidence], createdBy: 'agent', updatedAt: at };
@@ -279,7 +287,7 @@ export function snapshot(spec: Spec): string {
     return `- ${c.id} [${c.layer}/${c.kind}; ${flags}]${where ? ` ${where}:` : ''} ${c.statement}`;
   });
   return [
-    'The portrait right now (rejected lines are kept so you never propose them again):',
+    'The portrait right now (rejected lines are kept so you don’t propose them again unless the person asks):',
     `Headline: ${spec.headline ? `${spec.headline.text} (${spec.headline.status})` : 'none yet'}`,
     `Section order: ${spec.order.join(', ')}`,
     lines.length ? lines.join('\n') : '(no lines yet)',
