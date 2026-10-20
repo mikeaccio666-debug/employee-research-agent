@@ -54,10 +54,13 @@ const LEVELS: { value: Effort; label: string }[] = [
   { value: 'medium', label: 'Balanced' },
   { value: 'high', label: 'Deep' },
 ];
-// claude-opus-5-5 → Opus 5.5; ids we don't know read as they are.
+// claude-opus-5-5 → Opus 5.5, gpt-6-luna → GPT-6 Luna; ids we don't know read as they are.
+const title = (w: string) => `${w[0]!.toUpperCase()}${w.slice(1)}`;
 const modelName = (id: string) => {
   const claude = /^claude-([a-z]+)-(\d+)(?:-(\d+))?$/.exec(id);
-  return claude ? `${claude[1]![0]!.toUpperCase()}${claude[1]!.slice(1)} ${claude[2]}${claude[3] ? `.${claude[3]}` : ''}` : id;
+  if (claude) return `${title(claude[1]!)} ${claude[2]}${claude[3] ? `.${claude[3]}` : ''}`;
+  const gpt = /^gpt-([\d.]+)-([a-z]+)$/.exec(id);
+  return gpt ? `GPT-${gpt[1]} ${title(gpt[2]!)}` : id;
 };
 // What someone typed on the landing page before signing in (components/entry/Landing.tsx).
 const LANDING_DRAFT_KEY = 'pv-landing-draft';

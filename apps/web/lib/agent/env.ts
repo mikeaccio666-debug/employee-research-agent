@@ -24,7 +24,7 @@ const MODELS: Record<Provider, string> = {
  * ANTHROPIC_MODELS (comma-separated ids), or the defaults below.
  */
 const MODEL_LISTS: Record<Provider, string[]> = {
-  openai: list(process.env.OPENAI_MODELS, [MODELS.openai]),
+  openai: list(process.env.OPENAI_MODELS, [MODELS.openai, 'gpt-6-luna']),
   anthropic: list(process.env.ANTHROPIC_MODELS, [MODELS.anthropic, 'claude-sonnet-5-5', 'claude-haiku-5-5']),
 };
 function list(raw: string | undefined, fallback: string[]) {
