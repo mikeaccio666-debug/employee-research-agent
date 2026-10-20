@@ -106,5 +106,34 @@ export function anthropicAdapter(env: AgentEnv): Adapter {
               .map((b) => ({ id: b.id, name: b.name, input: JSON.stringify(b.input) }))
           : [],
       ),
+
+    async summarize(instructions, text, signal) {
+      const message = await client.beta.messages.create(
+        {
+          model: env.model,
+          max_tokens: 8000,
+          system: instructions,
+          messages: [{ role: 'user', content: text }],
+          output_config: { effort: env.effort },
+        },
+        { signal },
+      );
+      const out = message.content
+        .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === 'text')
+        .map((b) => b.text)
+        .join('')
+        .trim();
+      if (!out || message.stop_reason === 'refusal') throw new Error('The summary came back empty');
+      return {
+        text: out,
+        log: {
+          model: message.model,
+          input_tokens: message.usage.input_tokens,
+          output_tokens: message.usage.output_tokens,
+          cached_tokens: message.usage.cache_read_input_tokens ?? null,
+          stop_reason: message.stop_reason ?? 'unknown',
+        },
+      };
+    },
   };
 }

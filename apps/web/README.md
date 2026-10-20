@@ -77,6 +77,12 @@ isn't connected; without Supabase it stays the canvas's Lin example.
    the model (`OPENAI_MODELS` / `ANTHROPIC_MODELS`, comma-separated, default first; OpenAI offers
    GPT-6.1 Sol and GPT-6 Luna, Claude Opus, Sonnet and Haiku by default) and how hard it thinks (Quick, Balanced, Deep). History
    written by another model is replayed as plain text, since reasoning is tied to its model.
+3. **Long conversations.** Once the part the model reads verbatim passes about
+   `AGENT_CONTEXT_TOKENS` (24,000), everything but the last six messages is condensed into notes
+   by a cheaper model (`OPENAI_SUMMARY_MODEL` / `ANTHROPIC_SUMMARY_MODEL`, default `gpt-6-luna` /
+   `claude-haiku-5-5`). The notes ride on the person's next message; the model then reads the
+   notes, the recent messages and the portrait's state. Stored history is never rewritten, the
+   thread still shows every message, and quotes are still checked against all of them.
 
 How a turn works (`app/api/agent/chat/route.ts` → `lib/agent/turn.ts`): the person's message is
 saved, the model gets the instructions (`lib/agent/prompt.ts`), the history replayed verbatim and
