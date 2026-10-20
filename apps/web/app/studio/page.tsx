@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { agentEnv } from '@/lib/agent/env';
+import { agentEnv, canSwitchModel, modelChoices } from '@/lib/agent/env';
 import { conversationFor, history, loadPortrait, toThread } from '@/lib/agent/store';
 import { privacyVisibility } from '@/lib/data/entry';
 import { routes } from '@/lib/routes';
@@ -38,6 +38,7 @@ export default async function StudioPage() {
       published={portrait.published}
       publishedRev={portrait.publishedRev}
       agentReady={agentEnv !== null}
+      models={canSwitchModel(viewer.user.email) ? { choices: modelChoices(), current: agentEnv?.provider ?? null } : null}
     />
   );
 }

@@ -10,6 +10,7 @@ import {
   Pending,
   Receipt,
   Ruler,
+  Segmented,
   StatusLine,
   UserMessage,
   buttonClass,
@@ -19,6 +20,7 @@ import { Workspace } from '@/components/workspace/Workspace';
 import { IdentityLines, SpecSections } from '@/components/portrait/SpecSections';
 import { confirmHeadline, confirmLine, rejectLine, updatePage } from '@/lib/portrait-actions';
 import { toConfirm, type Claim, type Spec } from '@/lib/portrait/spec';
+import type { ModelChoice, Provider } from '@/lib/agent/env';
 import type { Receipt as ReceiptData, ThreadMessage } from '@/lib/agent/store';
 import { OPENER } from '@/lib/agent/prompt';
 import { routes } from '@/lib/routes';
@@ -36,7 +38,11 @@ export type LiveStudioProps = {
   publishedRev: number | null;
   /** False when the deployment has no model key: the studio says so instead of pretending. */
   agentReady: boolean;
+  /** For people allowed to switch the agent's model (testing): the choices and the default. */
+  models: { choices: ModelChoice[]; current: Provider | null } | null;
 };
+
+const MODEL_KEY = 'studio.provider';
 
 type Live = { user: string; reply: string; receipts: ReceiptData[] };
 
@@ -93,7 +99,21 @@ export function LiveStudio(props: LiveStudioProps) {
   const [saving, startSaving] = useTransition();
   const end = useRef<HTMLDivElement>(null);
   const [host, setHost] = useState('');
-  useEffect(() => setHost(window.location.host), []);
+  const [provider, setProvider] = useState(props.models?.current ?? null);
+  useEffect(() => {
+    setHost(window.location.host);
+    // The last model this person picked, if it is still on offer.
+    try {
+      const saved = localStorage.getItem(MODEL_KEY);
+      if (props.models?.choices.some((c) => c.value === saved)) setProvider(saved as Provider);
+    } catch {}
+  }, [props.models]);
+  const pickModel = (p: Provider) => {
+    setProvider(p);
+    try {
+      localStorage.setItem(MODEL_KEY, p);
+    } catch {}
+  };
 
   useEffect(() => {
     end.current?.scrollIntoView({ block: 'end' });
@@ -112,7 +132,7 @@ export function LiveStudio(props: LiveStudioProps) {
         const res = await fetch('/api/agent/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: text }),
+          body: JSON.stringify({ message: text, ...(props.models && provider ? { provider } : {}) }),
         });
         if (!res.ok || !res.body) {
           const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
@@ -191,6 +211,17 @@ export function LiveStudio(props: LiveStudioProps) {
         <span className={s.pill}>{visibilityLabel}</span>
       </span>
       <span className="flex-1" />
+      {props.models && props.models.choices.length > 1 && provider ? (
+        <span className="flex items-center gap-2">
+          <Segmented<Provider>
+            label="Model"
+            value={provider}
+            onChange={pickModel}
+            options={props.models.choices.map((c) => ({ value: c.value, label: c.label }))}
+          />
+          <span className="t-xs c2 whitespace-nowrap">{props.models.choices.find((c) => c.value === provider)?.model}</span>
+        </span>
+      ) : null}
       <span className="t-xs c2 whitespace-nowrap">
         {pendingCount ? `${pendingCount} ${pendingCount === 1 ? 'thing' : 'things'} to confirm` : 'All confirmed'}
       </span>

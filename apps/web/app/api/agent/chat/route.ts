@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { agentEnv, DAILY_MESSAGES } from '@/lib/agent/env';
+import { agentEnv, agentFor, canSwitchModel, DAILY_MESSAGES, PROVIDERS } from '@/lib/agent/env';
 import { append, conversationFor, history, loadPortrait, sentToday } from '@/lib/agent/store';
 import { runTurn, unansweredToolCalls, userItems, type TurnEvent } from '@/lib/agent/turn';
 import { supabaseServer } from '@/lib/supabase/server';
@@ -11,7 +11,11 @@ export const dynamic = 'force-dynamic';
 // A turn with a few tool calls can take a while; within Vercel's limits for the plan.
 export const maxDuration = 120;
 
-const Body = z.object({ message: z.string().trim().min(1).max(4000) });
+const Body = z.object({
+  message: z.string().trim().min(1).max(4000),
+  /** A provider other than the default, for people allowed to switch (AGENT_ADMIN_EMAILS). */
+  provider: z.enum(PROVIDERS).optional(),
+});
 
 const json = (status: number, code: string, message: string) =>
   Response.json({ error: { code, message } }, { status });
@@ -27,6 +31,9 @@ export async function POST(req: Request) {
 
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return json(400, 'bad_message', 'That message is empty or too long (4,000 characters at most).');
+  const { provider } = parsed.data;
+  const agent = provider && canSwitchModel(user.email) ? agentFor(provider) : agentEnv;
+  if (!agent) return json(503, 'agent_not_configured', 'That model isn’t connected here. Your message wasn’t sent.');
 
   let conversationId: string;
   try {
@@ -40,9 +47,9 @@ export async function POST(req: Request) {
 
   const text = parsed.data.message;
   const [before, portrait] = await Promise.all([history(supabase, conversationId), loadPortrait(supabase, user.id)]);
-  const unanswered = unansweredToolCalls(before);
+  const unanswered = unansweredToolCalls(before, agent);
   if (unanswered.length) await append(supabase, conversationId, 'tool', unanswered, null);
-  const messageId = await append(supabase, conversationId, 'user', userItems(text, portrait.spec, before), text);
+  const messageId = await append(supabase, conversationId, 'user', userItems(text, portrait.spec, before, agent), text);
   const rows = await history(supabase, conversationId);
 
   const encoder = new TextEncoder();
@@ -61,7 +68,7 @@ export async function POST(req: Request) {
         }
       };
       try {
-        await runTurn({ supabase, ownerId: user.id, conversationId, rows, spec: portrait.spec, emit });
+        await runTurn({ agent, supabase, ownerId: user.id, conversationId, rows, spec: portrait.spec, emit });
       } catch (e) {
         console.error('agent turn failed', { messageId, error: e instanceof Error ? e.message : e });
         emit({

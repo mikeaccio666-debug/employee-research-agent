@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Spec } from '@/lib/portrait/spec';
-import { agentEnv, type AgentEnv, type Provider } from './env';
+import type { AgentEnv, Provider } from './env';
 import { anthropicAdapter } from './providers/anthropic';
 import { openaiAdapter } from './providers/openai';
 import type { Adapter, Item } from './providers/types';
@@ -31,10 +31,7 @@ const MAX_STEPS = 8;
 
 const ADAPTERS: Record<Provider, (env: AgentEnv) => Adapter> = { openai: openaiAdapter, anthropic: anthropicAdapter };
 
-function current() {
-  if (!agentEnv) throw new Error('The agent is not set up');
-  return { env: agentEnv, adapter: ADAPTERS[agentEnv.provider](agentEnv) };
-}
+const using = (env: AgentEnv) => ({ env, adapter: ADAPTERS[env.provider](env) });
 
 /** Marks items as written for this provider, with our notes on the first one. */
 const stored = (items: Item[], via: Provider, notes: Notes = {}): Item[] =>
@@ -56,8 +53,8 @@ function replay(rows: Row[], via: Provider, adapter: Adapter): Item[] {
  * A turn that stopped between a tool call and its result (a crash, a refusal, a cut-off answer)
  * leaves calls the API expects an answer to. They get one, appended before the next message.
  */
-export function unansweredToolCalls(rows: Row[]): Item[] {
-  const { env, adapter } = current();
+export function unansweredToolCalls(rows: Row[], agent: AgentEnv): Item[] {
+  const { env, adapter } = using(agent);
   const last = rows.at(-1);
   if (!last || last.role !== 'assistant' || !native(last, env.provider)) return [];
   const open = adapter.calls(last.items as Item[]);
@@ -71,8 +68,8 @@ export function unansweredToolCalls(rows: Row[]): Item[] {
  * since the model last saw it (the person confirmed or rejected lines, or another provider was
  * in use); the model's own changes it already knows from the tool results.
  */
-export function userItems(text: string, spec: Spec, rows: Row[]): Item[] {
-  const { env, adapter } = current();
+export function userItems(text: string, spec: Spec, rows: Row[], agent: AgentEnv): Item[] {
+  const { env, adapter } = using(agent);
   const seen = rows
     .filter((r) => native(r, env.provider))
     .flatMap((r) => r.items as Notes[])
@@ -83,6 +80,7 @@ export function userItems(text: string, spec: Spec, rows: Row[]): Item[] {
 }
 
 export async function runTurn({
+  agent,
   supabase,
   ownerId,
   conversationId,
@@ -91,6 +89,7 @@ export async function runTurn({
   emit,
   signal,
 }: {
+  agent: AgentEnv;
   supabase: SupabaseClient;
   ownerId: string;
   conversationId: string;
@@ -100,7 +99,7 @@ export async function runTurn({
   emit: (e: TurnEvent) => void;
   signal?: AbortSignal;
 }) {
-  const { env, adapter } = current();
+  const { env, adapter } = using(agent);
   const said: Said = rows.filter((r) => r.role === 'user').map((r) => ({ id: r.id, text: r.body ?? '' }));
   let spec = start;
   const history = replay(rows, env.provider, adapter);
