@@ -66,11 +66,10 @@ screen CSS modules) → `utilities` (Tailwind). Later layers win regardless of s
 
 ### Theme
 
-Light 晨 and dark 夜 come from tokens. The page follows the system theme unless the person picked
-one (`.light`/`.dark` on `<html>`, saved in `localStorage` and applied by an inline script in
-`<head>` before first paint). `?theme=dark` shows one page view in dark without saving it. Never
-hard-code a theme on a screen; a fixed-theme object (a share card, one half of a light/dark
-comparison) wraps itself in `<div className="pv dark">` or `<div className="pv light">`. The canvas's "wine" tweak variables equal the
+Every page is light 晨 by default and follows the system into dark 夜 (`prefers-color-scheme`,
+pure CSS, no script and no theme switch). Never hard-code a theme on a screen; only the
+design-system reference pages pin one half of a light/dark comparison with
+`<div className="pv dark">` or `<div className="pv light">`. The canvas's "wine" tweak variables equal the
 defaults in `system.css` and need no code.
 
 ### Motion
@@ -120,4 +119,4 @@ Public pages use `<PublicHeader>`; focused flows use `<FlowBar left right>`.
 ## Checking your work
 
 - `npx tsc --noEmit -p tsconfig.json` from `apps/web`.
-- Screens at 1440 × 900 and 390 × 844, light and `?theme=dark`, and with reduced motion.
+- Screens at 1440 × 900 and 390 × 844, with the system in light and in dark mode, and with reduced motion.

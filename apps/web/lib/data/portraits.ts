@@ -687,7 +687,7 @@ export const shareCards = {
     stat: 'p95 1.8 s → 240 ms',
     statNote: 'from the slow-query log',
     side: ['No photo · no name', 'Every line links to its source'],
-    caption: '匿名卡片（暗色）：只有别名、一句经历和一个能查证的数字。不放照片，也不放学校和城市，避免卡片本身暴露身份。',
+    caption: '匿名卡片：只有别名、一句经历和一个能查证的数字。不放照片，也不放学校和城市，避免卡片本身暴露身份。',
   },
   work: {
     label: 'Share card, Maya Ortiz, a piece of work',

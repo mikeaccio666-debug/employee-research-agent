@@ -11,13 +11,13 @@
    (.grow is the fold, .ring the contact-sheet circle): never generate the utility. */
 @source not inline("grow ring");
 
-/* dark: the person's choice (.dark on <html> or on a nested .pv), else the system theme. */
+/* dark: the system is in dark mode (or the element sits inside a nested .pv.dark). */
 @custom-variant dark {
   &:where(.dark, .dark *) {
     @slot;
   }
   @media (prefers-color-scheme: dark) {
-    &:where(:root:not(.light) *) {
+    &:where(:not(.light, .light *)) {
       @slot;
     }
   }

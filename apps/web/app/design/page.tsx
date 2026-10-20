@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import { Band, DateNote, Ruler, SectionMark } from '@portrait/ui';
-import { ThemeToggle } from '@/components/ThemeToggle';
 import { boardGroups } from '@/lib/routes';
 import s from './design.module.css';
 
@@ -21,15 +20,12 @@ export default function DesignIndex() {
       <Ruler />
       <header className="wrap relative pt-16">
         <SectionMark vw={220} d="M2 6 C60 3 140 7 218 4" isNew style={{ top: 70, width: 220 }} />
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <p className="hand pt-[22px] text-[18px]">
-            <Band>v0.2 · Oct 19</Band> <DateNote>身高线的结构 × 晨光的颜色</DateNote>
-          </p>
-          <ThemeToggle />
-        </div>
+        <p className="hand pt-[22px] text-[18px]">
+          <Band>v0.2 · Oct 19</Band> <DateNote>身高线的结构 × 晨光的颜色</DateNote>
+        </p>
         <h1 className="t-d mt-[18px]">目录 · 页面 v2</h1>
         <p className="t-body zh c2 mt-3.5 max-w-[50em]">
-          所有页面都按 §5A 改过：先一句话，再在原地生长；动效只用一条不回弹的弹簧；每页最多一处小惊喜。点任意一项打开对应的页面；画成夜色的画板会用暗色打开。
+          所有页面都按 §5A 改过：先一句话，再在原地生长；动效只用一条不回弹的弹簧；每页最多一处小惊喜。点任意一项打开对应的页面。页面默认是亮色，系统切到深色时跟着变。
         </p>
       </header>
 

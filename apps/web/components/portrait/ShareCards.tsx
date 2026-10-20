@@ -71,7 +71,7 @@ export function ShareCards() {
       </Shown>
 
       <Shown n={2} caption={anonymous.caption}>
-        <div role="group" aria-label={anonymous.label} className={cx('pv dark', c.card)}>
+        <div role="group" aria-label={anonymous.label} className={c.card}>
           <Ruler />
           <CardMark top={anonymous.mark.top} date={anonymous.mark.date} isNew />
           <div className={c.top}>

@@ -45,16 +45,10 @@
   body{margin:0}
   /* app: no single word stranded on a paragraph's last line */
   :where(.pv) :is(p,li,blockquote,figcaption){text-wrap:pretty}
-  /* app: the person's choice (.light / .dark on <html>, set before paint), else the system
-     theme. A nested .pv.light or .pv.dark keeps its own theme either way. */
-  :where(:root.dark) .pv:not(.light){
-    --wall:oklch(0.245 0.030 250);--wall-2:oklch(0.210 0.028 250);--trim:oklch(0.300 0.025 1);--warm:oklch(0.350 0.033 1);
-    --chalk:oklch(0.820 0.110 80);--on-chalk:oklch(0.210 0.028 250);
-    --ink:oklch(0.950 0.018 85);--ink-2:oklch(0.830 0.020 85);--ink-3:oklch(0.730 0.020 85);--edge:oklch(0.570 0.025 250);
-    --new:var(--chalk);--me:oklch(0.76 0.10 168);--me-wash:oklch(0.32 0.05 168);
-  }
+  /* app: light 晨 by default; follows the system into dark 夜. A nested .pv.light or .pv.dark
+     (one half of a light/dark comparison) keeps its own theme either way. */
   @media (prefers-color-scheme:dark){
-    :where(:root:not(.light)) .pv:not(.light){
+    .pv:not(.light){
       --wall:oklch(0.245 0.030 250);--wall-2:oklch(0.210 0.028 250);--trim:oklch(0.300 0.025 1);--warm:oklch(0.350 0.033 1);
       --chalk:oklch(0.820 0.110 80);--on-chalk:oklch(0.210 0.028 250);
       --ink:oklch(0.950 0.018 85);--ink-2:oklch(0.830 0.020 85);--ink-3:oklch(0.730 0.020 85);--edge:oklch(0.570 0.025 250);

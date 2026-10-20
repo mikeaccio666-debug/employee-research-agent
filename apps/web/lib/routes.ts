@@ -50,7 +50,7 @@ export const boardGroups: BoardGroup[] = [
     items: [
       { k: 'S2', t: 'Lin 的画像页', d: '故事原地展开 · 证据脚注 · 约 coffee chat', href: routes.portrait('lin') },
       { k: 'S6', t: '印样 · SWE Intern', d: '左右滑动圈选 / 划掉 · 键盘 C X J K', href: routes.contactSheet },
-      { k: 'S1', t: '画像工作室', d: '从来源处生长 · 区块拖动排序', href: `${routes.studio}?theme=dark` },
+      { k: 'S1', t: '画像工作室', d: '从来源处生长 · 区块拖动排序', href: routes.studio },
       { k: '分镜', t: '收起 → 展开中 → 完成', d: '含减少动态效果版本', href: routes.storyboards },
     ],
   },
@@ -59,10 +59,10 @@ export const boardGroups: BoardGroup[] = [
     title: '移动端与常驻 agent',
     note: '同一段对话跟着你走',
     items: [
-      { k: 'S1', t: '画像工作室 · 移动', d: '三台手机 · 把窗口收窄到手机宽度', href: `${routes.studio}?theme=light` },
+      { k: 'S1', t: '画像工作室 · 移动', d: '三台手机 · 把窗口收窄到手机宽度', href: routes.studio },
       { k: 'S1b', t: '企业看候选人', d: 'Show on page · 发 coffee chat 请求', href: routes.candidate('07a') },
       { k: 'S1b', t: '求职者看活动', d: '用自己的经历拟问题 · 匿名或公开', href: routes.eventInApp },
-      { k: 'S1b', t: '在职者看请求', d: '选时段回复（暗色）', href: `${routes.insiderRequests}?theme=dark` },
+      { k: 'S1b', t: '在职者看请求', d: '选时段回复', href: routes.insiderRequests },
     ],
   },
   {
@@ -94,7 +94,7 @@ export const boardGroups: BoardGroup[] = [
       { k: 'S9', t: '动态广场', d: '匿名检查 · 模糊 logo', href: routes.feed },
       { k: 'S10', t: '活动节目单', d: '报名后圈出日期', href: routes.events },
       { k: 'S10', t: '活动页', d: '投票画计数线 · 别名提问', href: routes.eventPublic },
-      { k: 'S10', t: '创建活动', d: '点字段即编辑（暗色）', href: `${routes.eventCreate}?theme=dark` },
+      { k: 'S10', t: '创建活动', d: '点字段即编辑', href: routes.eventCreate },
     ],
   },
   {
