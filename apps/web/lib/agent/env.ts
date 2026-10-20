@@ -60,6 +60,22 @@ export function agentFor(provider: Provider, pick: { model?: string; effort?: Ef
   };
 }
 
+/**
+ * The cheaper model that condenses older conversation once it gets long (lib/agent/turn.ts):
+ * OPENAI_SUMMARY_MODEL, ANTHROPIC_SUMMARY_MODEL.
+ */
+const SUMMARY_MODELS: Record<Provider, string> = {
+  openai: process.env.OPENAI_SUMMARY_MODEL || 'gpt-6-luna',
+  anthropic: process.env.ANTHROPIC_SUMMARY_MODEL || 'claude-haiku-5-5',
+};
+export const summarizerFor = (agent: AgentEnv): AgentEnv => ({ ...agent, model: SUMMARY_MODELS[agent.provider], effort: 'low' });
+
+/**
+ * About how many tokens of conversation the model gets verbatim before the older part is
+ * condensed into a summary (AGENT_CONTEXT_TOKENS).
+ */
+export const CONTEXT_TOKENS = Number(process.env.AGENT_CONTEXT_TOKENS || 24000);
+
 /** Providers with a key. */
 export const availableProviders: Provider[] = PROVIDERS.filter((p) => KEYS[p]);
 

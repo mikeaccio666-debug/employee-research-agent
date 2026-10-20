@@ -93,5 +93,30 @@ export function openaiAdapter(env: AgentEnv): Adapter {
       items
         .filter((i) => i.type === 'function_call')
         .map((i) => ({ id: String(i.call_id), name: String(i.name), input: String(i.arguments) })),
+
+    async summarize(instructions, text, signal) {
+      const response = await client.responses.create(
+        {
+          model: env.model,
+          instructions,
+          input: text,
+          store: false,
+          ...(reasoning ? { reasoning: { effort: env.effort } } : {}),
+        },
+        { signal },
+      );
+      const out = response.output_text.trim();
+      if (!out) throw new Error('The summary came back empty');
+      return {
+        text: out,
+        log: {
+          model: response.model ?? env.model,
+          input_tokens: response.usage?.input_tokens ?? null,
+          output_tokens: response.usage?.output_tokens ?? null,
+          cached_tokens: response.usage?.input_tokens_details?.cached_tokens ?? null,
+          stop_reason: response.incomplete_details?.reason ?? response.status ?? 'unknown',
+        },
+      };
+    },
   };
 }

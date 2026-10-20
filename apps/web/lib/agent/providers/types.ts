@@ -30,4 +30,6 @@ export type Adapter = {
   results(results: { call: Call; output: string; failed: boolean }[]): Item[];
   /** The tool calls in a stored answer. */
   calls(items: Item[]): Call[];
+  /** One plain call without tools or history (used to summarize older conversation). Throws on failure. */
+  summarize(instructions: string, text: string, signal?: AbortSignal): Promise<{ text: string; log: Step['log'] }>;
 };

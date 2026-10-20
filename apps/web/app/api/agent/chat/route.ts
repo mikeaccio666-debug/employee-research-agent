@@ -12,7 +12,7 @@ import {
   type Source,
 } from '@/lib/agent/sources';
 import { append, conversationFor, history, loadPortrait, sentToday } from '@/lib/agent/store';
-import { runTurn, unansweredToolCalls, userItems, type Attachment, type TurnEvent } from '@/lib/agent/turn';
+import { compactIfLong, runTurn, unansweredToolCalls, userItems, type Attachment, type TurnEvent } from '@/lib/agent/turn';
 import { supabaseServer } from '@/lib/supabase/server';
 
 // POST /api/agent/chat — one message to the studio agent, answered as a stream of server-sent
@@ -121,7 +121,9 @@ export async function POST(req: Request) {
         ]);
         const unanswered = unansweredToolCalls(before, agent);
         if (unanswered.length) await append(supabase, conversationId, 'tool', unanswered, null);
-        const items = userItems(text, portrait.spec, before, agent, { blocks, attachments });
+        // A long conversation's older part is condensed first, so the model reads less each turn.
+        const summary = await compactIfLong({ agent, supabase, conversationId, rows: before });
+        const items = userItems(text, portrait.spec, before, agent, { blocks, attachments }, summary);
         messageId = await append(supabase, conversationId, 'user', items, text);
         const rows = await history(supabase, conversationId);
         await runTurn({ agent, supabase, ownerId: user.id, conversationId, rows, sources, spec: portrait.spec, emit });
