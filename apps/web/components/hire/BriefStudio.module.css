@@ -153,18 +153,8 @@
       left: 20px;
     }
   }
+  /* The handwritten note drops under the line. */
   @media (max-width: 900px) {
-    .mh {
-      grid-template-columns: 34px minmax(0, 1fr);
-    }
-    .mh .edited {
-      grid-column: 2;
-    }
-  }
-  @media (max-width: 760px) {
-    .sheet {
-      padding: 20px 20px 96px;
-    }
     .mh {
       grid-template-columns: 34px minmax(0, 1fr);
     }
@@ -174,6 +164,11 @@
     .mh .strk {
       left: 46px;
       right: 20px;
+    }
+  }
+  @media (max-width: 760px) {
+    .sheet {
+      padding: 20px 20px 96px;
     }
   }
 }

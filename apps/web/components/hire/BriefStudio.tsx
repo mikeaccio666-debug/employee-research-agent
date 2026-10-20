@@ -189,6 +189,7 @@ export function BriefStudio() {
         canvasNote: 'Private · for matching',
         previewLabel: 'Brief · Northwind · v3',
         previewTitle: brief.role,
+        previewAria: 'Open the brief',
       }}
     >
       <div className={s.sheet}>
