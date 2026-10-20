@@ -1,0 +1,88 @@
+/* V2-S10c-EventCreate: the live canvas beside the conversation. A poster on the left, the
+   event page's fields on the right; picking a field puts it in the composer's context. */
+@layer theme, base, components, utilities;
+
+@layer components {
+  /* The canvas pane is a query container, so the sheet stacks when the pane is narrow. */
+  .cq {
+    container-type: inline-size;
+    min-height: 100%;
+  }
+  .sheet {
+    position: relative;
+    padding: 28px 40px 48px 96px;
+    display: grid;
+    grid-template-columns: 320px minmax(0, 1fr);
+    column-gap: 32px;
+    align-items: start;
+  }
+  .sheet > :global(.ruler) {
+    left: 24px;
+  }
+  .poster {
+    position: relative;
+    border-radius: 4px;
+    background: var(--trim);
+    padding: 22px 22px 24px;
+    aspect-ratio: 4 / 5;
+    display: flex;
+    flex-direction: column;
+  }
+  .poster .d {
+    font-family: var(--hand);
+    font-size: 72px;
+    font-weight: 600;
+    line-height: 0.9;
+  }
+  .fld {
+    position: relative;
+    display: grid;
+    grid-template-columns: 110px minmax(0, 1fr);
+    column-gap: 14px;
+    align-items: center;
+    padding: 10px 14px;
+    margin: 0 -14px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    text-align: left;
+    color: var(--ink);
+    cursor: pointer;
+    transition: background-color var(--t-m) var(--spring);
+  }
+  .fld:hover {
+    background: color-mix(in oklch, var(--trim) 55%, transparent);
+  }
+  .fld.sel {
+    background: var(--trim);
+  }
+  .fld.sel :global(.br) {
+    opacity: 1;
+  }
+  .fld .k {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink-2);
+  }
+
+  @container (max-width: 760px) {
+    .sheet {
+      grid-template-columns: minmax(0, 1fr);
+      row-gap: 40px;
+    }
+    .poster {
+      max-width: 360px;
+    }
+  }
+  @media (max-width: 760px) {
+    .sheet {
+      padding: 20px 16px 96px;
+    }
+    .fld {
+      grid-template-columns: 96px minmax(0, 1fr);
+      column-gap: 12px;
+      padding: 10px;
+      margin: 0 -10px;
+    }
+  }
+}

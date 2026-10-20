@@ -1,0 +1,140 @@
+/* V2-S09-Feed: posts beside a "Coming up" rail; the composer checks anonymity before posting. */
+@layer theme, base, components, utilities;
+
+@layer components {
+  /* The page column is a query container, so the rail stacks under the posts when the
+     column gets narrow: on small screens, and when the agent panel opens beside it. */
+  .main {
+    container-type: inline-size;
+  }
+  .cols {
+    display: grid;
+    grid-template-columns: minmax(0, 680px) 300px;
+    column-gap: 48px;
+    align-items: start;
+  }
+  @container (max-width: 840px) {
+    .cols {
+      grid-template-columns: minmax(0, 1fr);
+      row-gap: 28px;
+      max-width: 680px;
+    }
+  }
+
+  .post {
+    border-radius: 4px;
+    background: var(--trim);
+    padding: 18px 20px;
+  }
+  .new {
+    view-transition-name: grow;
+  }
+  .who {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .acts {
+    display: flex;
+    gap: 4px;
+    margin: 12px 0 -6px -10px;
+    flex-wrap: wrap;
+  }
+  .acts button {
+    border: 0;
+    background: transparent;
+    min-height: 38px;
+    padding: 0 10px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink-2);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .acts button:hover {
+    color: var(--ink);
+    background: var(--wall-2);
+  }
+  .acts button.on {
+    color: var(--ink);
+  }
+  .acts :global(.tally) {
+    height: 14px;
+  }
+  .img {
+    position: relative;
+    border-radius: 3px;
+    background: var(--wall-2);
+    aspect-ratio: 16 / 9;
+    margin-top: 12px;
+    overflow: hidden;
+    display: flex;
+    align-items: flex-end;
+    padding: 10px;
+  }
+  .img svg * {
+    fill: none;
+    stroke: var(--ink-3);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+  }
+  .kiosk {
+    position: absolute;
+    inset: 14px 0 30px;
+    width: 100%;
+    height: calc(100% - 44px);
+  }
+  .logo {
+    position: absolute;
+    right: 16px;
+    top: 14px;
+    min-width: 64px;
+    height: 26px;
+    border-radius: 3px;
+    background: var(--ink-2);
+    color: var(--wall);
+    font: 800 12px/26px var(--f);
+    text-align: center;
+    letter-spacing: 0.08em;
+    transition: filter var(--t-m) var(--spring);
+  }
+  .logo.blur {
+    filter: blur(7px);
+  }
+  .check {
+    border-radius: 4px;
+    background: var(--warm);
+    padding: 12px 14px;
+    margin-top: 12px;
+  }
+  .code {
+    font-size: 15px;
+    font-weight: 700;
+    background: var(--wall-2);
+    border-radius: 3px;
+    padding: 10px 12px;
+    margin-top: 10px;
+    overflow-wrap: anywhere;
+  }
+  /* "Coming up": the date in pencil, the event beside it. */
+  .up {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    row-gap: 12px;
+    margin-top: 12px;
+    align-items: baseline;
+  }
+
+  @media (max-width: 760px) {
+    .post {
+      padding: 16px;
+    }
+    .acts {
+      margin-left: -8px;
+    }
+  }
+}

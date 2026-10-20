@@ -32,12 +32,13 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
-      {/* .pv sits on <body>, not <html>, so rem stays 16px as on the canvas. */}
-      <body className="pv" suppressHydrationWarning>
+    // The theme script adds .light/.dark to <html> before React hydrates.
+    <html lang="en" suppressHydrationWarning>
+      <head>
         <ThemeScript />
-        {children}
-      </body>
+      </head>
+      {/* .pv sits on <body>, not <html>, so rem stays 16px as on the canvas. */}
+      <body className="pv">{children}</body>
     </html>
   );
 }

@@ -1,4 +1,4 @@
-import type { AnchorHTMLAttributes, ButtonHTMLAttributes, HTMLAttributes } from 'react';
+import type { ComponentPropsWithRef } from 'react';
 import { cx } from '../cx';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'wall' | 'quiet';
@@ -25,7 +25,7 @@ export function buttonClass({ variant = 'primary', size = 'md', icon, className 
   return cx('btn', VARIANT[variant], size === 'sm' && 'btn-sm', icon && 'btn-i', className);
 }
 
-export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & ButtonStyleProps;
+export type ButtonProps = ComponentPropsWithRef<'button'> & ButtonStyleProps;
 
 /** Square-cornered button that presses to 0.98. */
 export function Button({ variant, size, icon, className, type = 'button', ...rest }: ButtonProps) {
@@ -39,12 +39,12 @@ export function ButtonAnchor({
   icon,
   className,
   ...rest
-}: AnchorHTMLAttributes<HTMLAnchorElement> & ButtonStyleProps) {
+}: ComponentPropsWithRef<'a'> & ButtonStyleProps) {
   return <a className={buttonClass({ variant, size, icon, className })} {...rest} />;
 }
 
 /** A button that reads as an underlined word inside a sentence ("· undo"). */
-export function LinkButton({ className, type = 'button', ...rest }: ButtonHTMLAttributes<HTMLButtonElement>) {
+export function LinkButton({ className, type = 'button', ...rest }: ComponentPropsWithRef<'button'>) {
   return <button type={type} className={cx('linklike', className)} {...rest} />;
 }
 
@@ -61,7 +61,7 @@ export function chipClass({ on, tone = 'trim', size = 'md', className }: ChipSty
   return cx('chip', tone === 'wall' && 'w', size === 'sm' && 'sm', on && 'on', className);
 }
 
-export type ChipProps = ButtonHTMLAttributes<HTMLButtonElement> & ChipStyleProps;
+export type ChipProps = ComponentPropsWithRef<'button'> & ChipStyleProps;
 
 /** Tag or suggestion chip. Pass `aria-pressed` when it toggles. */
 export function Chip({ on, tone, size, className, type = 'button', ...rest }: ChipProps) {
@@ -76,11 +76,11 @@ export function ChipTag({
   className,
   style,
   ...rest
-}: HTMLAttributes<HTMLSpanElement> & ChipStyleProps) {
+}: ComponentPropsWithRef<'span'> & ChipStyleProps) {
   return <span className={chipClass({ on, tone, size, className })} style={{ cursor: 'inherit', ...style }} {...rest} />;
 }
 
-export type SlotProps = ButtonHTMLAttributes<HTMLButtonElement> & { on?: boolean };
+export type SlotProps = ComponentPropsWithRef<'button'> & { on?: boolean };
 
 /** A time slot for booking a coffee chat; `on` when picked (sets aria-pressed). */
 export function Slot({ on, className, type = 'button', ...rest }: SlotProps) {

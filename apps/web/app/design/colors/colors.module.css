@@ -1,0 +1,375 @@
+/* V2-Colors: the board's <style> block, plus the wine control and phone rules. */
+@layer theme, base, components, utilities;
+
+@layer components {
+  .sec {
+    padding-top: 80px;
+  }
+  .sech {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .sech .n {
+    font-family: var(--hand);
+    font-size: 22px;
+    font-weight: 600;
+  }
+
+  /* swatches */
+  .swg {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .swc {
+    height: 76px;
+    border-radius: 4px;
+    display: flex;
+    align-items: flex-end;
+    padding: 8px 10px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .s-wall {
+    background: var(--wall);
+    box-shadow: inset 0 0 0 2px var(--edge);
+  }
+  .s-wall2 {
+    background: var(--wall-2);
+  }
+  .s-trim {
+    background: var(--trim);
+  }
+  .s-warm {
+    background: var(--warm);
+  }
+  .s-chalk {
+    background: var(--chalk);
+    color: var(--on-chalk);
+  }
+  .s-ink {
+    background: var(--ink);
+    color: var(--wall);
+  }
+  .s-ink2 {
+    background: var(--ink-2);
+    color: var(--wall);
+  }
+  .s-ink3 {
+    background: var(--ink-3);
+    color: var(--wall);
+  }
+  .s-edge {
+    background: var(--edge);
+    color: var(--wall);
+  }
+  .s-me {
+    background: var(--me);
+    color: var(--wall);
+  }
+  /* trim on the trim panel needs its edge; "me" in the night reads on wall-2 */
+  .edged {
+    box-shadow: inset 0 0 0 2px var(--edge);
+  }
+  .onWall2 {
+    color: var(--wall-2);
+  }
+
+  /* token and contrast rows */
+  .tok {
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr);
+    column-gap: 14px;
+    padding: 7px 0;
+    font-size: 14px;
+  }
+  .tok code {
+    font-family: var(--f);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+  .cr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 60px 52px;
+    column-gap: 10px;
+    font-size: 14px;
+    padding: 6px 0;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* the dark preview: content beside a 230px rail */
+  .preview {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 230px;
+    gap: 18px;
+  }
+
+  /* hue wheel */
+  .hue {
+    display: grid;
+    grid-template-columns: repeat(24, minmax(0, 1fr));
+    gap: 4px;
+  }
+  .hue span {
+    height: 44px;
+    border-radius: 3px;
+    position: relative;
+  }
+  .hue span.x::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: -4px;
+    bottom: -4px;
+    width: 3px;
+    margin-left: -1.5px;
+    background: var(--ink);
+    transform: rotate(35deg);
+    border-radius: 2px;
+  }
+  .h0 {
+    background: oklch(0.62 0.12 0);
+  }
+  .h15 {
+    background: oklch(0.62 0.12 15);
+  }
+  .h30 {
+    background: oklch(0.62 0.12 30);
+  }
+  .h45 {
+    background: oklch(0.62 0.12 45);
+  }
+  .h60 {
+    background: oklch(0.62 0.12 60);
+  }
+  .h75 {
+    background: oklch(0.62 0.12 75);
+  }
+  .h90 {
+    background: oklch(0.62 0.12 90);
+  }
+  .h105 {
+    background: oklch(0.62 0.12 105);
+  }
+  .h120 {
+    background: oklch(0.62 0.12 120);
+  }
+  .h135 {
+    background: oklch(0.62 0.12 135);
+  }
+  .h150 {
+    background: oklch(0.62 0.12 150);
+  }
+  .h165 {
+    background: oklch(0.62 0.12 165);
+  }
+  .h180 {
+    background: oklch(0.62 0.1 180);
+  }
+  .h195 {
+    background: oklch(0.62 0.1 195);
+  }
+  .h210 {
+    background: oklch(0.62 0.1 210);
+  }
+  .h225 {
+    background: oklch(0.62 0.1 225);
+  }
+  .h240 {
+    background: oklch(0.62 0.12 240);
+  }
+  .h255 {
+    background: oklch(0.62 0.12 255);
+  }
+  .h270 {
+    background: oklch(0.62 0.12 270);
+  }
+  .h285 {
+    background: oklch(0.62 0.12 285);
+  }
+  .h300 {
+    background: oklch(0.62 0.12 300);
+  }
+  .h315 {
+    background: oklch(0.62 0.12 315);
+  }
+  .h330 {
+    background: oklch(0.62 0.12 330);
+  }
+  .h345 {
+    background: oklch(0.62 0.12 345);
+  }
+
+  /* personal accents, light on the wall and dark on the trim */
+  .acc {
+    display: grid;
+    grid-template-columns: 120px repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    align-items: center;
+    padding: 8px 0;
+  }
+  .acc .l {
+    border-radius: 4px;
+    padding: 10px 12px;
+    font-weight: 700;
+    font-size: 14px;
+  }
+  .jadeL {
+    color: oklch(0.5 0.1 168);
+  }
+  .jadeD {
+    color: oklch(0.76 0.1 168);
+  }
+  .orchL {
+    color: oklch(0.5 0.12 320);
+  }
+  .orchD {
+    color: oklch(0.76 0.1 320);
+  }
+  .mossL {
+    color: oklch(0.5 0.1 135);
+  }
+  .mossD {
+    color: oklch(0.76 0.1 135);
+  }
+  .tealL {
+    color: oklch(0.5 0.09 200);
+  }
+  .tealD {
+    color: oklch(0.76 0.09 200);
+  }
+  .violL {
+    color: oklch(0.5 0.12 295);
+  }
+  .violD {
+    color: oklch(0.76 0.1 295);
+  }
+
+  .rule {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr);
+    column-gap: 10px;
+    padding: 10px 0;
+  }
+  .rule .k {
+    font-family: var(--hand);
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  /* app: the live wine control (the canvas keeps these sliders in its Tweaks panel) */
+  .wine {
+    padding: 12px 16px 8px;
+  }
+  .slider {
+    display: grid;
+    grid-template-columns: 52px minmax(0, 1fr) 48px;
+    column-gap: 10px;
+    align-items: center;
+  }
+  .slider output {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .range {
+    -webkit-appearance: none;
+    appearance: none;
+    display: block;
+    width: 100%;
+    height: 44px;
+    margin: 0;
+    background: transparent;
+    cursor: pointer;
+  }
+  .range::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--edge);
+  }
+  .range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    margin-top: -8px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--ink);
+    transition: transform var(--t-press) var(--spring);
+  }
+  .range:active::-webkit-slider-thumb {
+    transform: scale(0.98);
+  }
+  .range::-moz-range-track {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--edge);
+  }
+  .range::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--ink);
+  }
+
+  @media (max-width: 1180px) {
+    .tok {
+      grid-template-columns: 64px minmax(0, 1fr);
+    }
+  }
+  @media (max-width: 900px) {
+    .preview {
+      grid-template-columns: minmax(0, 1fr) 210px;
+    }
+  }
+
+  @media (max-width: 760px) {
+    .sec {
+      padding-top: 56px;
+    }
+    /* the number stays beside its title; the note goes under both */
+    .sech {
+      column-gap: 12px;
+    }
+    .sech h2 {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+    .sech p {
+      flex-basis: 100%;
+    }
+    .swg {
+      gap: 6px;
+    }
+    .swc {
+      height: 64px;
+      padding: 6px;
+      font-size: 11px;
+      line-height: 1.25;
+    }
+    .preview {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .hue {
+      gap: 2px;
+    }
+    .hue span {
+      height: 36px;
+    }
+    .hue span.x::after {
+      width: 2px;
+      margin-left: -1px;
+    }
+    .acc {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      row-gap: 6px;
+    }
+    .acc > :first-child {
+      grid-column: 1 / -1;
+    }
+  }
+}

@@ -1,15 +1,20 @@
 'use client';
 
 import Link from 'next/link';
-import { createContext, useContext, useEffect, useState, type HTMLAttributes, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
 import { Ruler, cx } from '@portrait/ui';
 import { AgentPanel, type AgentConfig } from '@/components/agent/AgentPanel';
 import type { NavItem } from '@/lib/nav';
 import { routes } from '@/lib/routes';
 import s from './AppShell.module.css';
 
-type ShellState = { agentOpen: boolean; setAgentOpen: (open: boolean) => void };
-const ShellContext = createContext<ShellState>({ agentOpen: false, setAgentOpen: () => {} });
+type ShellState = {
+  agentOpen: boolean;
+  setAgentOpen: (open: boolean) => void;
+  /** Open the panel from page content; `focus` also puts the cursor in its message box. */
+  openAgent: (opts?: { focus?: boolean }) => void;
+};
+const ShellContext = createContext<ShellState>({ agentOpen: false, setAgentOpen: () => {}, openAgent: () => {} });
 
 /** Open or close the agent panel from page content ("Ask Portrait about this"). */
 export function useShell() {
@@ -33,11 +38,29 @@ export type AppShellProps = {
 /** Signed-in shell: left nav (with its own ruler), the page, and the agent panel. */
 export function AppShell({ nav, active, badges, footer, agent = {}, className, children }: AppShellProps) {
   const [agentOpen, setAgentOpen] = useState(agent ? !!agent.defaultOpen : false);
+  // While true, a default-open panel stays tucked away on narrow screens (see AgentPanel.module.css).
+  const [auto, setAuto] = useState(agent ? !!agent.defaultOpen : false);
+  const [focusToken, setFocusToken] = useState(0);
+  const mnav = useRef<HTMLElement>(null);
+  const openAgent = ({ focus }: { focus?: boolean } = {}) => {
+    setAgentOpen(true);
+    if (focus) setFocusToken((n) => n + 1);
+  };
 
   useEffect(() => {
     // `?talk=open` opens the panel on arrival (the S01b boards are drawn open).
     if (new URLSearchParams(window.location.search).get('talk') === 'open') setAgentOpen(true);
+    else if (auto && !window.matchMedia('(min-width: 901px)').matches) setAgentOpen(false);
+    setAuto(false);
+    // Runs once, on arrival: `auto` is the value from the first render.
   }, []);
+
+  // Phones: the nav row scrolls sideways; bring the current page's link into view.
+  useEffect(() => {
+    const row = mnav.current;
+    const on = row?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (row && on) row.scrollLeft = Math.max(0, on.offsetLeft - (row.clientWidth - on.offsetWidth) / 2);
+  }, [active]);
 
   const links = (extra?: string) =>
     nav.map((item) => (
@@ -53,7 +76,7 @@ export function AppShell({ nav, active, badges, footer, agent = {}, className, c
     ));
 
   return (
-    <ShellContext.Provider value={{ agentOpen: !!agent && agentOpen, setAgentOpen }}>
+    <ShellContext.Provider value={{ agentOpen: !!agent && agentOpen, setAgentOpen, openAgent }}>
       <div className={cx(s.shell, className)}>
         <nav className={s.nav} aria-label="Main">
           <Ruler />
@@ -63,14 +86,16 @@ export function AppShell({ nav, active, badges, footer, agent = {}, className, c
           {links()}
           {footer ? <p className={cx('t-xs c2', s.foot)}>{footer}</p> : null}
         </nav>
-        <nav className={s.mnav} aria-label="Main">
+        <nav className={s.mnav} aria-label="Main" ref={mnav}>
           <Link href={routes.landing} className={s.brand}>
             Portrait
           </Link>
           {links()}
         </nav>
         {children}
-        {agent ? <AgentPanel {...agent} open={agentOpen} onOpenChange={setAgentOpen} /> : null}
+        {agent ? (
+          <AgentPanel {...agent} open={agentOpen} auto={auto} focusToken={focusToken} onOpenChange={setAgentOpen} />
+        ) : null}
       </div>
     </ShellContext.Provider>
   );

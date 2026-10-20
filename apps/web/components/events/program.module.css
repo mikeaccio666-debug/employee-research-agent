@@ -1,0 +1,128 @@
+/* V2-S10-Events: the program. One line per event, grows in place; registering circles the date. */
+@layer theme, base, components, utilities;
+
+@layer components {
+  .wk {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-top: 34px;
+  }
+  .evr {
+    border-radius: 4px;
+    transition: background-color var(--t-m) var(--spring);
+  }
+  .evr:hover {
+    background: color-mix(in oklch, var(--trim) 55%, transparent);
+  }
+  .evr.open {
+    background: var(--trim);
+  }
+  .eh {
+    display: grid;
+    grid-template-columns: 84px minmax(0, 1fr) 150px 28px;
+    column-gap: 18px;
+    align-items: center;
+    width: 100%;
+    padding: 16px 18px;
+    border: 0;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    color: var(--ink);
+  }
+  .dd {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 58px;
+  }
+  .dd .n {
+    font-family: var(--hand);
+    font-size: 34px;
+    font-weight: 600;
+    line-height: 1;
+  }
+  .dd .w {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink-2);
+  }
+  .dd .ring {
+    position: absolute;
+    left: -8px;
+    top: -8px;
+    width: calc(100% + 16px);
+    height: calc(100% + 16px);
+    overflow: visible;
+    pointer-events: none;
+  }
+  .dd .ring path {
+    stroke: var(--new);
+    stroke-width: 3;
+    fill: none;
+    stroke-linecap: round;
+  }
+  .tm {
+    font-size: 15px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+  .eb {
+    padding: 0 18px 20px 120px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 220px;
+    column-gap: 24px;
+  }
+  .pm {
+    font-size: 22px;
+    font-weight: 700;
+    justify-self: end;
+    transition: transform var(--t-m) var(--spring);
+  }
+  .evr.open .pm {
+    transform: rotate(45deg);
+  }
+  /* The fold clips its content; once open, let the buttons' focus ring (3px + 3px offset) show. */
+  .evr :global(.grow.open) > div {
+    overflow: clip;
+    overflow-clip-margin: 6px;
+  }
+
+  /* Phones: date, title and +; the time drops under the title, the detail under both. */
+  @media (max-width: 760px) {
+    .eh {
+      grid-template-columns: 56px minmax(0, 1fr) 22px;
+      column-gap: 12px;
+      align-items: start;
+      padding: 14px 12px;
+    }
+    .dd {
+      width: 56px;
+      height: 52px;
+    }
+    .dd .n {
+      font-size: 30px;
+    }
+    .tm {
+      grid-column: 2;
+      grid-row: 2;
+      text-align: left;
+      margin-top: 6px;
+    }
+    .pm {
+      grid-column: 3;
+      grid-row: 1;
+      align-self: center;
+    }
+    .eb {
+      padding: 0 12px 18px 80px;
+      grid-template-columns: minmax(0, 1fr);
+      row-gap: 14px;
+    }
+  }
+}

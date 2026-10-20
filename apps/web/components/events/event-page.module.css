@@ -1,0 +1,99 @@
+/* V2-S10b-Event: the public event page. A big local time, the agenda, and questions
+   voted up with tally lines. */
+@layer theme, base, components, utilities;
+
+@layer components {
+  .bigtime {
+    font-size: 96px;
+    line-height: 0.9;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    font-variant-numeric: tabular-nums;
+  }
+  .ag {
+    display: grid;
+    grid-template-columns: 120px minmax(0, 1fr);
+    column-gap: 18px;
+    padding: 12px 0;
+  }
+  .ag .t {
+    font-family: var(--hand);
+    font-size: 17px;
+    font-weight: 600;
+  }
+  .host {
+    display: grid;
+    grid-template-columns: 56px minmax(0, 1fr);
+    column-gap: 14px;
+    align-items: center;
+  }
+  .av {
+    width: 56px;
+    height: 56px;
+    border-radius: 3px;
+    background: var(--wall-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 18px;
+  }
+  .q {
+    display: grid;
+    grid-template-columns: 60px minmax(0, 1fr);
+    column-gap: 16px;
+    padding: 14px 0;
+    align-items: start;
+  }
+  .q.new {
+    view-transition-name: grow;
+  }
+  .vote {
+    min-height: 52px;
+    width: 60px;
+    border: 0;
+    border-radius: 4px;
+    background: var(--trim);
+    font: 700 15px/1 var(--f);
+    color: var(--ink);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-variant-numeric: tabular-nums;
+    transition:
+      transform var(--t-press) var(--spring),
+      background-color var(--t-s) var(--spring);
+  }
+  .vote:active {
+    transform: scale(0.98);
+  }
+  .vote.on {
+    background: var(--ink);
+    color: var(--wall);
+  }
+  .vote :global(.tally) {
+    height: 12px;
+  }
+  .swrow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  @media (max-width: 760px) {
+    .bigtime {
+      font-size: 72px;
+    }
+    .ag {
+      grid-template-columns: 108px minmax(0, 1fr);
+      column-gap: 12px;
+    }
+    .ag .t {
+      white-space: nowrap;
+    }
+  }
+}

@@ -46,6 +46,10 @@ export type WorkspaceProps = {
     canvasNote?: ReactNode;
     previewLabel?: ReactNode;
     previewTitle?: ReactNode;
+    /** Accessible name of the preview strip; defaults to "Open your portrait". */
+    previewAria?: string;
+    /** Links from the desktop top bar that must stay reachable on a phone (one scrolling row). */
+    nav?: ReactNode;
   };
   view?: WorkspaceView;
   onViewChange?: (view: WorkspaceView) => void;
@@ -145,13 +149,23 @@ export function Workspace({
             </>
           )}
         </div>
+        {mobile?.nav && view === 'talk' ? (
+          <nav className={s.mnav} aria-label="Main">
+            {mobile.nav}
+          </nav>
+        ) : null}
         <div className={s.body} ref={body} style={bodyStyle}>
           <section className={s.talk} aria-label={talkLabel}>
             <div className={s.scroll} aria-live="polite">
               <Thread>{talk}</Thread>
             </div>
             <div>
-              <button type="button" className={s.strip} onClick={() => setView('canvas')} aria-label="Open your portrait">
+              <button
+                type="button"
+                className={s.strip}
+                onClick={() => setView('canvas')}
+                aria-label={mobile?.previewAria ?? 'Open your portrait'}
+              >
                 <span className={s.thumb} aria-hidden="true">
                   <i style={{ top: 10, width: 24 }} />
                   <i style={{ top: 20 }} />

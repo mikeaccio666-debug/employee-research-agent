@@ -1,0 +1,68 @@
+/* V2-S20b-Ratings: the score, its distribution, and a flagged line. */
+@layer theme, base, components, utilities;
+
+@layer components {
+  .big {
+    font-size: 96px;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 0.9;
+    font-variant-numeric: tabular-nums;
+  }
+  .dist {
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr) 32px;
+    column-gap: 12px;
+    row-gap: 8px;
+    align-items: center;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+  .bar {
+    height: 8px;
+    border-radius: 2px;
+    background: var(--wall-2);
+    position: relative;
+    overflow: hidden;
+  }
+  .bar i {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    border-radius: 2px;
+    background: var(--ink);
+  }
+  .kv {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 8px;
+    font-size: 15px;
+  }
+  .kv b {
+    font-variant-numeric: tabular-nums;
+  }
+  .flag {
+    position: relative;
+    border-radius: 4px;
+    background: var(--warm);
+    padding: 16px 18px;
+  }
+  .flag .hid {
+    opacity: 0.55;
+    text-decoration: line-through;
+    text-decoration-thickness: 2px;
+  }
+  @media (max-width: 760px) {
+    .big {
+      font-size: 80px;
+    }
+    .kv {
+      column-gap: 12px;
+    }
+    /* Long values (“Too few reviews…”) would take the whole row; cap their column. */
+    .kvWide {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 45%);
+    }
+  }
+}

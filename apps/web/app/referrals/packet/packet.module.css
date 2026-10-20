@@ -1,0 +1,74 @@
+/* V2-S19b-Packet: the referral packet. Each line is confirmed before the packet
+   can go into the pool. The top bar is FlowBar. */
+@layer theme, base, components, utilities;
+
+@layer components {
+  .ln2 {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 16px;
+    align-items: start;
+    padding: 12px 14px;
+    margin: 0 -14px;
+    border-radius: 4px;
+    transition: background-color var(--t-m) var(--spring);
+  }
+  .ln2.todo {
+    background: var(--warm);
+  }
+  .ok {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .ok svg {
+    width: 16px;
+    height: 12px;
+  }
+  .ok path {
+    stroke: var(--ink);
+    stroke-width: 2.6;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .pool[aria-disabled='true'] {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  .ev {
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr) auto;
+    column-gap: 12px;
+    align-items: start;
+  }
+  .ev .k {
+    font-family: var(--hand);
+    font-weight: 600;
+    font-size: 17px;
+  }
+  /* the résumé thumbnail's text lines */
+  .rl {
+    display: block;
+    height: 7px;
+    border-radius: 2px;
+    background: var(--ink-3);
+    opacity: 0.4;
+  }
+  .crumb {
+    text-decoration: none;
+  }
+  .crumb:hover {
+    text-decoration: underline;
+  }
+
+  @media (max-width: 760px) {
+    .ln2 {
+      grid-template-columns: minmax(0, 1fr);
+      row-gap: 8px;
+    }
+  }
+}

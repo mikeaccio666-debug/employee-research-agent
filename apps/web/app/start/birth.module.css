@@ -1,0 +1,190 @@
+/* V2-S04 birth moment: six storyboard frames. */
+@layer theme, base, components, utilities;
+
+@layer components {
+  .frames {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px 20px;
+  }
+  .fr {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .fr > figcaption {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .st {
+    position: relative;
+    height: 300px;
+    border-radius: 4px;
+    background: var(--wall-2);
+    overflow: hidden;
+  }
+  .scr {
+    position: absolute;
+    inset: 14px;
+    border-radius: 3px;
+    background: var(--wall);
+    overflow: hidden;
+  }
+  /* The buttons inside the frames are drawings, not controls. */
+  .scr :global(.btn) {
+    cursor: default;
+  }
+  .bub {
+    border-radius: 4px;
+    padding: 8px 10px;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .bub.user {
+    background: var(--trim);
+    margin-left: auto;
+    max-width: 70%;
+  }
+  .bub.agent {
+    max-width: 80%;
+  }
+  .mini {
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .tag > span {
+    font-family: var(--hand);
+    font-weight: 600;
+    font-size: 16px;
+  }
+  .fr .cap {
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .pen path {
+    stroke: var(--ink);
+    stroke-width: 3;
+    fill: none;
+    stroke-linecap: round;
+  }
+  .rl {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 14px;
+    background: repeating-linear-gradient(to bottom, var(--ink-3) 0 2px, transparent 2px 14px) right top/8px 100%
+      no-repeat;
+    box-shadow: inset -2px 0 0 var(--ink-3);
+  }
+  .bar2 {
+    height: 8px;
+    border-radius: 2px;
+    background: var(--ink-3);
+    opacity: 0.35;
+  }
+  .opt2 {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 7px 9px;
+    border-radius: 3px;
+    background: var(--trim);
+    font-size: 12px;
+  }
+  .opt2 .r {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid var(--ink);
+    flex: none;
+    position: relative;
+  }
+  .opt2.on {
+    box-shadow: inset 0 0 0 2px var(--ink);
+  }
+  .opt2.on .r::after {
+    content: '';
+    position: absolute;
+    inset: 2px;
+    border-radius: 50%;
+    background: var(--ink);
+  }
+  .notes {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+  }
+  .n {
+    border-radius: 4px;
+    background: var(--trim);
+    padding: 16px 18px;
+  }
+  .tl {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 0;
+    margin-top: 22px;
+    position: relative;
+  }
+  .tl span {
+    font-size: 13px;
+    font-weight: 700;
+    padding-top: 14px;
+    position: relative;
+  }
+  .tl span::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 3px;
+    height: 10px;
+    border-radius: 2px;
+    background: var(--ink);
+  }
+  .tl::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 4px;
+    height: 2px;
+    background: var(--ink-3);
+  }
+  @media (max-width: 1180px) {
+    .frames {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  /* One frame per row once two would squeeze the little screens. */
+  @media (max-width: 900px) {
+    .frames,
+    .notes {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .fr {
+      max-width: 520px;
+    }
+  }
+  /* Phones: the timeline folds into two rows of three. */
+  @media (max-width: 760px) {
+    .tl {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      row-gap: 14px;
+    }
+    .tl::before {
+      display: none;
+    }
+    .tl span {
+      background: linear-gradient(var(--ink-3), var(--ink-3)) 0 4px / 100% 2px no-repeat;
+    }
+  }
+}

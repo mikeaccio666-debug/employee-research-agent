@@ -32,6 +32,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 6px;
     min-height: 40px;
     font-size: 15px;
     font-weight: 700;
@@ -72,12 +73,21 @@
       display: flex;
       align-items: center;
       gap: 4px;
-      padding: 10px 16px;
+      padding: 10px 16px 10px 0;
       background: var(--wall-2);
       overflow-x: auto;
     }
+    /* The brand stays put while the links scroll under it. */
     .mnav .brand {
-      margin: 0 10px 0 0;
+      position: sticky;
+      left: 0;
+      z-index: 1;
+      align-self: stretch;
+      display: flex;
+      align-items: center;
+      margin: -10px 0;
+      padding: 0 12px 0 16px;
+      background: var(--wall-2);
       font-size: 17px;
     }
     .mnav .link {

@@ -64,6 +64,7 @@
     position: relative;
   }
   .mbar,
+  .mnav,
   .strip,
   .mtalk {
     display: none;
@@ -71,9 +72,34 @@
 
   @media (max-width: 760px) {
     .app {
-      grid-template-rows: auto minmax(0, 1fr);
+      display: flex;
+      flex-direction: column;
       height: 100dvh;
       min-height: 0;
+    }
+    .body {
+      flex: 1;
+    }
+    .mnav {
+      display: flex;
+      gap: 4px;
+      padding: 4px 14px 8px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .mnav :global(a) {
+      flex: none;
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: none;
+      color: var(--ink-2);
+      padding: 8px 10px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+    .mnav :global(a[aria-current='page']) {
+      color: var(--ink);
+      background: var(--wall-2);
     }
     .top,
     .split {

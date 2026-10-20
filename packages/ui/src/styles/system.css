@@ -45,9 +45,16 @@
   body{margin:0}
   /* app: no single word stranded on a paragraph's last line */
   :where(.pv) :is(p,li,blockquote,figcaption){text-wrap:pretty}
-  /* app: follow the system theme unless the person picked one (.light / .dark next to .pv) */
+  /* app: the person's choice (.light / .dark on <html>, set before paint), else the system
+     theme. A nested .pv.light or .pv.dark keeps its own theme either way. */
+  :where(:root.dark) .pv:not(.light){
+    --wall:oklch(0.245 0.030 250);--wall-2:oklch(0.210 0.028 250);--trim:oklch(0.300 0.025 1);--warm:oklch(0.350 0.033 1);
+    --chalk:oklch(0.820 0.110 80);--on-chalk:oklch(0.210 0.028 250);
+    --ink:oklch(0.950 0.018 85);--ink-2:oklch(0.830 0.020 85);--ink-3:oklch(0.730 0.020 85);--edge:oklch(0.570 0.025 250);
+    --new:var(--chalk);--me:oklch(0.76 0.10 168);--me-wash:oklch(0.32 0.05 168);
+  }
   @media (prefers-color-scheme:dark){
-    .pv:not(.light){
+    :where(:root:not(.light)) .pv:not(.light){
       --wall:oklch(0.245 0.030 250);--wall-2:oklch(0.210 0.028 250);--trim:oklch(0.300 0.025 1);--warm:oklch(0.350 0.033 1);
       --chalk:oklch(0.820 0.110 80);--on-chalk:oklch(0.210 0.028 250);
       --ink:oklch(0.950 0.018 85);--ink-2:oklch(0.830 0.020 85);--ink-3:oklch(0.730 0.020 85);--edge:oklch(0.570 0.025 250);
@@ -153,6 +160,8 @@
   .grow{display:grid;grid-template-rows:0fr;transition:grid-template-rows var(--t-m) var(--spring)}
   .grow.open{grid-template-rows:1fr}
   .grow>div{overflow:hidden;min-height:0}
+  /* app: once open, let focus rings show past the fold's edge */
+  .grow.open>div{overflow:clip;overflow-clip-margin:6px}
   .gl{position:relative;padding-left:18px}
   .gl::before{content:"";position:absolute;left:0;top:4px;bottom:4px;width:3px;border-radius:2px;background:var(--ink);transform:scaleY(0);transform-origin:top;transition:transform var(--t-m) var(--spring)}
   .grow.open .gl::before,.gl.on::before{transform:scaleY(1)}

@@ -72,6 +72,7 @@ export function Alias({ name, context, className }: { name: string; context?: st
   return (
     <p className={className}>
       <span className="t-h3">{name}</span>
+      {context ? ' ' : null}
       {context ? (
         <span className="t-xs c2" style={{ marginLeft: 8 }}>
           {context}

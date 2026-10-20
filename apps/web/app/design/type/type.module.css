@@ -1,0 +1,84 @@
+/* V2-Type: the board's <style> block, plus stacking for narrower screens. */
+@layer theme, base, components, utilities;
+
+@layer components {
+  .sec {
+    padding-top: 80px;
+  }
+  .sech {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .sech .n {
+    font-family: var(--hand);
+    font-size: 22px;
+    font-weight: 600;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: 150px 170px minmax(0, 1fr) minmax(0, 0.8fr);
+    column-gap: 24px;
+    align-items: baseline;
+    padding: 18px 0;
+  }
+  .row + .row {
+    box-shadow: 0 -2px 0 0 var(--wall-2);
+  }
+  .spec {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .fam {
+    padding: 24px 26px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .rule {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr);
+    column-gap: 10px;
+    padding: 9px 0;
+  }
+  .rule .k {
+    font-family: var(--hand);
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  /* app: below 1180 the specimens of a step sit under its name and spec */
+  @media (max-width: 1180px) {
+    .row {
+      grid-template-columns: 150px minmax(0, 1fr);
+      row-gap: 10px;
+    }
+    .row > :nth-child(n + 3) {
+      grid-column: 1 / -1;
+    }
+  }
+
+  @media (max-width: 760px) {
+    .sec {
+      padding-top: 56px;
+    }
+    .sech {
+      column-gap: 12px;
+    }
+    .sech h2 {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+    .sech p {
+      flex-basis: 100%;
+    }
+    .row {
+      grid-template-columns: 96px minmax(0, 1fr);
+      column-gap: 14px;
+    }
+  }
+}

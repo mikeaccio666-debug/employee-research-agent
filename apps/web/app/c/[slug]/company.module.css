@@ -1,0 +1,205 @@
+/* V2-S11-Company: Northwind's public page. */
+@layer theme, base, components, utilities;
+
+@layer components {
+  /* 132px as drawn; scales down before "Northwind" outgrows its column. */
+  .name {
+    font-size: clamp(64px, 11vw, 132px);
+  }
+  .factsCol {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    align-self: end;
+  }
+  .facts {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr);
+    row-gap: 6px;
+    font-size: 15px;
+  }
+  .facts dt {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink-2);
+  }
+
+  /* The company's height line. Keyframes are local to this module. */
+  @keyframes draw {
+    from {
+      stroke-dashoffset: 1;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+  .growth {
+    position: relative;
+    height: 200px;
+    margin-top: 14px;
+  }
+  .growth svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+  .growth .base {
+    stroke: var(--ink-3);
+    stroke-width: 2;
+    fill: none;
+  }
+  .growth .tk {
+    stroke: var(--ink);
+    stroke-width: 3;
+    stroke-linecap: round;
+    fill: none;
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: draw var(--t-draw) var(--spring) forwards;
+  }
+  .growth .tk.now {
+    stroke: var(--new);
+  }
+  .growth .lbl {
+    position: absolute;
+    font-family: var(--hand);
+    font-size: 15px;
+    transform: translateX(-50%);
+    white-space: nowrap;
+  }
+  .growth .lblNow {
+    font-weight: 600;
+  }
+  .growth .month {
+    top: 186px;
+    font-family: var(--f);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .growth .tk {
+      animation: none !important;
+      stroke-dashoffset: 0 !important;
+    }
+  }
+
+  /* Open roles: one line each, the detail grows in place. */
+  .roles {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 10px -20px 0;
+  }
+  .role {
+    border-radius: 4px;
+    transition: background-color var(--t-m) var(--spring);
+  }
+  .role:hover {
+    background: color-mix(in oklch, var(--trim) 55%, transparent);
+  }
+  .role.open {
+    background: var(--trim);
+  }
+  .rh {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto 28px;
+    column-gap: 16px;
+    align-items: center;
+    width: 100%;
+    padding: 16px 20px;
+    border: 0;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    color: var(--ink);
+  }
+  .rb2 {
+    padding: 0 20px 20px;
+  }
+  .pm2 {
+    font-size: 22px;
+    font-weight: 700;
+    transition: transform var(--t-m) var(--spring);
+  }
+  .role.open .pm2 {
+    transform: rotate(45deg);
+  }
+
+  .person {
+    display: grid;
+    grid-template-columns: 56px minmax(0, 1fr);
+    column-gap: 14px;
+    align-items: center;
+  }
+  .av {
+    width: 56px;
+    height: 56px;
+    border-radius: 3px;
+    background: var(--wall-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 18px;
+  }
+  .shot {
+    border-radius: 4px;
+    background: var(--wall-2);
+    aspect-ratio: 16 / 9;
+    display: flex;
+    align-items: flex-end;
+    padding: 12px;
+    position: relative;
+    overflow: hidden;
+  }
+  .shot svg {
+    position: absolute;
+    inset: 18px 18px 40px;
+    width: calc(100% - 36px);
+    height: calc(100% - 58px);
+  }
+  .shot svg * {
+    fill: none;
+    stroke: var(--ink-3);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+  }
+
+  /* Narrower screens: the facts sit under the name, beside the buttons. */
+  @media (max-width: 1180px) {
+    .factsCol {
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      column-gap: 40px;
+    }
+    .factsCol .facts {
+      flex: 0 1 420px;
+    }
+  }
+  .rail {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  /* Stacked under the page: rail boxes side by side while they fit. */
+  @media (max-width: 900px) {
+    .rail {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      align-items: start;
+    }
+  }
+  @media (max-width: 760px) {
+    .roles {
+      margin: 10px -16px 0;
+    }
+    .rh {
+      padding: 16px;
+      column-gap: 12px;
+    }
+    .rb2 {
+      padding: 0 16px 20px;
+    }
+  }
+}

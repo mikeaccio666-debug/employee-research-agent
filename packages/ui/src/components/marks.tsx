@@ -63,11 +63,15 @@ export type TallyProps = Styled & {
   n: number;
   /** Accessible label; defaults to "n proofs". Pass `null` when the count is said nearby. */
   label?: string | null;
+  /** Override the drawing, e.g. the wider five-gate some boards use (vw 32, slash to x 21). */
+  vw?: number;
+  d?: string;
 };
 
 /** Tally marks: one line per proof. */
-export function Tally({ n, label, className, style }: TallyProps) {
-  const t = TALLY[Math.max(1, Math.min(5, Math.round(n)))] ?? TALLY[1]!;
+export function Tally({ n, label, vw, d, className, style }: TallyProps) {
+  const base = TALLY[Math.max(1, Math.min(5, Math.round(n)))] ?? TALLY[1]!;
+  const t = { vw: vw ?? base.vw, d: d ?? base.d };
   const text = label === undefined ? `${n} ${n === 1 ? 'proof' : 'proofs'}` : label;
   return (
     <svg

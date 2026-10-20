@@ -1,0 +1,84 @@
+/* V2-S01b-Agent-Event: the in-app event page, with the agent drafting a question beside it. */
+@layer theme, base, components, utilities;
+
+@layer components {
+  /* The page column narrows when the agent panel opens beside it; its own width decides
+     how the title and the two panels sit, not the window's. */
+  .page {
+    container-type: inline-size;
+  }
+  .page .title {
+    font-size: 56px;
+  }
+  .panels {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+    margin-top: 36px;
+  }
+  @container (max-width: 640px) {
+    .panels {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  @container (max-width: 520px) {
+    .page .title {
+      font-size: 40px;
+    }
+  }
+  .ag {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr);
+    column-gap: 14px;
+    padding: 12px 10px;
+    margin: 0 -10px;
+    border-radius: 4px;
+    transition: background-color var(--t-m) var(--spring);
+  }
+  /* Lit while its receipt in the conversation is hovered, or after "Show on page". */
+  .ag.hilite {
+    background: var(--warm);
+  }
+  .q {
+    display: grid;
+    grid-template-columns: 52px minmax(0, 1fr);
+    column-gap: 14px;
+    padding: 12px 0;
+    align-items: start;
+  }
+  .vote {
+    min-height: 44px;
+    border: 0;
+    border-radius: 4px;
+    background: var(--wall-2);
+    font: 700 14px/1 var(--f);
+    color: var(--ink);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+  .vote.on {
+    background: var(--ink);
+    color: var(--wall);
+  }
+  /* The drafted question, waiting for a yes inside the conversation. */
+  .confirm {
+    border-radius: 4px;
+    background: var(--trim);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 12px;
+  }
+  .swrow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+}

@@ -92,5 +92,10 @@
     .panel {
       width: 100%;
     }
+    /* Boards drawn with the panel open open it on wide screens only; on a phone it
+       would cover the page, so it stays tucked away until the shell settles. */
+    .panel.open.auto {
+      transform: translateX(100%);
+    }
   }
 }

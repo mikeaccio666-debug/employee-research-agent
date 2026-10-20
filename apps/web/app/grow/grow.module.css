@@ -1,0 +1,168 @@
+/* V2-S17-Grow: the growth plan. The workspace frame (top bar, talk, split, canvas)
+   comes from components/workspace; these are the board's own rules. */
+@layer theme, base, components, utilities;
+
+@layer components {
+  /* top bar: inline nav links (the board's `.top a`) */
+  .topnav {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-left: 10px;
+  }
+  .topnav a {
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+    color: var(--ink-2);
+    padding: 8px 10px;
+    border-radius: 4px;
+  }
+  .topnav a.on {
+    color: var(--ink);
+    background: var(--wall);
+  }
+
+  /* canvas sheet */
+  .sheet {
+    container: sheet / inline-size;
+    position: relative;
+    padding: 28px 48px 64px 96px;
+  }
+  .sheet :global(.ruler) {
+    left: 24px;
+  }
+
+  /* where you stand */
+  .need {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 150px 120px;
+    column-gap: 16px;
+    align-items: center;
+    padding: 12px 14px;
+    margin: 0 -14px;
+    border-radius: 4px;
+    transition: background-color var(--t-m) var(--spring);
+  }
+  .need.lit {
+    background: var(--warm);
+  }
+  .bar {
+    height: 8px;
+    border-radius: 2px;
+    background: var(--wall-2);
+    position: relative;
+    overflow: hidden;
+  }
+  .bar i {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    background: var(--ink-3);
+    border-radius: 2px;
+  }
+  .st {
+    font-size: 13px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    justify-self: end;
+  }
+  .st :global(.must) i {
+    width: 12px;
+    height: 12px;
+  }
+
+  /* the plan */
+  .item {
+    border-radius: 4px;
+    transition: background-color var(--t-m) var(--spring);
+  }
+  .item.open {
+    background: var(--trim);
+  }
+  .ih {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    column-gap: 14px;
+    align-items: center;
+    width: 100%;
+    padding: 14px 16px;
+    border: 0;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    color: var(--ink);
+  }
+  .ih .n {
+    font-family: var(--hand);
+    font-size: 20px;
+    font-weight: 600;
+  }
+  .toggle {
+    border: 0;
+    background: none;
+    text-align: left;
+    padding: 0;
+    cursor: pointer;
+    color: inherit;
+  }
+  .ib {
+    padding: 0 16px 16px 64px;
+  }
+  .state {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 3px;
+    background: var(--wall-2);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .state.prog {
+    background: var(--chalk);
+    color: var(--on-chalk);
+  }
+  .state.done {
+    background: var(--ink);
+    color: var(--wall);
+  }
+  /* "Undo" on the first receipt only means something while item 1 is in progress */
+  .undo[disabled] {
+    opacity: 0.45;
+    cursor: default;
+  }
+  .item.isdone .ttl {
+    text-decoration: line-through;
+    text-decoration-thickness: 2px;
+    text-decoration-color: var(--ink-3);
+  }
+
+  @media (max-width: 760px) {
+    /* room for the Talk button that floats over the canvas on phones */
+    .sheet {
+      padding: 20px 20px 104px;
+    }
+  }
+  /* the canvas can be narrow on small laptops too: fold the rows on the sheet's own width */
+  @container sheet (max-width: 479px) {
+    .need {
+      grid-template-columns: minmax(0, 1fr) auto;
+      row-gap: 8px;
+    }
+    .nb {
+      grid-column: 1 / -1;
+      grid-row: 2;
+    }
+    .st {
+      grid-column: 2;
+      grid-row: 1;
+    }
+  }
+}

@@ -1,0 +1,118 @@
+/* V2-S18b-Unlock: a 4-frame storyboard of unlocking insider mode. Static, as drawn. */
+@layer theme, base, components, utilities;
+
+@layer components {
+  .frames {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 20px;
+  }
+  .fr {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .st {
+    position: relative;
+    height: 340px;
+    border-radius: 4px;
+    background: var(--wall-2);
+    overflow: hidden;
+    padding: 14px;
+  }
+  .scr {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--wall);
+    padding: 16px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    position: relative;
+  }
+  .mini {
+    font-size: 12px;
+    line-height: 1.45;
+  }
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .tag .t {
+    font-family: var(--hand);
+    font-weight: 600;
+    font-size: 16px;
+  }
+  .cap {
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .code {
+    display: flex;
+    gap: 6px;
+  }
+  .code span {
+    width: 30px;
+    height: 38px;
+    border-radius: 3px;
+    background: var(--trim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 16px;
+  }
+  .bub {
+    border-radius: 4px;
+    padding: 8px 10px;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .bub.u {
+    background: var(--trim);
+    margin-left: auto;
+    max-width: 80%;
+  }
+  /* Controls inside a frame are pictures of controls: same look, nothing to press. */
+  .pic {
+    cursor: default;
+  }
+  .seg span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 0 12px;
+    border-radius: 3px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .seg span.on {
+    background: var(--trim);
+  }
+  .rm {
+    padding: 16px 20px;
+    display: grid;
+    grid-template-columns: 140px minmax(0, 1fr);
+    column-gap: 16px;
+  }
+
+  @media (max-width: 1180px) {
+    .frames {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      row-gap: 32px;
+    }
+  }
+  @media (max-width: 760px) {
+    .frames {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .rm {
+      grid-template-columns: minmax(0, 1fr);
+      row-gap: 4px;
+    }
+  }
+}

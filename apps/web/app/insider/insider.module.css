@@ -1,0 +1,157 @@
+/* V2-S18-Insider: Jordan's insider home. The left nav comes from AppShell.
+   The columns answer to the page column's width (container queries), so they also
+   fold when the agent panel opens and takes 480px of it. */
+@layer theme, base, components, utilities;
+
+@layer components {
+  .main {
+    container: page / inline-size;
+  }
+  .cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    column-gap: 40px;
+  }
+  .left {
+    container: col / inline-size;
+  }
+  /* 112px as drawn; smaller only when the column can't hold "Jordan Lee" on one line */
+  .left .name {
+    font-size: min(112px, 20cqi);
+  }
+  .side {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* requests: one line, grow in place */
+  .rq {
+    border-radius: 4px;
+    transition: background-color var(--t-m) var(--spring);
+  }
+  .rq:hover {
+    background: color-mix(in oklch, var(--trim) 55%, transparent);
+  }
+  .rq.open {
+    background: var(--trim);
+  }
+  .rqh {
+    display: grid;
+    grid-template-columns: 52px minmax(0, 1fr) auto;
+    column-gap: 14px;
+    align-items: baseline;
+    width: 100%;
+    padding: 14px 16px;
+    border: 0;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    color: var(--ink);
+  }
+  .rqh .id {
+    font-family: var(--hand);
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .rqb {
+    padding: 0 16px 18px 82px;
+  }
+
+  /* referral log (the board's 4-column grid, as a table) */
+  .log {
+    width: 100%;
+    margin-top: 8px;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 14px;
+  }
+  .log th,
+  .log td {
+    padding: 10px 0;
+    text-align: left;
+    vertical-align: top;
+  }
+  .log th {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink-2);
+  }
+  .log th:first-child {
+    width: 28.57%;
+  }
+  .log td {
+    box-shadow: inset 0 2px 0 0 var(--wall-2);
+  }
+
+  /* coffee-chat hours */
+  .hr {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+  }
+  .hr + .hr {
+    box-shadow: 0 -2px 0 0 var(--wall-2);
+  }
+
+  @container page (max-width: 899px) {
+    .cols {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .side {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: start;
+      margin-top: 40px;
+    }
+  }
+  @container page (max-width: 559px) {
+    .side {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  @container col (max-width: 479px) {
+    .rqh {
+      grid-template-columns: 44px minmax(0, 1fr);
+      row-gap: 8px;
+    }
+    .rqh > :last-child {
+      grid-column: 2;
+      justify-self: start;
+    }
+    .rqb {
+      padding: 0 16px 18px 74px;
+    }
+    /* the log stacks: one block per person, column names inline */
+    .log,
+    .log tbody,
+    .log tr,
+    .log td {
+      display: block;
+    }
+    .log thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+    }
+    .log tr {
+      padding: 10px 0;
+      box-shadow: inset 0 2px 0 0 var(--wall-2);
+    }
+    .log td {
+      padding: 0;
+      box-shadow: none;
+    }
+    .log td[data-label]::before {
+      content: attr(data-label) " · ";
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink-2);
+    }
+  }
+}

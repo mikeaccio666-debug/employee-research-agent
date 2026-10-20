@@ -16,9 +16,9 @@ export function Thread({ className, style, children }: Base) {
   );
 }
 
-export function AgentMessage({ className, style, children }: Base) {
+export function AgentMessage({ lang, className, style, children }: Base & { lang?: string }) {
   return (
-    <div className={cx('m-a', className)} style={style}>
+    <div className={cx('m-a', className)} style={style} lang={lang}>
       {children}
     </div>
   );
@@ -101,7 +101,8 @@ export type ComposerProps = {
   /** A <ContextTag> shown above the text box. */
   context?: ReactNode;
   rows?: number;
-  onSend?: (text: string) => void;
+  /** Return false when the send failed: the text stays in the box (show `error` alongside). */
+  onSend?: (text: string) => void | boolean;
   /** Composer background. Chips take the other surface so they stay visible. */
   surface?: 'trim' | 'wall';
   /** One row of suggestions that clips instead of wrapping (phones). */
@@ -139,8 +140,7 @@ export function Composer({
   const send = (value: string) => {
     const v = value.trim();
     if (!v || disabled) return;
-    onSend?.(v);
-    setText('');
+    if (onSend?.(v) !== false) setText('');
   };
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {

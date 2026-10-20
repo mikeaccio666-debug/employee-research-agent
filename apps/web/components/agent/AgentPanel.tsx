@@ -34,12 +34,21 @@ export function useLocalThread() {
   return { nodes, send };
 }
 
-type Props = AgentConfig & { open: boolean; onOpenChange: (open: boolean) => void };
+type Props = AgentConfig & {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** Opened by default rather than by the person: hidden on narrow screens until settled. */
+  auto?: boolean;
+  /** Changes when page content asks for the cursor in the message box (useShell().openAgent). */
+  focusToken?: number;
+};
 
 /** The always-on agent: a Talk button (⌘J) that slides the conversation in from the right. */
 export function AgentPanel({
   open,
   onOpenChange,
+  auto,
+  focusToken = 0,
   context,
   caption,
   thread,
@@ -49,12 +58,18 @@ export function AgentPanel({
   const { nodes, send } = useLocalThread();
   const panel = useRef<HTMLElement>(null);
   const talk = useRef<HTMLButtonElement>(null);
-  const wasOpen = useRef(open);
+  // Focus follows the person's own open/close only, never a default opening or settling.
+  const focusNext = useRef<'panel' | 'talk' | null>(null);
+  const setOpen = (next: boolean) => {
+    focusNext.current = next ? 'panel' : 'talk';
+    onOpenChange(next);
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') {
         e.preventDefault();
+        focusNext.current = open ? 'talk' : 'panel';
         onOpenChange(!open);
       }
     };
@@ -63,9 +78,14 @@ export function AgentPanel({
   }, [open, onOpenChange]);
 
   useEffect(() => {
-    if (open && !wasOpen.current) panel.current?.querySelector('textarea')?.focus({ preventScroll: true });
-    if (!open && wasOpen.current) talk.current?.focus({ preventScroll: true });
-    wasOpen.current = open;
+    if (focusToken) panel.current?.querySelector('textarea')?.focus({ preventScroll: true });
+  }, [focusToken]);
+
+  useEffect(() => {
+    const target = focusNext.current;
+    focusNext.current = null;
+    if (target === 'panel' && open) panel.current?.querySelector('textarea')?.focus({ preventScroll: true });
+    if (target === 'talk' && !open) talk.current?.focus({ preventScroll: true });
   }, [open]);
 
   return (
@@ -75,7 +95,7 @@ export function AgentPanel({
           ref={talk}
           type="button"
           className={s.talkbtn}
-          onClick={() => onOpenChange(true)}
+          onClick={() => setOpen(true)}
           aria-keyshortcuts="Meta+J Control+J"
         >
           Talk <Kbd style={{ color: 'var(--wall)' }}>⌘J</Kbd>
@@ -83,18 +103,18 @@ export function AgentPanel({
       )}
       <aside
         ref={panel}
-        className={cx(s.panel, open && s.open)}
+        className={cx(s.panel, open && s.open, auto && s.auto)}
         aria-label="Talk to Portrait"
         inert={!open}
         onKeyDown={(e) => {
-          if (e.key === 'Escape') onOpenChange(false);
+          if (e.key === 'Escape') setOpen(false);
         }}
       >
         <span className={s.edge} aria-hidden="true" />
         <div>
           <div className={s.ph}>
             <p className="t-h3">Talk</p>
-            <Button variant="quiet" size="sm" onClick={() => onOpenChange(false)}>
+            <Button variant="quiet" size="sm" onClick={() => setOpen(false)}>
               Close
             </Button>
           </div>

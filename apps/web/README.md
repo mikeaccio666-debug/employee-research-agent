@@ -67,9 +67,10 @@ screen CSS modules) → `utilities` (Tailwind). Later layers win regardless of s
 ### Theme
 
 Light 晨 and dark 夜 come from tokens. The page follows the system theme unless the person picked
-one (`.light`/`.dark` on `<body>`, saved in `localStorage`). `?theme=dark` shows one page view in
-dark without saving it. Never hard-code a theme on a screen; a fixed-theme object (a share card)
-can wrap itself in `<div className="pv dark">`. The canvas's "wine" tweak variables equal the
+one (`.light`/`.dark` on `<html>`, saved in `localStorage` and applied by an inline script in
+`<head>` before first paint). `?theme=dark` shows one page view in dark without saving it. Never
+hard-code a theme on a screen; a fixed-theme object (a share card, one half of a light/dark
+comparison) wraps itself in `<div className="pv dark">` or `<div className="pv light">`. The canvas's "wine" tweak variables equal the
 defaults in `system.css` and need no code.
 
 ### Motion
@@ -103,7 +104,9 @@ The spring is `var(--spring)`; durations `--t-press 120 · --t-s 240 · --t-draw
 
 `ShellMain` is the page column (`padding: 28px 40px 64px`); it makes room when the agent panel
 opens. Every signed-in page gets the agent (Talk ⌘J) unless the board carries its own
-conversation (`agent={false}`). `useShell()` opens the panel from page content.
+conversation (`agent={false}`). `useShell().openAgent({ focus: true })` opens it from page content
+with the cursor in its message box. Boards drawn with the panel open pass `defaultOpen`; it opens
+on screens wider than 900px only.
 
 ```tsx
 <Workspace top={…} talk={…} composer={<Composer … />} canvasLabel="Your portrait, live" resizable

@@ -1,0 +1,52 @@
+/* S20: tally-mark scores (.marks / .mk / .num in the board). */
+@layer theme, base, components, utilities;
+
+@layer components {
+  .marks {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+  .mk {
+    width: 34px;
+    height: 40px;
+    border: 0;
+    border-radius: 3px;
+    background: none;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .mk:hover {
+    background: var(--wall-2);
+  }
+  .mk svg {
+    width: 8px;
+    height: 28px;
+    overflow: visible;
+  }
+  .mk path {
+    stroke: var(--ink-3);
+    stroke-width: 3;
+    stroke-linecap: round;
+    fill: none;
+    opacity: 0.45;
+  }
+  .mk.on path {
+    stroke: var(--ink);
+    opacity: 1;
+  }
+  .mk:focus-visible {
+    outline: 3px solid var(--ink);
+    outline-offset: 1px;
+  }
+  .score {
+    font-size: 28px;
+    font-weight: 800;
+    margin-left: 10px;
+    font-variant-numeric: tabular-nums;
+    min-width: 1.2ch;
+  }
+}

@@ -7,12 +7,12 @@ import { THEME_KEY } from './theme';
 type Choice = 'light' | 'dark' | 'system';
 
 function read(): Choice {
-  const c = document.body.classList;
+  const c = document.documentElement.classList;
   return c.contains('dark') ? 'dark' : c.contains('light') ? 'light' : 'system';
 }
 
 export function applyTheme(choice: Choice) {
-  const c = document.body.classList;
+  const c = document.documentElement.classList;
   c.remove('light', 'dark');
   try {
     if (choice === 'system') localStorage.removeItem(THEME_KEY);

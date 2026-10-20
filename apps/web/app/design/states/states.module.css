@@ -1,0 +1,120 @@
+/* V2-S14 states: empty, loading, streaming, error, offline, refused, not found. */
+@layer theme, base, components, utilities;
+
+@layer components {
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+  }
+  .st {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .box {
+    border-radius: 4px;
+    background: var(--trim);
+    padding: 24px 26px;
+    min-height: 240px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 10px;
+    position: relative;
+    overflow: hidden;
+  }
+  .st .cap {
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  /* Loading is written in pencil, line by line, never a shimmering skeleton. */
+  .set {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 6px;
+  }
+  .set i {
+    display: block;
+    height: 10px;
+    border-radius: 2px;
+    background: var(--ink-3);
+    transform-origin: left;
+    animation: st-write 1800ms var(--spring) infinite;
+  }
+  .set i:nth-child(2) {
+    animation-delay: 240ms;
+  }
+  .set i:nth-child(3) {
+    animation-delay: 480ms;
+  }
+  @keyframes st-write {
+    0% {
+      transform: scaleX(0);
+      opacity: 1;
+    }
+    55% {
+      transform: scaleX(1);
+      opacity: 1;
+    }
+    85% {
+      opacity: 1;
+    }
+    100% {
+      transform: scaleX(1);
+      opacity: 0;
+    }
+  }
+  .caret {
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    background: var(--ink);
+    vertical-align: -0.15em;
+    margin-left: 2px;
+    animation: st-blink 1s steps(2) infinite;
+  }
+  @keyframes st-blink {
+    50% {
+      opacity: 0;
+    }
+  }
+  .offline {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 30px;
+    padding: 0 10px;
+    border-radius: 3px;
+    background: var(--wall-2);
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .offline i {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 2px var(--ink);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .set i {
+      animation: none;
+      transform: none;
+      opacity: 0.5;
+    }
+    .caret {
+      animation: none;
+    }
+  }
+  @media (max-width: 900px) {
+    .grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  @media (max-width: 760px) {
+    .box {
+      padding: 20px;
+    }
+  }
+}

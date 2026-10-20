@@ -1,0 +1,48 @@
+/* V2-S08b-CoffeeChat: the conversation with Northwind beside a 320px rail.
+   Reflows on the page column's own width, so it also stacks when the agent panel opens. */
+@layer theme, base, components, utilities;
+
+@layer components {
+  .main {
+    container: chat / inline-size;
+  }
+  .cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 28px;
+    align-items: start;
+  }
+  @container chat (min-width: 860px) {
+    .cols {
+      grid-template-columns: minmax(0, 1fr) 320px;
+      column-gap: 40px;
+    }
+  }
+  .side {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  /* Stacked under the conversation: the three rail boxes sit side by side while they fit. */
+  @container chat (max-width: 859px) {
+    .side {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+  }
+  .gridbox {
+    border-radius: 4px;
+    background: var(--trim);
+    padding: 18px 20px 20px;
+    margin-top: 10px;
+  }
+  @container chat (max-width: 480px) {
+    .gridbox {
+      padding: 16px 14px 18px;
+    }
+  }
+  .confirm[aria-disabled='true'] {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}

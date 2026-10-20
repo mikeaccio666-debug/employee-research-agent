@@ -1,0 +1,56 @@
+/* V2-Components: the board's <style> block. Everything else comes from @portrait/ui. */
+@layer theme, base, components, utilities;
+
+@layer components {
+  .sec {
+    padding-top: 72px;
+  }
+  .sech {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 22px;
+    flex-wrap: wrap;
+  }
+  .sech .n {
+    font-family: var(--hand);
+    font-size: 22px;
+    font-weight: 600;
+  }
+  .card {
+    border-radius: 4px;
+    background: var(--trim);
+    padding: 22px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .card.w {
+    background: var(--wall-2);
+  }
+  .row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  @media (max-width: 760px) {
+    .sec {
+      padding-top: 56px;
+    }
+    .sech {
+      column-gap: 12px;
+    }
+    .sech h2 {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+    .sech p {
+      flex-basis: 100%;
+    }
+    .card {
+      padding: 20px 18px;
+    }
+  }
+}

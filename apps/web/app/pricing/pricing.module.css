@@ -1,0 +1,138 @@
+/* V2-S13 pricing: two plan tables and the plain answers.
+   The board draws the tables as CSS grids; here they are real tables with the same look. */
+@layer theme, base, components, utilities;
+
+@layer components {
+  .scroll {
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .tbl {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  .tbl th,
+  .tbl td {
+    padding: 12px 16px;
+    font-size: 15px;
+    font-weight: 400;
+    text-align: left;
+    vertical-align: middle;
+  }
+  .tbl thead th {
+    padding: 20px 16px 18px;
+    vertical-align: top;
+  }
+  .tbl tbody th,
+  .tbl tbody td {
+    box-shadow: inset 0 2px 0 0 var(--wall-2);
+  }
+  .tbl .k {
+    color: var(--ink);
+    font-weight: 500;
+  }
+  .tbl .col {
+    background: var(--trim);
+  }
+  /* Column widths: the board's 1.4fr + 1fr each. */
+  .startups .cLabel {
+    width: 31.818%;
+  }
+  .startups .cPlan {
+    width: 22.727%;
+  }
+  .people .cLabel {
+    width: 41.176%;
+  }
+  .people .cPlan {
+    width: 29.412%;
+  }
+  .h {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .price {
+    font-size: 44px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .yes {
+    display: block;
+    width: 18px;
+    height: 14px;
+  }
+  .yes path {
+    stroke: var(--ink);
+    stroke-width: 2.6;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .later {
+    font-family: var(--hand);
+    font-size: 14px;
+    color: var(--ink-2);
+  }
+  .qa {
+    border-radius: 4px;
+    transition: background-color var(--t-m) var(--spring);
+  }
+  .qa.open {
+    background: var(--trim);
+  }
+  .qh {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 28px;
+    width: 100%;
+    padding: 16px 20px;
+    border: 0;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    color: var(--ink);
+    align-items: center;
+  }
+  .pm2 {
+    font-size: 22px;
+    font-weight: 700;
+    transition: transform var(--t-m) var(--spring);
+  }
+  .qa.open .pm2 {
+    transform: rotate(45deg);
+  }
+  /* Narrow screens: the tables scroll sideways under a pinned label column. */
+  @media (max-width: 900px) {
+    .scroll {
+      overflow-x: auto;
+    }
+    .startups {
+      min-width: 630px;
+    }
+    .people {
+      min-width: 470px;
+    }
+    .startups .cLabel,
+    .people .cLabel {
+      width: 150px;
+    }
+    .startups .cPlan,
+    .people .cPlan {
+      width: 160px;
+    }
+    .tbl tr > :first-child {
+      position: sticky;
+      left: 0;
+      z-index: 1;
+      background: var(--wall);
+    }
+    .price {
+      font-size: 36px;
+    }
+  }
+}

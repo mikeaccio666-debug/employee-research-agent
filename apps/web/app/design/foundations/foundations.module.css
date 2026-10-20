@@ -1,0 +1,430 @@
+/* V2-Foundations: the board's <style> block with its six looping demos.
+   Keyframes are copied here (module keyframe names are scoped). Under
+   prefers-reduced-motion, system.css stops every animation, so each demo rests
+   in its finished state, as the board says. `.still` does the same on request. */
+@layer theme, base, components, utilities;
+
+@layer components {
+  .sec {
+    padding-top: 80px;
+  }
+  .sech {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .sech .n {
+    font-family: var(--hand);
+    font-size: 22px;
+    font-weight: 600;
+  }
+
+  /* spacing bars */
+  .sp {
+    display: flex;
+    align-items: flex-end;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .sp div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .sp i {
+    display: block;
+    background: var(--ink);
+    border-radius: 2px;
+    width: 14px;
+  }
+
+  /* the 12-column grid beside the ruler gutter, scaled to the panel it sits in */
+  .gridv {
+    position: relative;
+    height: 200px;
+    border-radius: 4px;
+    background: var(--wall);
+    overflow: hidden;
+    container-type: inline-size;
+  }
+  .gridv .cols {
+    position: absolute;
+    left: min(96px, 14.2cqw);
+    right: min(64px, 9.5cqw);
+    top: 0;
+    bottom: 0;
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: min(24px, 3.6cqw);
+  }
+  .gridv .cols span {
+    background: color-mix(in oklch, var(--chalk) 45%, transparent);
+  }
+  .gridv :global(.ruler) {
+    left: min(18px, 2.6cqw);
+  }
+
+  .edge {
+    box-shadow: inset 0 0 0 2px var(--edge);
+  }
+
+  .tokrow {
+    display: grid;
+    grid-template-columns: 150px 150px minmax(0, 1fr);
+    column-gap: 20px;
+    padding: 12px 0;
+    font-size: 15px;
+    align-items: baseline;
+  }
+  .tokrow + .tokrow {
+    box-shadow: 0 -2px 0 0 var(--wall-2);
+  }
+
+  .demo {
+    border-radius: 4px;
+    background: var(--trim);
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 300px;
+    position: relative;
+    overflow: hidden;
+  }
+  .stage {
+    position: relative;
+    height: 150px;
+    border-radius: 4px;
+    background: var(--wall);
+    overflow: hidden;
+  }
+  .cap {
+    font-size: 13px;
+    color: var(--ink-2);
+  }
+  .rmrow {
+    display: grid;
+    grid-template-columns: 170px minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 20px;
+    padding: 12px 0;
+    font-size: 15px;
+  }
+  .rmrow + .rmrow {
+    box-shadow: 0 -2px 0 0 var(--wall-2);
+  }
+
+  /* loop 1: draw a mark */
+  @keyframes f-draw {
+    0%,
+    8% {
+      stroke-dashoffset: 1;
+    }
+    22%,
+    84% {
+      stroke-dashoffset: 0;
+      opacity: 1;
+    }
+    94%,
+    100% {
+      stroke-dashoffset: 0;
+      opacity: 0;
+    }
+  }
+  @keyframes f-rise {
+    0%,
+    20% {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    32%,
+    84% {
+      opacity: 1;
+      transform: none;
+    }
+    94%,
+    100% {
+      opacity: 0;
+    }
+  }
+  .l1 path {
+    stroke-dasharray: 1;
+    animation: f-draw 3s var(--spring) infinite;
+  }
+  .l1 .t {
+    animation: f-rise 3s var(--spring) infinite;
+  }
+
+  /* loop 2: fold grows in place */
+  @keyframes f-fold {
+    0%,
+    12% {
+      clip-path: inset(0 0 100% 0);
+    }
+    30%,
+    82% {
+      clip-path: inset(0 0 0 0);
+    }
+    94%,
+    100% {
+      clip-path: inset(0 0 100% 0);
+    }
+  }
+  @keyframes f-line {
+    0%,
+    12% {
+      transform: scaleY(0);
+    }
+    30%,
+    82% {
+      transform: scaleY(1);
+    }
+    94%,
+    100% {
+      transform: scaleY(0);
+    }
+  }
+  .l2 .body {
+    animation: f-fold 3.2s var(--spring) infinite;
+  }
+  .l2 .line {
+    transform-origin: top;
+    animation: f-line 3.2s var(--spring) infinite;
+  }
+
+  /* loop 3: grow from source. --gx is the flight; it shortens when the stage is narrow. */
+  @keyframes f-ghost {
+    0%,
+    10% {
+      transform: translate(0, 0) scale(1);
+      opacity: 1;
+      border-radius: 6px 6px 2px 6px;
+    }
+    42% {
+      transform: translate(var(--gx), 46px) scale(1.25, 1.5);
+      opacity: 1;
+      border-radius: 4px;
+    }
+    52%,
+    100% {
+      transform: translate(var(--gx), 46px) scale(1.25, 1.5);
+      opacity: 0;
+    }
+  }
+  @keyframes f-target {
+    0%,
+    40% {
+      opacity: 0;
+    }
+    52%,
+    86% {
+      opacity: 1;
+    }
+    96%,
+    100% {
+      opacity: 0;
+    }
+  }
+  .l3 {
+    container-type: inline-size;
+    --gx: min(190px, calc(100cqw - 176px));
+  }
+  .l3 .ghost {
+    position: absolute;
+    left: 14px;
+    top: 18px;
+    width: 120px;
+    height: 34px;
+    background: var(--chalk);
+    animation: f-ghost 3.4s var(--spring) infinite;
+    transform-origin: top left;
+  }
+  .l3 .target {
+    position: absolute;
+    left: calc(14px + var(--gx));
+    top: 64px;
+    width: 150px;
+    height: 51px;
+    border-radius: 4px;
+    background: var(--trim);
+    animation: f-target 3.4s var(--spring) infinite;
+    padding: 8px 10px;
+  }
+
+  /* loop 4: press and settle */
+  @keyframes f-press {
+    0%,
+    14% {
+      transform: none;
+    }
+    18% {
+      transform: scale(0.98);
+    }
+    24%,
+    100% {
+      transform: none;
+    }
+  }
+  @keyframes f-land {
+    0%,
+    26% {
+      opacity: 0;
+      transform: translateY(-5px);
+    }
+    40%,
+    86% {
+      opacity: 1;
+      transform: none;
+    }
+    96%,
+    100% {
+      opacity: 0;
+    }
+  }
+  .l4 .press {
+    animation: f-press 3s var(--spring) infinite;
+  }
+  .l4 .ok {
+    animation: f-land 3s var(--spring) infinite;
+  }
+
+  /* loop 5: circle and strike */
+  @keyframes f-circ {
+    0%,
+    10% {
+      stroke-dashoffset: 1;
+    }
+    24%,
+    84% {
+      stroke-dashoffset: 0;
+      opacity: 1;
+    }
+    94%,
+    100% {
+      opacity: 0;
+    }
+  }
+  .l5 path {
+    stroke-dasharray: 1;
+    animation: f-circ 3s var(--spring) infinite;
+  }
+  .l5 .s2 path {
+    animation-delay: 0.4s;
+  }
+
+  /* loop 6: drag to reorder */
+  @keyframes f-lift {
+    0%,
+    10% {
+      transform: none;
+      background: var(--trim);
+    }
+    20% {
+      transform: translateY(-2px) scale(1.02) rotate(-0.6deg);
+    }
+    48% {
+      transform: translateY(46px) scale(1.02) rotate(-0.6deg);
+    }
+    58%,
+    86% {
+      transform: translateY(46px);
+    }
+    96%,
+    100% {
+      transform: none;
+    }
+  }
+  @keyframes f-make {
+    0%,
+    24% {
+      transform: none;
+    }
+    48%,
+    86% {
+      transform: translateY(-46px);
+    }
+    96%,
+    100% {
+      transform: none;
+    }
+  }
+  .l6 .lift {
+    animation: f-lift 3.4s var(--spring) infinite;
+    position: relative;
+    z-index: 2;
+  }
+  .l6 .make {
+    animation: f-make 3.4s var(--spring) infinite;
+  }
+  .bar::before {
+    content: '';
+    width: 10px;
+    height: 14px;
+    margin-right: 10px;
+    background: radial-gradient(circle, var(--ink-2) 1.5px, transparent 1.6px) 0 0 / 5px 5px;
+  }
+  .bar {
+    height: 38px;
+    border-radius: 4px;
+    background: var(--trim);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    font-size: 14px;
+    font-weight: 700;
+    margin: 8px 12px 0;
+  }
+
+  /* app: preview the reduced-motion version: every loop rests in its finished state */
+  .still * {
+    animation: none !important;
+  }
+
+  @media (max-width: 1180px) {
+    .tokrow {
+      grid-template-columns: 120px minmax(0, 1fr);
+      row-gap: 2px;
+    }
+    .tokrow > :nth-child(3) {
+      grid-column: 2;
+    }
+  }
+
+  @media (max-width: 760px) {
+    .sec {
+      padding-top: 56px;
+    }
+    .sech {
+      column-gap: 12px;
+    }
+    .sech h2 {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+    .sech > p,
+    .sech > .ctl {
+      flex-basis: 100%;
+    }
+    .sp {
+      gap: 6px;
+    }
+    /* the demos keep their rulers: they picture the doorframe, not the page's own gutter */
+    .gridv :global(.ruler),
+    .stage :global(.ruler) {
+      display: block;
+    }
+    .tokrow {
+      grid-template-columns: 96px minmax(0, 1fr);
+      column-gap: 14px;
+    }
+    .rmrow {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      row-gap: 4px;
+    }
+    .rmrow > :first-child {
+      grid-column: 1 / -1;
+    }
+  }
+}

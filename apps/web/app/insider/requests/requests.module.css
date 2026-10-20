@@ -1,0 +1,75 @@
+/* V2-S01b-Agent-Insider: Insider › Requests with the agent open. The shell, the
+   panel and the Talk button come from AppShell / AgentPanel; these are the board's own rules. */
+@layer theme, base, components, utilities;
+
+@layer components {
+  /* The page column answers to its own width, which shrinks by 480px while the panel is open. */
+  .main {
+    container: page / inline-size;
+  }
+  .main .h1 {
+    font-size: 64px;
+  }
+  .rating {
+    text-align: right;
+  }
+  .req {
+    border-radius: 4px;
+    background: var(--trim);
+    padding: 16px 18px;
+    display: grid;
+    grid-template-columns: 52px minmax(0, 1fr) auto;
+    column-gap: 14px;
+    align-items: start;
+    scroll-margin: 24px;
+    transition: background-color var(--t-m) var(--spring);
+  }
+  .req.hilite {
+    background: var(--warm);
+  }
+  .req .id {
+    font-family: var(--hand);
+    font-weight: 600;
+    font-size: 16px;
+  }
+
+  /* the reply the agent drafts, inside the thread */
+  .confirm {
+    border-radius: 4px;
+    background: var(--trim);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 12px;
+  }
+  .slots {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .slots :global(.slot)[disabled] {
+    opacity: 1;
+    color: var(--ink-3);
+    text-decoration: line-through;
+    cursor: default;
+  }
+
+  @container page (max-width: 559px) {
+    .main .h1 {
+      font-size: 44px;
+    }
+    .rating {
+      text-align: left;
+    }
+    .req {
+      grid-template-columns: minmax(0, 1fr) auto;
+      row-gap: 6px;
+      padding: 14px 16px;
+    }
+    .req .body {
+      grid-column: 1 / -1;
+      grid-row: 2;
+    }
+  }
+}
