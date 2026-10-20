@@ -7,16 +7,18 @@ import { supabaseBrowser } from '@/lib/supabase/client';
 
 type Step = 'choose' | 'email' | 'code';
 
-/** S04 F5, at full size: Google, or a one-time code by email. The draft comes along either way. */
+/** S04 F5, at full size: Google, or a one-time sign-in link by email. The draft comes along either way. */
 export function Login({ next, linkFailed, configured }: { next: string; linkFailed: boolean; configured: boolean }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>('choose');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
+  const [showCode, setShowCode] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(linkFailed ? 'That sign-in link didn’t work or has expired. Try again.' : '');
   const emailInput = useRef<HTMLInputElement>(null);
   const codeInput = useRef<HTMLInputElement>(null);
+  const sentNote = useRef<HTMLParagraphElement>(null);
 
   const callback = () => `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
 
@@ -51,11 +53,11 @@ export function Login({ next, linkFailed, configured }: { next: string; linkFail
     });
     setBusy(false);
     if (e) {
-      setError(e.status === 429 ? 'Too many codes asked for. Wait a minute, then try again.' : 'The code didn’t send. Try again.');
+      setError(e.status === 429 ? 'Too many sign-in emails asked for. Wait a minute, then try again.' : 'The email didn’t send. Try again.');
       return;
     }
     setStep('code');
-    requestAnimationFrame(() => codeInput.current?.focus());
+    requestAnimationFrame(() => sentNote.current?.focus());
   };
 
   const verify = async (ev: FormEvent) => {
@@ -64,7 +66,7 @@ export function Login({ next, linkFailed, configured }: { next: string; linkFail
     if (!supabase) return;
     const token = code.replace(/\D/g, '');
     if (token.length < 6) {
-      setError('The code is the 6 digits in the email.');
+      setError('The code is the digits in the email.');
       codeInput.current?.focus();
       return;
     }
@@ -107,7 +109,7 @@ export function Login({ next, linkFailed, configured }: { next: string; linkFail
                 requestAnimationFrame(() => emailInput.current?.focus());
               }}
             >
-              Email me a code
+              Email me a sign-in link
             </Button>
           ) : null}
           <Grow open={step === 'email'}>
@@ -127,54 +129,72 @@ export function Login({ next, linkFailed, configured }: { next: string; linkFail
                 aria-describedby={error ? 'login-err' : 'login-help'}
               />
               <span id="login-help" className="help">
-                We’ll email a 6-digit code. No password.
+                We’ll email you a sign-in link. No password.
               </span>
               <Button type="submit" className="mt-1" disabled={busy}>
-                Email me a code
+                Email me a sign-in link
               </Button>
             </form>
           </Grow>
         </>
       ) : (
-        <form className="fl" onSubmit={verify} noValidate>
-          <p className="t-s">
-            We sent a code to <b>{email.trim()}</b>. You can also open the link in that email.
+        <div className="fl">
+          {/* Supabase's built-in mailer sends a link; once the project has its own SMTP the
+              template can add a code ({{ .Token }}), which the field below already accepts. */}
+          <p ref={sentNote} tabIndex={-1} className="t-s" role="status">
+            We sent a sign-in link to <b>{email.trim()}</b>. Open it in this browser to finish.
           </p>
-          <label htmlFor="login-code" className="mt-1 text-[14px] font-bold">
-            Code
-          </label>
-          <TextInput
-            ref={codeInput}
-            id="login-code"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            maxLength={10}
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            invalid={!!error}
-            aria-describedby={error ? 'login-err' : undefined}
-            className="num text-[20px] tracking-[0.2em]"
-          />
-          <Button type="submit" className="mt-1" disabled={busy}>
-            Sign in
-          </Button>
+          <p className="t-xs c2">It can be used once and expires soon. Check spam if it isn’t there in a minute.</p>
           <p className="t-xs c2 mt-1">
             <LinkButton onClick={() => sendCode()} disabled={busy}>
-              Send a new code
+              Send a new link
             </LinkButton>{' '}
             ·{' '}
             <LinkButton
               onClick={() => {
                 setStep('email');
                 setCode('');
+                setShowCode(false);
                 setError('');
                 requestAnimationFrame(() => emailInput.current?.focus());
               }}
             >
               Use a different email
+            </LinkButton>{' '}
+            ·{' '}
+            <LinkButton
+              aria-expanded={showCode}
+              onClick={() => {
+                setShowCode((v) => !v);
+                requestAnimationFrame(() => codeInput.current?.focus());
+              }}
+            >
+              The email has a code
             </LinkButton>
           </p>
-        </form>
+          <Grow open={showCode}>
+            <form className="fl pt-2" onSubmit={verify} noValidate>
+              <label htmlFor="login-code" className="text-[14px] font-bold">
+                Code
+              </label>
+              <TextInput
+                ref={codeInput}
+                id="login-code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={10}
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                invalid={!!error}
+                aria-describedby={error ? 'login-err' : undefined}
+                className="num text-[20px] tracking-[0.2em]"
+              />
+              <Button type="submit" className="mt-1" disabled={busy}>
+                Sign in
+              </Button>
+            </form>
+          </Grow>
+        </div>
       )}
 
       {error ? (
