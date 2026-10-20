@@ -46,6 +46,8 @@ export type LiveStudioProps = {
 };
 
 const MODEL_KEY = 'studio.provider';
+// What someone typed on the landing page before signing in (components/entry/Landing.tsx).
+const LANDING_DRAFT_KEY = 'pv-landing-draft';
 
 type Live = { user: string; reply: string; receipts: ReceiptData[]; attachments: Attachment[]; status: string | null };
 type Resume = { path: string; name: string };
@@ -111,6 +113,17 @@ export function LiveStudio(props: LiveStudioProps) {
   const picker = useRef<HTMLInputElement>(null);
   const [host, setHost] = useState('');
   const [provider, setProvider] = useState(props.models?.current ?? null);
+  const [landingDraft, setLandingDraft] = useState('');
+  useEffect(() => {
+    // Carried into the box, not sent: the person sends it when they're ready.
+    try {
+      const saved = sessionStorage.getItem(LANDING_DRAFT_KEY);
+      if (saved) {
+        setLandingDraft(saved);
+        sessionStorage.removeItem(LANDING_DRAFT_KEY);
+      }
+    } catch {}
+  }, []);
   useEffect(() => {
     setHost(window.location.host);
     // The last model this person picked, if it is still on offer.
@@ -327,6 +340,8 @@ export function LiveStudio(props: LiveStudioProps) {
       composer={
         <>
           <Composer
+            key={landingDraft ? 'landing' : 'empty'}
+            defaultText={landingDraft}
             id="msg"
             placeholder="Tell me what you’ve done, attach your résumé, or paste a link — in any language"
             onSend={(text) => send(text)}

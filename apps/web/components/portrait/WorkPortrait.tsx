@@ -125,7 +125,7 @@ export function WorkPortrait({ data }: { data: WorkPortraitData }) {
       </PhoneBar>
 
       <PublicHeader className="max-sm:hidden">
-        <Link href={routes.birth} className={buttonClass({ variant: 'quiet' })}>
+        <Link href={routes.studio} className={buttonClass({ variant: 'quiet' })}>
           Draw yours
         </Link>
       </PublicHeader>
@@ -399,7 +399,7 @@ export function WorkPortrait({ data }: { data: WorkPortraitData }) {
 
       <footer className="wrap pb-12">
         <p className="t-xs c2">
-          Drawn with Portrait · <Link href={routes.birth}>Draw yours</Link> · Every line links back to where it came
+          Drawn with Portrait · <Link href={routes.studio}>Draw yours</Link> · Every line links back to where it came
           from.
         </p>
       </footer>

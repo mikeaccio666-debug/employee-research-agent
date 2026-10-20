@@ -23,7 +23,7 @@ export function Landing() {
   const c = landingCopy[who];
   const work = who === 'work';
   // Where each side starts: job seekers talk their portrait into being, startups write a brief.
-  const start = work ? routes.birth : routes.brief;
+  const start = work ? routes.studio : routes.brief;
 
   // Whatever someone typed is kept for the visit, even if they leave and come back.
   useEffect(() => {

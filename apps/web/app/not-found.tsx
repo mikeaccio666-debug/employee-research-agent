@@ -30,7 +30,7 @@ export default function NotFound() {
         </p>
         <h1 className="t-h1 mt-2.5">This portrait hasn’t been drawn yet.</h1>
         <div className="mt-[18px] flex flex-wrap items-center gap-2">
-          <Link className={buttonClass({ size: 'sm' })} href={routes.birth}>
+          <Link className={buttonClass({ size: 'sm' })} href={routes.studio}>
             Draw yours
           </Link>
           <span className="t-xs c2">or check the spelling of the link</span>

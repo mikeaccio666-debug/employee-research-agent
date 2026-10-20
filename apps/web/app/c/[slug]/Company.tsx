@@ -378,7 +378,7 @@ export function Company() {
 
       <footer className="wrap pb-12">
         <p className="t-xs c2">
-          Drawn with Portrait · <Link href={routes.birth}>Draw yours</Link> ·{' '}
+          Drawn with Portrait · <Link href={routes.studio}>Draw yours</Link> ·{' '}
           <LinkButton>Report this company</LinkButton>
         </p>
       </footer>

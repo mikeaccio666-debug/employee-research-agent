@@ -23,7 +23,7 @@ export function DrawnPortrait({ portrait }: { portrait: PublicPortrait }) {
     <div className="relative min-h-screen overflow-hidden">
       <Ruler />
       <PublicHeader>
-        <Link href={routes.birth} className={buttonClass({ variant: 'quiet' })}>
+        <Link href={routes.studio} className={buttonClass({ variant: 'quiet' })}>
           Draw yours
         </Link>
       </PublicHeader>

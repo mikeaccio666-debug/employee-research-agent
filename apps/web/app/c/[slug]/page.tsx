@@ -22,7 +22,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
     <div className="relative min-h-screen overflow-hidden">
       <Ruler />
       <PublicHeader>
-        <Link className={buttonClass({ variant: 'quiet' })} href={routes.birth}>
+        <Link className={buttonClass({ variant: 'quiet' })} href={routes.studio}>
           Draw yours
         </Link>
       </PublicHeader>
