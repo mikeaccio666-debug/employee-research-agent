@@ -40,7 +40,7 @@ type Notes = {
   receipts?: Receipt[];
   snapshotRev?: number;
   attachments?: Attachment[];
-  summary?: Summary;
+  contextSummary?: Summary;
 };
 
 /** What the conversation said up to row `through`, condensed. */
@@ -70,7 +70,7 @@ const native = (row: Row, env: AgentEnv) =>
 /** The newest summary of the conversation, if it has been condensed. */
 function latestSummary(rows: Row[]): Summary | null {
   for (let i = rows.length - 1; i >= 0; i--) {
-    const summary = rows[i]!.role === 'user' ? (rows[i]!.items[0] as Notes | undefined)?.summary : undefined;
+    const summary = rows[i]!.role === 'user' ? (rows[i]!.items[0] as Notes | undefined)?.contextSummary : undefined;
     if (summary) return summary;
   }
   return null;
@@ -92,7 +92,7 @@ function replay(rows: Row[], env: AgentEnv, adapter: Adapter): Item[] {
   return head.concat(unsummarized(rows).flatMap((row) => {
     if (native(row, env)) {
       return (row.items as (Item & Notes)[]).map(
-        ({ via: _v, viaModel: _m, receipts: _r, snapshotRev: _s, attachments: _a, summary: _y, ...item }) => item,
+        ({ via: _v, viaModel: _m, receipts: _r, snapshotRev: _s, attachments: _a, contextSummary: _y, ...item }) => item,
       );
     }
     // Another provider's turn: its words stay, its tool calls (already applied) don't.
@@ -153,7 +153,7 @@ export function userItems(
     .reduce<number | null>((rev, i) => (typeof i.snapshotRev === 'number' ? i.snapshotRev : rev), null);
   const notes: Notes = {
     ...(shared.attachments.length ? { attachments: shared.attachments } : {}),
-    ...(summary ? { summary } : {}),
+    ...(summary ? { contextSummary: summary } : {}),
   };
   if (seen === spec.rev) return stored(adapter.user(text, shared.blocks), env, notes);
   const state = `${STATE_TAG}\n${snapshot(spec)}\n</portrait_state>`;
@@ -253,7 +253,7 @@ export async function runTurn({
   signal?: AbortSignal;
 }) {
   const { env, adapter } = using(agent);
-  const said: Said = rows.filter((r) => r.role === 'user').map((r) => ({ id: r.id, text: r.body ?? '' }));
+  const said: Said = rows.filter((r) => r.role === 'user').map((r) => ({ id: r.id, text: r.body ?? '', at: r.created_at }));
   let spec = start;
   const history = replay(rows, env, adapter);
   let lastId: number | null = null;
