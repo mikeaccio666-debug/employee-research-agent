@@ -4,7 +4,8 @@ import type { AgentEnv, Provider } from './env';
 import { anthropicAdapter } from './providers/anthropic';
 import { openaiAdapter } from './providers/openai';
 import type { Adapter, Item } from './providers/types';
-import { append, logCall, saveSpec, type Receipt, type Row } from './store';
+import { append, logCall, saveSpec, type Attachment, type Receipt, type Row } from './store';
+import type { Source, SourceKind } from './sources';
 import { runTool, snapshot, type Said } from './tools';
 
 // One turn of the studio conversation (docs/architecture.md §4.1): the person's message goes to
@@ -20,11 +21,16 @@ import { runTool, snapshot, type Said } from './tools';
 export type TurnEvent =
   | { event: 'message.delta'; data: { text: string } }
   | { event: 'portrait.patch'; data: { ops: { op: 'replace'; path: ''; value: Spec }[]; receipt: Receipt } }
+  | { event: 'source.read'; data: { kind: SourceKind; name: string } }
+  | { event: 'source.failed'; data: { name: string; message: string } }
   | { event: 'message.done'; data: { messageId: number | null } }
   | { event: 'error'; data: { code: string; retryable: boolean; message: string } };
 
+
 /** Our own notes on a stored item. They never go to the model. */
-type Notes = { via?: Provider; receipts?: Receipt[]; snapshotRev?: number };
+type Notes = { via?: Provider; receipts?: Receipt[]; snapshotRev?: number; attachments?: Attachment[] };
+
+const STATE_TAG = '<portrait_state>';
 
 // Enough for "add three lines, set the headline, then answer"; a model stuck in a loop stops here.
 const MAX_STEPS = 8;
@@ -42,11 +48,29 @@ const native = (row: Row, via: Provider) => row.items.length > 0 && (row.items a
 /** The history as the provider in use reads it. */
 function replay(rows: Row[], via: Provider, adapter: Adapter): Item[] {
   return rows.flatMap((row) => {
-    if (native(row, via)) return (row.items as (Item & Notes)[]).map(({ via: _v, receipts: _r, snapshotRev: _s, ...item }) => item);
+    if (native(row, via)) {
+      return (row.items as (Item & Notes)[]).map(({ via: _v, receipts: _r, snapshotRev: _s, attachments: _a, ...item }) => item);
+    }
     // Another provider's turn: its words stay, its tool calls (already applied) don't.
-    if (row.role === 'tool' || !row.body) return [];
-    return [adapter.text(row.role, row.body)];
+    if (row.role === 'tool') return [];
+    const text = row.role === 'user' ? userText(row) : row.body;
+    return text ? [adapter.text(row.role, text)] : [];
   });
+}
+
+/**
+ * What the person sent, with the documents the app added to it: every text block of the stored
+ * message except an old portrait state, whichever provider's format it is in.
+ */
+function userText(row: Row): string | null {
+  const content = (row.items[0] as { content?: unknown } | undefined)?.content;
+  if (!Array.isArray(content)) return row.body;
+  return (
+    (content as { text?: unknown }[])
+      .map((b) => (typeof b.text === 'string' ? b.text : ''))
+      .filter((t) => t && !t.startsWith(STATE_TAG))
+      .join('\n\n') || row.body
+  );
 }
 
 /**
@@ -68,16 +92,25 @@ export function unansweredToolCalls(rows: Row[], agent: AgentEnv): Item[] {
  * since the model last saw it (the person confirmed or rejected lines, or another provider was
  * in use); the model's own changes it already knows from the tool results.
  */
-export function userItems(text: string, spec: Spec, rows: Row[], agent: AgentEnv): Item[] {
+export function userItems(
+  text: string,
+  spec: Spec,
+  rows: Row[],
+  agent: AgentEnv,
+  shared: { blocks: string[]; attachments: Attachment[] } = { blocks: [], attachments: [] },
+): Item[] {
   const { env, adapter } = using(agent);
   const seen = rows
     .filter((r) => native(r, env.provider))
     .flatMap((r) => r.items as Notes[])
     .reduce<number | null>((rev, i) => (typeof i.snapshotRev === 'number' ? i.snapshotRev : rev), null);
-  if (seen === spec.rev) return stored(adapter.user(text, null), env.provider);
-  const state = `<portrait_state>\n${snapshot(spec)}\n</portrait_state>`;
-  return stored(adapter.user(text, state), env.provider, { snapshotRev: spec.rev });
+  const notes: Notes = shared.attachments.length ? { attachments: shared.attachments } : {};
+  if (seen === spec.rev) return stored(adapter.user(text, shared.blocks), env.provider, notes);
+  const state = `${STATE_TAG}\n${snapshot(spec)}\n</portrait_state>`;
+  return stored(adapter.user(text, [...shared.blocks, state]), env.provider, { ...notes, snapshotRev: spec.rev });
 }
+
+export type { Attachment };
 
 export async function runTurn({
   agent,
@@ -85,6 +118,7 @@ export async function runTurn({
   ownerId,
   conversationId,
   rows,
+  sources,
   spec: start,
   emit,
   signal,
@@ -95,6 +129,8 @@ export async function runTurn({
   conversationId: string;
   /** The whole history, ending with the person's new message. */
   rows: Row[];
+  /** The résumés and links the person shared, which lines may quote too. */
+  sources: Source[];
   spec: Spec;
   emit: (e: TurnEvent) => void;
   signal?: AbortSignal;
@@ -140,7 +176,7 @@ export async function runTurn({
     const results = [];
     const receipts: Receipt[] = [];
     for (const call of answer.calls) {
-      const result = runTool(call.name, call.input, spec, said);
+      const result = runTool(call.name, call.input, spec, { said, sources });
       spec = result.spec;
       if (result.change) {
         receipts.push(result.change);

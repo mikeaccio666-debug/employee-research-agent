@@ -29,6 +29,7 @@ export default async function StudioPage() {
 
   return (
     <LiveStudio
+      ownerId={id}
       name={account.displayName || account.alias}
       greet={account.displayName?.split(/\s+/)[0] || null}
       handle={account.handle}

@@ -109,6 +109,8 @@ export type ComposerProps = {
   clipSuggestions?: boolean;
   /** Shown when the last send failed; the text stays in the box. */
   error?: ReactNode;
+  /** What Attach does (open a file picker). Without it the chip is decoration. */
+  onAttach?: () => void;
   disabled?: boolean;
   className?: string;
   style?: CSSProperties;
@@ -129,6 +131,7 @@ export function Composer({
   surface = 'trim',
   clipSuggestions,
   error,
+  onAttach,
   disabled,
   className,
   style,
@@ -182,7 +185,7 @@ export function Composer({
         </p>
       ) : null}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Chip size="sm" tone={chipTone} aria-label="Attach a file">
+        <Chip size="sm" tone={chipTone} aria-label="Attach a file" onClick={onAttach} disabled={disabled && !!onAttach}>
           Attach
         </Chip>
         <Button icon aria-label="Send" style={{ minHeight: 40, width: 40 }} onClick={() => send(text)} disabled={disabled}>

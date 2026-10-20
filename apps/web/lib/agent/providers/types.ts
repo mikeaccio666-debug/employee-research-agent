@@ -22,8 +22,8 @@ export type Step = {
 export type Adapter = {
   /** One call to the model with the history so far; text streams out through onText. Throws on failure. */
   step(history: Item[], onText: (text: string) => void, signal?: AbortSignal): Promise<Step>;
-  /** The person's message, with the portrait's state beside it when the model hasn't seen it. */
-  user(text: string, state: string | null): Item[];
+  /** The person's message (may be empty), followed by blocks the app adds: shared documents, the portrait's state. */
+  user(text: string, extras: string[]): Item[];
   /** A plain text message, for history written by another provider. */
   text(role: 'user' | 'assistant', text: string): Item;
   /** The answers to a step's tool calls. */

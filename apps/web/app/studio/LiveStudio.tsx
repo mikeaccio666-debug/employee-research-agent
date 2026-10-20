@@ -21,12 +21,15 @@ import { IdentityLines, SpecSections } from '@/components/portrait/SpecSections'
 import { confirmHeadline, confirmLine, rejectLine, updatePage } from '@/lib/portrait-actions';
 import { toConfirm, type Claim, type Spec } from '@/lib/portrait/spec';
 import type { ModelChoice, Provider } from '@/lib/agent/env';
-import type { Receipt as ReceiptData, ThreadMessage } from '@/lib/agent/store';
+import type { Attachment, Receipt as ReceiptData, ThreadMessage } from '@/lib/agent/store';
+import { supabaseBrowser } from '@/lib/supabase/client';
 import { OPENER } from '@/lib/agent/prompt';
 import { routes } from '@/lib/routes';
 import s from './studio.module.css';
 
 export type LiveStudioProps = {
+  /** The person's id: their résumé uploads go in a storage folder named after it. */
+  ownerId: string;
   name: string;
   /** First name for the greeting, when the person gave one. */
   greet: string | null;
@@ -44,7 +47,14 @@ export type LiveStudioProps = {
 
 const MODEL_KEY = 'studio.provider';
 
-type Live = { user: string; reply: string; receipts: ReceiptData[] };
+type Live = { user: string; reply: string; receipts: ReceiptData[]; attachments: Attachment[]; status: string | null };
+type Resume = { path: string; name: string };
+
+const RESUME_TYPES: Record<string, string> = {
+  pdf: 'application/pdf',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+};
+const KIND_LABEL: Record<Attachment['kind'], string> = { resume: 'Résumé', website: 'Link', github: 'GitHub' };
 
 /** Reads server-sent events from a fetch body: `event: x` / `data: {...}` blocks. */
 async function readEvents(body: ReadableStream<Uint8Array>, on: (event: string, data: unknown) => void) {
@@ -98,6 +108,7 @@ export function LiveStudio(props: LiveStudioProps) {
   const [announce, setAnnounce] = useState('');
   const [saving, startSaving] = useTransition();
   const end = useRef<HTMLDivElement>(null);
+  const picker = useRef<HTMLInputElement>(null);
   const [host, setHost] = useState('');
   const [provider, setProvider] = useState(props.models?.current ?? null);
   useEffect(() => {
@@ -121,25 +132,42 @@ export function LiveStudio(props: LiveStudioProps) {
 
   const busy = live !== null;
 
-  const send = (text: string) => {
+  /** Sends a message (and a résumé, once uploaded) and plays the agent's answer in as it streams. */
+  const send = (text: string, file?: File) => {
     if (busy || !agentReady) return false;
     setError(null);
-    const turn: Live = { user: text, reply: '', receipts: [] };
+    const turn: Live = {
+      user: text,
+      reply: '',
+      receipts: [],
+      attachments: file ? [{ kind: 'resume', name: file.name }] : [],
+      status: file ? 'Uploading your résumé' : null,
+    };
     setLive(turn);
     void (async () => {
       let failed: string | null = null;
       try {
+        let resume: Resume | undefined;
+        if (file) {
+          resume = await upload(file);
+          turn.status = 'Reading your résumé';
+          setLive({ ...turn });
+        }
         const res = await fetch('/api/agent/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: text, ...(props.models && provider ? { provider } : {}) }),
+          body: JSON.stringify({ message: text, resume, ...(props.models && provider ? { provider } : {}) }),
         });
         if (!res.ok || !res.body) {
           const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
           throw new Error(body?.error?.message ?? 'That didn’t go through. Try again in a moment.');
         }
         await readEvents(res.body, (event, data) => {
-          if (event === 'message.delta') {
+          if (event === 'source.read') {
+            const read = data as Attachment;
+            if (read.kind !== 'resume') turn.attachments = [...turn.attachments, read];
+            turn.status = read.kind === 'resume' ? 'Drawing from your résumé' : `Read ${read.name}`;
+          } else if (event === 'message.delta') {
             turn.reply += (data as { text: string }).text;
           } else if (event === 'portrait.patch') {
             const { ops, receipt } = data as { ops: { value: Spec }[]; receipt: ReceiptData };
@@ -159,7 +187,7 @@ export function LiveStudio(props: LiveStudioProps) {
       // The turn is in the database now; keep it in the thread as it was streamed.
       setThread((t) => [
         ...t,
-        { id: -Date.now(), role: 'user', body: text, receipts: [] },
+        { id: -Date.now(), role: 'user', body: text, receipts: [], attachments: turn.attachments },
         ...(turn.reply.trim() || turn.receipts.length
           ? [{ id: -Date.now() - 1, role: 'assistant' as const, body: turn.reply.trim(), receipts: turn.receipts }]
           : []),
@@ -167,6 +195,25 @@ export function LiveStudio(props: LiveStudioProps) {
       setLive(null);
       setError(failed);
     })();
+  };
+
+  /** Puts the file in the person's own folder of the private `sources` bucket. */
+  const upload = async (file: File): Promise<Resume> => {
+    const supabase = supabaseBrowser();
+    if (!supabase) throw new Error('Uploads aren’t set up here.');
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+    const path = `${props.ownerId}/${crypto.randomUUID()}.${ext}`;
+    const { error: failed } = await supabase.storage.from('sources').upload(path, file, { contentType: RESUME_TYPES[ext] });
+    if (failed) throw new Error('The upload didn’t go through. Try again.');
+    return { path, name: file.name };
+  };
+
+  const attach = (file: File | undefined) => {
+    if (!file) return;
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+    if (!RESUME_TYPES[ext]) return setError('Attach a PDF or Word (.docx) résumé.');
+    if (file.size > 10 * 1024 * 1024) return setError('That file is over 10 MB.');
+    send('', file);
   };
 
   const answer = (action: () => Promise<{ ok: true; spec: Spec } | { ok: false; error: string }>, done: string) =>
@@ -248,6 +295,7 @@ export function LiveStudio(props: LiveStudioProps) {
         m.role === 'user' ? (
           <UserMessage key={m.id}>
             <Paras text={m.body} />
+            <Shared attachments={m.attachments} />
           </UserMessage>
         ) : (
           <Turn key={m.id} body={m.body} receipts={m.receipts} />
@@ -257,9 +305,10 @@ export function LiveStudio(props: LiveStudioProps) {
         <>
           <UserMessage>
             <Paras text={live.user} />
+            <Shared attachments={live.attachments} />
           </UserMessage>
           {live.reply || live.receipts.length ? <Turn body={live.reply} receipts={live.receipts} /> : null}
-          <StatusLine>{live.receipts.length ? 'Drawing your portrait' : 'Thinking'}</StatusLine>
+          <StatusLine>{live.receipts.length ? 'Drawing your portrait' : (live.status ?? 'Thinking')}</StatusLine>
         </>
       ) : null}
       {!agentReady ? (
@@ -276,13 +325,28 @@ export function LiveStudio(props: LiveStudioProps) {
       top={top}
       talk={talk}
       composer={
-        <Composer
-          id="msg"
-          placeholder="Tell me what you’ve done — in any language"
-          onSend={send}
-          disabled={busy || !agentReady}
-          error={error}
-        />
+        <>
+          <Composer
+            id="msg"
+            placeholder="Tell me what you’ve done, attach your résumé, or paste a link — in any language"
+            onSend={(text) => send(text)}
+            onAttach={() => picker.current?.click()}
+            disabled={busy || !agentReady}
+            error={error}
+          />
+          <input
+            ref={picker}
+            type="file"
+            accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            className="sr"
+            tabIndex={-1}
+            aria-hidden
+            onChange={(e) => {
+              attach(e.target.files?.[0]);
+              e.target.value = '';
+            }}
+          />
+        </>
       }
       canvasLabel="Your portrait, live"
       resizable
@@ -327,6 +391,20 @@ export function LiveStudio(props: LiveStudioProps) {
         )}
       </div>
     </Workspace>
+  );
+}
+
+/** The résumés and links shared with a message, under its text. */
+function Shared({ attachments }: { attachments?: Attachment[] }) {
+  if (!attachments?.length) return null;
+  return (
+    <ul className="mt-1 flex flex-col gap-0.5">
+      {attachments.map((a, i) => (
+        <li key={i} className="t-xs c2">
+          {KIND_LABEL[a.kind]} · {a.name}
+        </li>
+      ))}
+    </ul>
   );
 }
 

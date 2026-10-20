@@ -83,11 +83,7 @@ export function openaiAdapter(env: AgentEnv): Adapter {
       };
     },
 
-    user(text, state) {
-      const content = [{ type: 'input_text', text }];
-      if (state) content.push({ type: 'input_text', text: state });
-      return [{ role: 'user', content }];
-    },
+    user: (text, extras) => [{ role: 'user', content: [text, ...extras].filter(Boolean).map((t) => ({ type: 'input_text', text: t })) }],
 
     text: (role, text) => ({ role, content: text }),
 

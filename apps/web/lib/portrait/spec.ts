@@ -40,12 +40,23 @@ export const LIMITS = {
   claims: 80,
 } as const;
 
-const Evidence = z.object({
-  source: z.literal('chat'),
-  /** conversation_messages.id of the person's message the quote was found in. */
-  messageId: z.number().int(),
-  quote: z.string().max(LIMITS.quote),
-});
+const Evidence = z.union([
+  z.object({
+    source: z.literal('chat'),
+    /** conversation_messages.id of the person's message the quote was found in. */
+    messageId: z.number().int(),
+    quote: z.string().max(LIMITS.quote),
+  }),
+  z.object({
+    /** A résumé or link the person shared (lib/agent/sources.ts). */
+    source: z.enum(['resume', 'website', 'github']),
+    sourceId: z.string().uuid(),
+    /** The PDF page the quote is on; null for documents without pages. */
+    page: z.number().int().nullable(),
+    quote: z.string().max(LIMITS.quote),
+  }),
+]);
+export type Evidence = z.infer<typeof Evidence>;
 
 const Claim = z.object({
   id: z.string().regex(/^clm_[a-z0-9]{6,20}$/),

@@ -1,13 +1,18 @@
 import { z } from 'zod';
-import { LAYERS, LIMITS, SECTIONS, SECTION_LABEL, SECTION_OF, type Claim, type Spec } from '@/lib/portrait/spec';
+import { LAYERS, LIMITS, SECTIONS, SECTION_LABEL, SECTION_OF, type Claim, type Evidence, type Spec } from '@/lib/portrait/spec';
+import type { Source } from './sources';
 
 // The tools the studio agent draws the portrait with (docs/agent-design.md §11.2, the step 2 cut).
 // Every call is checked here before it touches the spec; a refused call comes back to the model
 // as the tool's output in plain words so it can correct itself. Who the portrait belongs to is
 // decided by the server session, never by an argument.
 
-/** The person's messages in this conversation: the only place evidence quotes may come from. */
+/**
+ * Where evidence quotes may come from: the person's messages in this conversation, and the
+ * résumés and links they shared.
+ */
 export type Said = { id: number; text: string }[];
+export type Grounds = { said: Said; sources: Source[] };
 
 export type ToolResult = {
   spec: Spec;
@@ -28,7 +33,7 @@ export const TOOL_DEFS = [
   {
     name: 'upsert_claim',
     description:
-      'Add one line to the portrait, or rewrite one you added earlier (pass its id). Every line rests on a quote from the person’s own messages. New and rewritten lines are drafts until the person confirms them on the page.',
+      'Add one line to the portrait, or rewrite one you added earlier (pass its id). Every line rests on a quote from the person’s own messages or from a document they shared. New and rewritten lines are drafts until the person confirms them on the page.',
     parameters: {
       type: 'object',
       additionalProperties: false,
@@ -63,7 +68,8 @@ export const TOOL_DEFS = [
         quote: {
           type: 'string',
           maxLength: LIMITS.quote,
-          description: 'Words copied exactly from one of the person’s messages that back this line, in the language they wrote it.',
+          description:
+            'Words copied exactly, in their original language, from one of the person’s messages or from a <source> document they shared, that back this line. A short phrase is enough.',
         },
       },
     },
@@ -134,11 +140,18 @@ const fold = (s: string) =>
     .trim()
     .toLowerCase();
 
-/** The person's message a quote was copied from, or null. */
-export function findQuote(quote: string, said: Said): number | null {
+/** Where a quote was copied from (the person's newest message first, then their newest source), or null. */
+export function findQuote(quote: string, { said, sources }: Grounds): Evidence | null {
   const q = fold(quote);
   if (!q) return null;
-  for (let i = said.length - 1; i >= 0; i--) if (fold(said[i]!.text).includes(q)) return said[i]!.id;
+  for (let i = said.length - 1; i >= 0; i--) {
+    if (fold(said[i]!.text).includes(q)) return { source: 'chat', messageId: said[i]!.id, quote };
+  }
+  for (let i = sources.length - 1; i >= 0; i--) {
+    const s = sources[i]!;
+    const page = s.pages.find((p) => fold(p.text).includes(q));
+    if (page) return { source: s.kind, sourceId: s.id, page: page.page, quote };
+  }
   return null;
 }
 
@@ -165,17 +178,16 @@ function parseArgs<T>(schema: z.ZodType<T>, raw: string): T | string {
 }
 
 /** Runs one tool call against the spec. Never throws for bad input; the model gets the reason. */
-export function runTool(name: string, rawArgs: string, spec: Spec, said: Said, now = new Date()): ToolResult {
+export function runTool(name: string, rawArgs: string, spec: Spec, grounds: Grounds, now = new Date()): ToolResult {
   const at = now.toISOString();
   switch (name) {
     case 'upsert_claim': {
       const args = parseArgs(UpsertArgs, rawArgs);
       if (typeof args === 'string') return refuse(spec, args);
-      const messageId = findQuote(args.quote, said);
-      if (messageId === null) {
-        return refuse(spec, 'the quote is not in any of the person’s messages. Copy their words exactly, or ask them first.');
+      const evidence = findQuote(args.quote, grounds);
+      if (!evidence) {
+        return refuse(spec, 'the quote is not in the person’s messages or the documents they shared. Copy the words exactly, or ask them first.');
       }
-      const evidence = { source: 'chat' as const, messageId, quote: args.quote };
       const fields = {
         layer: args.layer,
         kind: args.kind,

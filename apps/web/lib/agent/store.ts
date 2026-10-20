@@ -14,7 +14,9 @@ export type Row = {
 };
 
 /** What the thread shows for one message. */
-export type ThreadMessage = { id: number; role: 'user' | 'assistant'; body: string; receipts: Receipt[] };
+export type ThreadMessage = { id: number; role: 'user' | 'assistant'; body: string; receipts: Receipt[]; attachments?: Attachment[] };
+/** A résumé or link shared with a message. */
+export type Attachment = { kind: 'resume' | 'website' | 'github'; name: string };
 export type Receipt = { note: string; dashed: boolean; claimId?: string };
 
 /** The person's studio conversation, started on their first message. */
@@ -117,7 +119,8 @@ export function toThread(rows: Row[]): ThreadMessage[] {
       continue;
     }
     if (row.role === 'user') {
-      out.push({ id: row.id, role: 'user', body: row.body ?? '', receipts: [] });
+      const attachments = (row.items[0] as { attachments?: Attachment[] } | undefined)?.attachments;
+      out.push({ id: row.id, role: 'user', body: row.body ?? '', receipts: [], ...(attachments?.length ? { attachments } : {}) });
       pending = [];
       continue;
     }

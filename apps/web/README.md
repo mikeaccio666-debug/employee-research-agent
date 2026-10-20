@@ -93,6 +93,23 @@ confirmed lines, without their quotes, to `published_spec`; after that the studi
 page** whenever the draft moves ahead. `/@handle` renders the published copy
 (`components/portrait/SpecSections.tsx`).
 
+## Résumés and links (step 3)
+
+In the studio, **Attach** takes a PDF or Word (.docx) résumé up to 10 MB, and any link pasted in a
+message is read too: a GitHub profile through GitHub's API (`GITHUB_TOKEN` optional, for rate
+limits), any other public page as plain text. LinkedIn can't be read; the agent asks for the
+profile's PDF export instead.
+
+1. **Schema.** Run `supabase/migrations/20261023000000_sources.sql`. It adds `sources` (what was
+   read, page by page; people read, add and remove their own, nobody edits) and a private
+   `sources` storage bucket where each person can only touch their own folder.
+2. The browser uploads the file straight to storage (Vercel functions cap request bodies at
+   4.5 MB), then `POST /api/agent/chat` gets its path, reads it (`lib/agent/sources.ts`: `unpdf`
+   for PDFs, `mammoth` for DOCX), saves the text and hands it to the model as a `<source>` block.
+   Lines drawn from it must quote it word for word; the evidence records the source and page.
+3. Links are fetched only if they resolve to public addresses (rechecked on every redirect), at
+   most 2 MB and 8 seconds. Everything read is data for the model, never instructions.
+
 ## Where things live
 
 | Path | What |

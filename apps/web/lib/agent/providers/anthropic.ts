@@ -87,11 +87,7 @@ export function anthropicAdapter(env: AgentEnv): Adapter {
       };
     },
 
-    user(text, state) {
-      const content: Anthropic.Beta.BetaTextBlockParam[] = [{ type: 'text', text }];
-      if (state) content.push({ type: 'text', text: state });
-      return [{ role: 'user', content }];
-    },
+    user: (text, extras) => [{ role: 'user', content: [text, ...extras].filter(Boolean).map((t) => ({ type: 'text', text: t })) }],
 
     text: (role, text) => ({ role, content: text }),
 
