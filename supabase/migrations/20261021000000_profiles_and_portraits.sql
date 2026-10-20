@@ -112,3 +112,15 @@ create view public.public_portraits as
   where po.status = 'published' and pr.visibility = 'public' and pr.handle is not null;
 
 grant select on public.public_portraits to anon, authenticated;
+
+-- Anyone who signed in before this migration ran gets their profile and draft portrait now.
+insert into public.profiles (id, display_name, alias)
+select u.id,
+       nullif(coalesce(u.raw_user_meta_data ->> 'full_name', u.raw_user_meta_data ->> 'name'), ''),
+       public.new_alias()
+from auth.users u
+where not exists (select 1 from public.profiles p where p.id = u.id);
+
+insert into public.portraits (owner_id)
+select p.id from public.profiles p
+where not exists (select 1 from public.portraits po where po.owner_id = p.id);
