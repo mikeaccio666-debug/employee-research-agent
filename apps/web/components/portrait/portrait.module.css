@@ -7,18 +7,8 @@
     position: relative;
     min-height: 100vh;
     overflow: clip;
-    /* Top of the photo placeholder: color-mix(in oklch, var(--me) 30%, var(--wall-2)) on the canvas.
-       The CSS build ships the tokens as lab(), and Chromium then reads the light --wall-2 (chroma 0.020)
-       as grey inside an oklch mix and drops its hue, so light mode uses the canvas's result as is. */
-    --photo: oklch(0.7835 0.044 200.9);
-  }
-  :global(.pv.dark) .root {
+    /* Top of the photo placeholder, mixed as on the canvas. */
     --photo: color-mix(in oklch, var(--me) 30%, var(--wall-2));
-  }
-  @media (prefers-color-scheme: dark) {
-    :global(.pv:not(.light)) .root {
-      --photo: color-mix(in oklch, var(--me) 30%, var(--wall-2));
-    }
   }
 
   /* hero */
@@ -292,7 +282,13 @@
     }
   }
 
-  /* wide screens below the canvas width */
+  /* below the canvas width the side column of an open row moves under its text */
+  @media (max-width: 1180px) {
+    .xlist :global(.xb) {
+      grid-template-columns: minmax(0, 1fr);
+      row-gap: 12px;
+    }
+  }
   @media (max-width: 900px) {
     .how {
       grid-template-columns: minmax(0, 1fr);
@@ -315,6 +311,10 @@
     }
     .root.dockedTall {
       padding-bottom: 124px;
+    }
+    /* in-page jumps (#ask, #ex) land below the sticky bar */
+    .root :global([id]) {
+      scroll-margin-top: 64px;
     }
     .work,
     .how {

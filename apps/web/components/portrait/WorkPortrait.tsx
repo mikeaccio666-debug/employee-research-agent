@@ -251,82 +251,82 @@ export function WorkPortrait({ data }: { data: WorkPortraitData }) {
 
         <Grow open={!!work} id={caseId}>
           {work === 'k' ? (
-              <div className={cx(w.casebox, w.open, 'mt-6')} aria-live="polite">
-                <div className="flex flex-wrap items-baseline justify-between gap-4">
-                  <p className="lab">
-                    {kiosk.lab} <DateNote>{kiosk.date}</DateNote>
-                  </p>
-                  <button type="button" className={buttonClass({ variant: 'quiet', size: 'sm' })} onClick={fold}>
-                    Fold
-                  </button>
-                </div>
-                <div className="g12 mt-2.5 gap-y-5">
-                  <div className="col-[1/span_8] max-md:col-[1/-1]">
-                    <p className="t-h2 max-w-[30ch] max-sm:text-[22px] max-sm:leading-[1.25]">{kiosk.headline}</p>
-                    <div className={w.rounds} role="group" aria-label="Six rounds of testing">
-                      {kiosk.rounds.map((x, i) => (
-                        <button
-                          key={x.n}
-                          ref={(el) => {
-                            roundRefs.current[i] = el;
-                          }}
-                          type="button"
-                          className={cx(w.rd, round === x.n && w.on)}
-                          aria-pressed={round === x.n}
-                          onClick={() => setRound(x.n)}
-                          onKeyDown={(e) => onRoundKey(e, i)}
-                        >
-                          <svg viewBox="0 0 14 60" style={{ height: 60 }} aria-hidden="true">
-                            <path pathLength={1} d={`M7 60 L7 ${x.y}`} />
-                          </svg>
-                          <span className={w.rn}>R{x.n}</span>
-                          <span className={w.dt}>{x.date}</span>
-                        </button>
-                      ))}
-                    </div>
-                    <div className={w.base} aria-hidden="true" />
-                    <div className="gl on mt-[18px] min-h-16">
-                      {/* Keyed by round so each pick lands like a new note. */}
-                      <p key={r.n} className="t-body land max-w-[56ch]">
-                        {r.text}
-                      </p>
-                      <p className="t-xs c2 mt-1.5">
-                        <BasisMark kind={r.basis} />
-                        Round {r.n} · {r.src}
-                      </p>
-                    </div>
+            <div className={cx(w.casebox, w.open, 'mt-6')} aria-live="polite">
+              <div className="flex flex-wrap items-baseline justify-between gap-4">
+                <p className="lab">
+                  {kiosk.lab} <DateNote>{kiosk.date}</DateNote>
+                </p>
+                <button type="button" className={buttonClass({ variant: 'quiet', size: 'sm' })} onClick={fold}>
+                  Fold
+                </button>
+              </div>
+              <div className="g12 mt-2.5 gap-y-5">
+                <div className="col-[1/span_8] max-md:col-[1/-1]">
+                  <p className="t-h2 max-w-[30ch] max-sm:text-[22px] max-sm:leading-[1.25]">{kiosk.headline}</p>
+                  <div className={w.rounds} role="group" aria-label="Six rounds of testing">
+                    {kiosk.rounds.map((x, i) => (
+                      <button
+                        key={x.n}
+                        ref={(el) => {
+                          roundRefs.current[i] = el;
+                        }}
+                        type="button"
+                        className={cx(w.rd, round === x.n && w.on)}
+                        aria-pressed={round === x.n}
+                        onClick={() => setRound(x.n)}
+                        onKeyDown={(e) => onRoundKey(e, i)}
+                      >
+                        <svg viewBox="0 0 14 60" style={{ height: 60 }} aria-hidden="true">
+                          <path pathLength={1} d={`M7 60 L7 ${x.y}`} />
+                        </svg>
+                        <span className={w.rn}>R{x.n}</span>
+                        <span className={w.dt}>{x.date}</span>
+                      </button>
+                    ))}
                   </div>
-                  <div className="col-[9/span_4] flex flex-col gap-3.5 max-md:col-[1/-1]">
-                    <div>
-                      <p className="lab">{kiosk.didLab}</p>
-                      {kiosk.did.map((d) => (
-                        <p key={d} className="t-s mt-1.5">
-                          {d}
-                        </p>
-                      ))}
-                    </div>
-                    <div className="sunk px-4 py-3.5">
-                      <p className="hand text-[17px] leading-[1.45]">{kiosk.vouch}</p>
-                      <p className="t-xs c2 mt-1.5">
-                        <BasisMark kind="ver" />
-                        {kiosk.vouchBy}
+                  <div className={w.base} aria-hidden="true" />
+                  <div className="gl on mt-[18px] min-h-16">
+                    {/* Keyed by round so each pick lands like a new note. */}
+                    <p key={r.n} className="t-body land max-w-[56ch]">
+                      {r.text}
+                    </p>
+                    <p className="t-xs c2 mt-1.5">
+                      <BasisMark kind={r.basis} />
+                      Round {r.n} · {r.src}
+                    </p>
+                  </div>
+                </div>
+                <div className="col-[9/span_4] flex flex-col gap-3.5 max-md:col-[1/-1]">
+                  <div>
+                    <p className="lab">{kiosk.didLab}</p>
+                    {kiosk.did.map((d) => (
+                      <p key={d} className="t-s mt-1.5">
+                        {d}
                       </p>
-                    </div>
+                    ))}
+                  </div>
+                  <div className="sunk px-4 py-3.5">
+                    <p className="hand text-[17px] leading-[1.45]">{kiosk.vouch}</p>
+                    <p className="t-xs c2 mt-1.5">
+                      <BasisMark kind="ver" />
+                      {kiosk.vouchBy}
+                    </p>
                   </div>
                 </div>
               </div>
-            ) : short ? (
-              <div className={cx(w.casebox, 'mt-6')}>
-                <div className="flex items-baseline justify-between gap-4">
-                  <p className="lab">{short.lab}</p>
-                  <button type="button" className={buttonClass({ variant: 'quiet', size: 'sm' })} onClick={fold}>
-                    Fold
-                  </button>
-                </div>
-                <p className="t-h3 mt-2.5">{short.line}</p>
-                <p className="t-s c2 mt-2">{data.work.shortNote}</p>
+            </div>
+          ) : short ? (
+            <div className={cx(w.casebox, 'mt-6')}>
+              <div className="flex items-baseline justify-between gap-4">
+                <p className="lab">{short.lab}</p>
+                <button type="button" className={buttonClass({ variant: 'quiet', size: 'sm' })} onClick={fold}>
+                  Fold
+                </button>
               </div>
-            ) : null}
+              <p className="t-h3 mt-2.5">{short.line}</p>
+              <p className="t-s c2 mt-2">{data.work.shortNote}</p>
+            </div>
+          ) : null}
         </Grow>
       </section>
 

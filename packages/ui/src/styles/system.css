@@ -223,7 +223,9 @@
   .frm .ring{position:absolute;left:-12px;top:-12px;width:calc(100% + 24px);height:calc(100% + 24px);pointer-events:none;overflow:visible}
   .frm .ring path{stroke:var(--new);stroke-width:3;fill:none;stroke-linecap:round}
   .frm .strike path{stroke:var(--ink);stroke-width:3;fill:none;stroke-linecap:round}
-  .frm.struck{opacity:0.55}
+  /* app: the canvas fades struck frames to 0.55, which drops their text to 2.7:1; at 0.8 it stays
+     at 4.5:1 or better in both themes (WCAG AA) and the pencil strike still says "not this time". */
+  .frm.struck{opacity:0.8}
   .frm .strike{position:absolute;left:14px;right:14px;top:44px;height:20px;width:calc(100% - 28px);pointer-events:none}
   .must{display:inline-flex;gap:4px}
   .must i{display:block;width:10px;height:10px;border-radius:2px;border:2px solid var(--ink)}

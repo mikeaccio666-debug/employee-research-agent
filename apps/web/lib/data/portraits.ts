@@ -2,7 +2,9 @@
 // V2-S02-Portrait-Mobile, V2-S02-Portrait-Maya and V2-S02-Share-Cards.
 //
 // The anonymous view is built here as its own object, so a page rendered from it never
-// receives the real name, handle or photo — nothing is hidden with CSS.
+// receives the real name, handle or photo — nothing is hidden with CSS. Its keys travel
+// to the browser with it, so key names stay clear of the names too (no "...Line", "...Lines"):
+// a plain search of the anonymous page for the first name then finds nothing at all.
 // Strings use **double asterisks** for the bold runs the boards set in <b>.
 import type { Basis } from '@portrait/ui';
 
@@ -99,7 +101,7 @@ export type StoryPortraitData = Shared & {
     headline: string;
     paragraphs: Run[][];
     /** Phones tell it in three short lines (S02-Mobile, phone 2). */
-    phoneLines: Run[];
+    phoneRuns: Run[];
     read: string;
     phoneBar: string;
   };
@@ -189,7 +191,7 @@ export function storyPortrait(mode: PortraitMode): StoryPortraitData {
           },
         ],
       ],
-      phoneLines: [
+      phoneRuns: [
         { text: `Campus Marketplace, the trading app ${she} built, is used by more than 2,000 students.`, fn: 1, src: 2 },
         {
           text: anon
@@ -648,11 +650,10 @@ export function isAlias(value: string): value is (typeof aliases)[number] {
   return (aliases as readonly string[]).includes(value);
 }
 
-/** Page titles, from the boards' <title>s. */
+/** Page titles, from the boards' <title>s. The anonymous page is titled by its alias. */
 export const portraitTitles = {
   lin: 'Lin Zhou · Portrait',
   maya: 'Maya Ortiz · work first',
-  anonymous: 'quiet-otter',
   cards: 'Share cards',
 } as const;
 

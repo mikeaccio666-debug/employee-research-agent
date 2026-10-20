@@ -3,7 +3,7 @@
 import { useId, useState, type CSSProperties, type ReactNode } from 'react';
 import { cx } from '../cx';
 import { Tally } from './marks';
-import { BasisMark, type Basis } from './text';
+import { BASIS_LABEL, BasisMark, type Basis } from './text';
 
 type Base = { className?: string; style?: CSSProperties; children?: ReactNode };
 
@@ -66,10 +66,13 @@ export type SourceCardProps = Base & {
 
 /** A source as it grows open: sunk panel with a pencil rule, basis marker and the quote. */
 export function SourceCard({ basis, meta, className, style, children }: SourceCardProps) {
+  // The marker is read out as its word ("Shown: …") unless the meta line already starts with it.
+  const named =
+    typeof meta === 'string' && meta.trim().toLowerCase().startsWith(BASIS_LABEL[basis].toLowerCase());
   return (
     <div className={cx('sunk gl', className)} style={{ padding: '12px 16px 12px 30px', ...style }}>
       <p className="ln t-xs">
-        <BasisMark kind={basis} label="" />
+        <BasisMark kind={basis} label={named ? undefined : ''} />
         {meta}
       </p>
       {children ? (

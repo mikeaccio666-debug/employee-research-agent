@@ -45,7 +45,14 @@ export function clock(elapsed: number) {
 export function VoiceButton({ voice, state }: { voice: Voice; state: VoiceState }) {
   const { playing, elapsed, toggle } = state;
   return (
-    <button type="button" className={cx(s.voice, playing && 'playing')} aria-pressed={playing} onClick={toggle}>
+    <button
+      type="button"
+      className={cx(s.voice, playing && 'playing')}
+      aria-pressed={playing}
+      // A label that counts would be re-read every second; the pressed state says it is playing.
+      aria-label={voice.playing ? undefined : voice.idle}
+      onClick={toggle}
+    >
       <span className={s.vicon} aria-hidden="true">
         {playing ? voice.pause : '▶'}
       </span>
@@ -59,7 +66,13 @@ export function VoiceButton({ voice, state }: { voice: Voice; state: VoiceState 
 export function PhoneVoiceButton({ voice, state }: { voice: Voice; state: VoiceState }) {
   const { playing, elapsed, toggle } = state;
   return (
-    <button type="button" className={cx(s.mvoice, playing && 'playing')} aria-pressed={playing} onClick={toggle}>
+    <button
+      type="button"
+      className={cx(s.mvoice, playing && 'playing')}
+      aria-pressed={playing}
+      aria-label={voice.phoneIdle}
+      onClick={toggle}
+    >
       <span className={s.pl} aria-hidden="true">
         {playing ? '❚❚' : '▶'}
       </span>

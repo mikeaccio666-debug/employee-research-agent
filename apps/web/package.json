@@ -26,5 +26,11 @@
     "@types/react-dom": "19.2.3",
     "tailwindcss": "4.3.3",
     "typescript": "5.9.3"
-  }
+  },
+  "browserslist": [
+    "chrome >= 111",
+    "edge >= 111",
+    "firefox >= 113",
+    "safari >= 16.4"
+  ]
 }

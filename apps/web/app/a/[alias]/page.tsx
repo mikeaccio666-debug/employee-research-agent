@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { StoryPortrait } from '@/components/portrait/StoryPortrait';
-import { aliases, isAlias, portraitTitles, storyPortrait } from '@/lib/data/portraits';
+import { aliases, isAlias, storyPortrait } from '@/lib/data/portraits';
 
 // The anonymous view of a portrait (S02 mode "anonymous", S02-Mobile phone 3).
 // It is rendered from anonymized data only: no real name, handle or photo reaches this page.
@@ -13,7 +13,11 @@ export function generateStaticParams() {
   return aliases.map((alias) => ({ alias }));
 }
 
-export const metadata: Metadata = { title: portraitTitles.anonymous };
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { alias } = await params;
+  // The board's title carries the real name, so the anonymous page is titled by its alias.
+  return isAlias(alias) ? { title: alias } : {};
+}
 
 export default async function AnonymousPortraitPage({ params }: Props) {
   const { alias } = await params;

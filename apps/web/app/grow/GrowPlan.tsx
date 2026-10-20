@@ -162,7 +162,8 @@ export function GrowPlan() {
 
         <section className="relative mt-[30px] max-w-[760px]">
           <SectionMark d="M2 5 C40 7 90 3 148 6" />
-          <div className="flex flex-wrap items-baseline justify-between gap-x-4">
+          {/* Labels sit under their height marks, as on the portrait (the board lets the marks cross them). */}
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 pt-[18px]">
             <h2 className="lab">Where you stand</h2>
             <p className="t-xs c2">{GROW_COMPANIES} companies · last 90 days</p>
           </div>
@@ -192,7 +193,7 @@ export function GrowPlan() {
 
         <section className="relative mt-[34px] max-w-[760px]">
           <SectionMark d="M2 6 C50 4 100 7 148 4" isNew />
-          <div className="flex flex-wrap items-baseline justify-between gap-x-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 pt-[18px]">
             <h2 className="lab">The plan · 4 items · about three weekends</h2>
             <p className="t-xs c2">Tap an item’s status to move it along</p>
           </div>
@@ -245,7 +246,7 @@ export function GrowPlan() {
 
         <section className="relative mt-[34px] max-w-[760px]">
           <SectionMark d="M2 4 C50 6 100 4 148 6" />
-          <h2 className="lab">Résumé</h2>
+          <h2 className="lab pt-[18px]">Résumé</h2>
           <div className="panel mt-2.5 flex flex-wrap items-center justify-between gap-4 px-[18px] py-4">
             <div>
               <p className="t-s b">One page, built from your portrait</p>

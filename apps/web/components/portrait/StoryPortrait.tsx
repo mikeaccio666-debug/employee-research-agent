@@ -313,7 +313,7 @@ export function StoryPortrait({ data, anonymous = false }: { data: StoryPortrait
                       ))}
                     </p>
                   ))}
-                  {data.story.phoneLines.map((r) => (
+                  {data.story.phoneRuns.map((r) => (
                     <p key={r.text} className="ln hidden max-sm:block">
                       {r.text}
                       {footnote(r)}

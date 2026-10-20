@@ -90,8 +90,9 @@ export function ProofSheet({
 
   useEffect(() => {
     if (!open) return;
+    // Wide screens show the proofs in place instead, so Escape is left alone there.
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && isPhone()) onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);

@@ -137,9 +137,10 @@ export default function TypePage() {
 
       <section className={cx('wrap', s.sec)}>
         <div className="g12 gap-y-6">
-          <div className={cx('panel col-[1/span_3]', s.fam, famCol)}>
+          <div className={cx('panel col-[1/span_3] @container', s.fam, famCol)}>
             <p className="lab">拉丁 · 事实与界面</p>
-            <p lang="en" className="text-[44px] leading-none font-extrabold tracking-[-0.04em]">
+            {/* 44px as drawn, smaller only when the card is too narrow for "Hyperlegible". */}
+            <p lang="en" className="text-[min(44px,16cqi)] leading-none font-extrabold tracking-[-0.04em]">
               Atkinson Hyperlegible Next
             </p>
             <p className="t-s c2">

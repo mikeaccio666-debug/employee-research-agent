@@ -12,7 +12,9 @@ export function generateStaticParams() {
   return [{ handle: 'lin' }];
 }
 
-export const metadata: Metadata = { title: portraitTitles.cards };
+// The named and anonymous cards side by side tie an alias to a real name. Until there are
+// accounts this page stays out of search; with accounts it must be visible to its owner only.
+export const metadata: Metadata = { title: portraitTitles.cards, robots: { index: false, follow: false } };
 
 export default async function ShareCardsPage({ params }: Props) {
   const { handle } = await params;

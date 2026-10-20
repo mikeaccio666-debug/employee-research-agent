@@ -207,7 +207,8 @@ export function BriefStudio() {
 
         <section className="relative mt-[30px] max-w-[640px]">
           <SectionMark vw={150} d="M2 6 C40 3 90 7 148 4" isNew className="top-1" />
-          <p className="lab">Must-haves · {relaxed ? '4 + 1 relaxed' : '5'}</p>
+          {/* Label sits under its height mark, as on the portrait (the board lets the mark cross it). */}
+          <p className="lab pt-[18px]">Must-haves · {relaxed ? '4 + 1 relaxed' : '5'}</p>
           <div className="mt-2 flex flex-col gap-0.5">
             {mustHaves.map((m) => {
               const struck = relaxed && m.k === 'M4';

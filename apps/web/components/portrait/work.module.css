@@ -7,16 +7,13 @@
     --me: oklch(0.5 0.12 305);
     --me-wash: oklch(0.93 0.035 305);
   }
-  /* Light photo placeholder, mixed as on the canvas (see portrait.module.css); dark mixes live. */
-  div.root {
-    --photo: oklch(0.7835 0.05 242);
-  }
-  :global(.pv.dark) .root {
+  /* 夜: the person chose dark (.dark on <html>), or the system is dark and they chose nothing. */
+  :global(:root.dark) .root {
     --me: oklch(0.76 0.1 305);
     --me-wash: oklch(0.32 0.05 168);
   }
   @media (prefers-color-scheme: dark) {
-    :global(.pv:not(.light)) .root {
+    :global(:root:not(.light)) .root {
       --me: oklch(0.76 0.1 305);
       --me-wash: oklch(0.32 0.05 168);
     }
