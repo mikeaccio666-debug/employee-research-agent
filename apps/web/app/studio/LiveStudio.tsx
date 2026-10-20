@@ -41,7 +41,7 @@ export type LiveStudioProps = {
   publishedRev: number | null;
   /** False when the deployment has no model key: the studio says so instead of pretending. */
   agentReady: boolean;
-  /** For people allowed to switch the agent's model (testing): the choices and the default. */
+  /** For people allowed to switch the agent's model: the choices and the default. */
   models: { choices: ModelChoice[]; current: Provider | null } | null;
 };
 
@@ -271,17 +271,6 @@ export function LiveStudio(props: LiveStudioProps) {
         <span className={s.pill}>{visibilityLabel}</span>
       </span>
       <span className="flex-1" />
-      {props.models && props.models.choices.length > 1 && provider ? (
-        <span className="flex items-center gap-2">
-          <Segmented<Provider>
-            label="Model"
-            value={provider}
-            onChange={pickModel}
-            options={props.models.choices.map((c) => ({ value: c.value, label: c.label }))}
-          />
-          <span className="t-xs c2 whitespace-nowrap">{props.models.choices.find((c) => c.value === provider)?.model}</span>
-        </span>
-      ) : null}
       <span className="t-xs c2 whitespace-nowrap">
         {pendingCount ? `${pendingCount} ${pendingCount === 1 ? 'thing' : 'things'} to confirm` : 'All confirmed'}
       </span>
@@ -296,6 +285,21 @@ export function LiveStudio(props: LiveStudioProps) {
       )}
     </>
   );
+
+  // Which model answers: in the composer, so it is there on phones too.
+  const modelPicker =
+    props.models && props.models.choices.length > 1 && provider ? (
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <span className="t-xs c2">Model</span>
+        <Segmented<Provider>
+          label="Model"
+          value={provider}
+          onChange={pickModel}
+          options={props.models.choices.map((c) => ({ value: c.value, label: c.label }))}
+        />
+        <span className="t-xs c2">{props.models.choices.find((c) => c.value === provider)?.model}</span>
+      </div>
+    ) : null;
 
   const talk = (
     <>
@@ -343,6 +347,7 @@ export function LiveStudio(props: LiveStudioProps) {
             key={landingDraft ? 'landing' : 'empty'}
             defaultText={landingDraft}
             id="msg"
+            context={modelPicker}
             placeholder="Tell me what you’ve done, attach your résumé, or paste a link — in any language"
             onSend={(text) => send(text)}
             onAttach={() => picker.current?.click()}

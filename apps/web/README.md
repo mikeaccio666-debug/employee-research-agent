@@ -70,8 +70,10 @@ isn't connected; without Supabase it stays the canvas's Lin example.
 2. **Model.** Set `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` (server-only) in Vercel. With both,
    `AGENT_PROVIDER` picks one (default `openai`). `OPENAI_MODEL`, `ANTHROPIC_MODEL`, `AGENT_EFFORT`,
    the `*_BASE_URL`s and `AGENT_DAILY_MESSAGES` are optional (see `.env.example`). Changing them
-   needs a redeploy, not new code. People listed in `AGENT_ADMIN_EMAILS` get a switcher in the
-   studio's top bar (desktop) to pick any provider with a key, message by message.
+   needs a redeploy, not new code. With both keys set, people pick the model above the message
+   box, message by message (`AGENT_MODEL_SWITCHER`: `everyone` by default, `admins` for
+   `AGENT_ADMIN_EMAILS` only, or `off`). `AGENT_DAILY_MESSAGES_OPENAI` / `_ANTHROPIC` cap each
+   model per person per day on top of `AGENT_DAILY_MESSAGES`.
 
 How a turn works (`app/api/agent/chat/route.ts` → `lib/agent/turn.ts`): the person's message is
 saved, the model gets the instructions (`lib/agent/prompt.ts`), the history replayed verbatim and
