@@ -73,7 +73,10 @@ isn't connected; without Supabase it stays the canvas's Lin example.
    needs a redeploy, not new code. With both keys set, people pick the model above the message
    box, message by message (`AGENT_MODEL_SWITCHER`: `everyone` by default, `admins` for
    `AGENT_ADMIN_EMAILS` only, or `off`). `AGENT_DAILY_MESSAGES_OPENAI` / `_ANTHROPIC` cap each
-   model per person per day on top of `AGENT_DAILY_MESSAGES`.
+   model per person per day on top of `AGENT_DAILY_MESSAGES`. Within a provider, people also pick
+   the model (`OPENAI_MODELS` / `ANTHROPIC_MODELS`, comma-separated, default first; Claude offers
+   Opus, Sonnet and Haiku by default) and how hard it thinks (Quick, Balanced, Deep). History
+   written by another model is replayed as plain text, since reasoning is tied to its model.
 
 How a turn works (`app/api/agent/chat/route.ts` → `lib/agent/turn.ts`): the person's message is
 saved, the model gets the instructions (`lib/agent/prompt.ts`), the history replayed verbatim and

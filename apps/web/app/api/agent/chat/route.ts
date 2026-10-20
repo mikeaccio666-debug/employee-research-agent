@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { agentEnv, agentFor, canSwitchModel, DAILY_MESSAGES, dailyMessagesFor, PROVIDERS } from '@/lib/agent/env';
+import { agentEnv, agentFor, canSwitchModel, DAILY_MESSAGES, dailyMessagesFor, PROVIDERS, type Effort } from '@/lib/agent/env';
 import {
   linksIn,
   loadSources,
@@ -29,8 +29,10 @@ const Body = z
     message: z.string().trim().max(4000).default(''),
     /** A résumé in the `sources` bucket, under the person's own folder. */
     resume: z.object({ path: z.string().max(400), name: z.string().trim().min(1).max(200) }).optional(),
-    /** A provider other than the default, for people allowed to switch (AGENT_ADMIN_EMAILS). */
+    /** A provider, model and thinking level other than the defaults, for people allowed to switch (AGENT_MODEL_SWITCHER). */
     provider: z.enum(PROVIDERS).optional(),
+    model: z.string().max(100).optional(),
+    effort: z.string().max(20).optional(),
   })
   .refine((b) => b.message || b.resume);
 
@@ -48,8 +50,9 @@ export async function POST(req: Request) {
 
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return json(400, 'bad_message', 'That message is empty or too long (4,000 characters at most).');
-  const { message: text, resume, provider } = parsed.data;
-  const agent = provider && canSwitchModel(user.email) ? agentFor(provider) : agentEnv;
+  const { message: text, resume, provider, model, effort } = parsed.data;
+  // Models and levels not on offer fall back to the defaults (lib/agent/env.ts).
+  const agent = canSwitchModel(user.email) ? agentFor(provider ?? agentEnv.provider, { model, effort: effort as Effort | undefined }) : agentEnv;
   if (!agent) return json(503, 'agent_not_configured', 'That model isn’t connected here. Your message wasn’t sent.');
   // Storage rules keep people to their own folder too; this keeps a wrong path from even trying.
   if (resume && !(resume.path.startsWith(`${user.id}/`) && !resume.path.includes('..'))) {

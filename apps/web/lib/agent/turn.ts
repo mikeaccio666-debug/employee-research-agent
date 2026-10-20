@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Spec } from '@/lib/portrait/spec';
-import type { AgentEnv, Provider } from './env';
+import { defaultModel, type AgentEnv, type Provider } from './env';
 import { anthropicAdapter } from './providers/anthropic';
 import { openaiAdapter } from './providers/openai';
 import type { Adapter, Item } from './providers/types';
@@ -16,7 +16,8 @@ import { runTool, snapshot, type Said } from './tools';
 // The history is append-only. Every stored item is marked with the provider that wrote it
 // (`via`). Rows from the provider in use are replayed verbatim, so its reasoning and caching carry
 // over; rows another provider wrote are replayed as plain text (the person's words and the
-// replies), so the deployment can switch models and old conversations carry on.
+// replies), so the deployment can switch models and old conversations carry on. The same goes
+// for another model of the same provider (`viaModel`): reasoning is tied to the model that wrote it.
 
 export type TurnEvent =
   | { event: 'message.delta'; data: { text: string } }
@@ -28,7 +29,7 @@ export type TurnEvent =
 
 
 /** Our own notes on a stored item. They never go to the model. */
-type Notes = { via?: Provider; receipts?: Receipt[]; snapshotRev?: number; attachments?: Attachment[] };
+type Notes = { via?: Provider; viaModel?: string; receipts?: Receipt[]; snapshotRev?: number; attachments?: Attachment[] };
 
 const STATE_TAG = '<portrait_state>';
 
@@ -39,17 +40,22 @@ const ADAPTERS: Record<Provider, (env: AgentEnv) => Adapter> = { openai: openaiA
 
 const using = (env: AgentEnv) => ({ env, adapter: ADAPTERS[env.provider](env) });
 
-/** Marks items as written for this provider, with our notes on the first one. */
-const stored = (items: Item[], via: Provider, notes: Notes = {}): Item[] =>
-  items.map((item, i) => ({ ...item, ...(i === 0 ? notes : {}), via }));
+/** Marks items as written by this provider and model, with our notes on the first one. */
+const stored = (items: Item[], env: AgentEnv, notes: Notes = {}): Item[] =>
+  items.map((item, i) => ({ ...item, ...(i === 0 ? notes : {}), via: env.provider, viaModel: env.model }));
 
-const native = (row: Row, via: Provider) => row.items.length > 0 && (row.items as Notes[]).every((i) => i.via === via);
+/** Whether a row was written by the model in use (rows from before models were noted: its default). */
+const native = (row: Row, env: AgentEnv) =>
+  row.items.length > 0 &&
+  (row.items as Notes[]).every((i) => i.via === env.provider && (i.viaModel ?? defaultModel(env.provider)) === env.model);
 
-/** The history as the provider in use reads it. */
-function replay(rows: Row[], via: Provider, adapter: Adapter): Item[] {
+/** The history as the model in use reads it. */
+function replay(rows: Row[], env: AgentEnv, adapter: Adapter): Item[] {
   return rows.flatMap((row) => {
-    if (native(row, via)) {
-      return (row.items as (Item & Notes)[]).map(({ via: _v, receipts: _r, snapshotRev: _s, attachments: _a, ...item }) => item);
+    if (native(row, env)) {
+      return (row.items as (Item & Notes)[]).map(
+        ({ via: _v, viaModel: _m, receipts: _r, snapshotRev: _s, attachments: _a, ...item }) => item,
+      );
     }
     // Another provider's turn: its words stay, its tool calls (already applied) don't.
     if (row.role === 'tool') return [];
@@ -80,11 +86,11 @@ function userText(row: Row): string | null {
 export function unansweredToolCalls(rows: Row[], agent: AgentEnv): Item[] {
   const { env, adapter } = using(agent);
   const last = rows.at(-1);
-  if (!last || last.role !== 'assistant' || !native(last, env.provider)) return [];
+  if (!last || last.role !== 'assistant' || !native(last, env)) return [];
   const open = adapter.calls(last.items as Item[]);
   if (!open.length) return [];
   const output = 'Not done: the turn ended before this ran. Nothing changed.';
-  return stored(adapter.results(open.map((call) => ({ call, output, failed: true }))), env.provider);
+  return stored(adapter.results(open.map((call) => ({ call, output, failed: true }))), env);
 }
 
 /**
@@ -101,13 +107,13 @@ export function userItems(
 ): Item[] {
   const { env, adapter } = using(agent);
   const seen = rows
-    .filter((r) => native(r, env.provider))
+    .filter((r) => native(r, env))
     .flatMap((r) => r.items as Notes[])
     .reduce<number | null>((rev, i) => (typeof i.snapshotRev === 'number' ? i.snapshotRev : rev), null);
   const notes: Notes = shared.attachments.length ? { attachments: shared.attachments } : {};
-  if (seen === spec.rev) return stored(adapter.user(text, shared.blocks), env.provider, notes);
+  if (seen === spec.rev) return stored(adapter.user(text, shared.blocks), env, notes);
   const state = `${STATE_TAG}\n${snapshot(spec)}\n</portrait_state>`;
-  return stored(adapter.user(text, [...shared.blocks, state]), env.provider, { ...notes, snapshotRev: spec.rev });
+  return stored(adapter.user(text, [...shared.blocks, state]), env, { ...notes, snapshotRev: spec.rev });
 }
 
 export type { Attachment };
@@ -138,7 +144,7 @@ export async function runTurn({
   const { env, adapter } = using(agent);
   const said: Said = rows.filter((r) => r.role === 'user').map((r) => ({ id: r.id, text: r.body ?? '' }));
   let spec = start;
-  const history = replay(rows, env.provider, adapter);
+  const history = replay(rows, env, adapter);
   let lastId: number | null = null;
 
   for (let step = 0; step < MAX_STEPS; step++) {
@@ -159,7 +165,7 @@ export async function runTurn({
     }
     await logCall(supabase, conversationId, { provider: env.provider, ...answer.log, latency_ms: Date.now() - began, error: null });
 
-    lastId = await append(supabase, conversationId, 'assistant', stored(answer.items, env.provider), answer.text);
+    lastId = await append(supabase, conversationId, 'assistant', stored(answer.items, env), answer.text);
     history.push(...answer.items);
 
     if (answer.declined) {
@@ -189,7 +195,7 @@ export async function runTurn({
     if (spec !== start) await saveSpec(supabase, ownerId, spec);
     const answers = adapter.results(results);
     // The model knows its own changes from the results, so the portrait it has seen moves on too.
-    await append(supabase, conversationId, 'tool', stored(answers, env.provider, { receipts, snapshotRev: spec.rev }), null);
+    await append(supabase, conversationId, 'tool', stored(answers, env, { receipts, snapshotRev: spec.rev }), null);
     history.push(...answers);
   }
 
