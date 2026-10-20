@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
 import { BasisMark, DateNote, Ruler, SectionMark, buttonClass, chipClass, cx, withViewTransition } from '@portrait/ui';
+import { AccountLink } from '@/components/account/Account';
 import { PublicHeader } from '@/components/chrome';
 import { landingCopy, landingEvents, landingShots, type Who } from '@/lib/data/entry';
 import { routes } from '@/lib/routes';
@@ -69,9 +70,7 @@ export function Landing() {
           <Link className={navLink} href={routes.privacy}>
             Privacy
           </Link>
-          <Link className={buttonClass({ variant: 'secondary', size: 'sm', className: 'ml-2' })} href={routes.login}>
-            Log in
-          </Link>
+          <AccountLink className="ml-2" />
         </nav>
       </PublicHeader>
 

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { createContext, useContext, useEffect, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
 import { Ruler, cx } from '@portrait/ui';
+import { NavFooter } from '@/components/account/Account';
 import { AgentPanel, type AgentConfig } from '@/components/agent/AgentPanel';
 import type { NavItem } from '@/lib/nav';
 import { routes } from '@/lib/routes';
@@ -27,7 +28,7 @@ export type AppShellProps = {
   active?: string;
   /** small text after a nav label, e.g. { inbox: '2' } */
   badges?: Record<string, ReactNode>;
-  /** line at the bottom of the nav: "Sam Okafor · Northwind" */
+  /** line at the bottom of the nav: "Sam Okafor · Northwind"; the signed-in person replaces it */
   footer?: ReactNode;
   /** The always-on agent. Pass `false` only on screens that carry their own conversation. */
   agent?: AgentConfig | false;
@@ -84,7 +85,7 @@ export function AppShell({ nav, active, badges, footer, agent = {}, className, c
             Portrait
           </Link>
           {links()}
-          {footer ? <p className={cx('t-xs c2', s.foot)}>{footer}</p> : null}
+          <NavFooter fallback={footer} className={s.foot} />
         </nav>
         <nav className={s.mnav} aria-label="Main" ref={mnav}>
           <Link href={routes.landing} className={s.brand}>

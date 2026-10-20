@@ -1,10 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { Button, ChipTag, Grow, MarginNote, Segmented, buttonClass, cx, withViewTransition } from '@portrait/ui';
 import { ShellMain, useShell } from '@/components/shell/AppShell';
+import { HandleField } from '@/components/account/HandleField';
 import { VisibilityOptions } from '@/components/entry/VisibilityOptions';
+import type { Account } from '@/lib/account';
+import { saveVisibility } from '@/lib/account-actions';
 import {
   fieldLevelLabels,
   initialFieldLevels,
@@ -60,10 +63,17 @@ function useSectionSpy(initial: SectionId) {
   return [active, pick] as const;
 }
 
-/** S12 · privacy and visibility. The preview on the right follows every change. */
-export function Privacy() {
+/**
+ * S12 · privacy and visibility. The preview on the right follows every change. Signed in, the
+ * visibility saves as it changes and the alias is the person's own; without an account (Supabase
+ * not set up) the screen shows the canvas's example.
+ */
+export function Privacy({ account }: { account: Account | null }) {
   const { openAgent } = useShell();
-  const [vis, setVis] = useState<Visibility>('anon');
+  const [vis, setVis] = useState<Visibility>(account?.visibility ?? 'anon');
+  const [saveNote, setSaveNote] = useState<{ error: boolean; text: string } | null>(null);
+  const [saving, startSaving] = useTransition();
+  const alias = account?.alias ?? 'quiet-otter';
   const [levels, setLevels] = useState(initialFieldLevels);
   const [newAlias, setNewAlias] = useState(false);
   const [del, setDel] = useState(false);
@@ -73,7 +83,34 @@ export function Privacy() {
 
   const named = vis === 'public';
   const shown = vis === 'public' || vis === 'anon';
-  const card = named ? privacyPreview.named : privacyPreview.anon;
+  const example = named ? privacyPreview.named : privacyPreview.anon;
+  // A real account shows its own name or alias; its lines arrive once the portrait is drawn (step 2).
+  const card = account
+    ? {
+        name: named ? account.displayName || 'Your name' : alias,
+        ctx: '',
+        line: 'Your first lines show here once your portrait has them.',
+        links: '',
+      }
+    : example;
+  const options = account
+    ? privacyVisibility.map((o) => ({ ...o, description: o.description.replace('quiet-otter', alias) }))
+    : privacyVisibility;
+
+  const changeVis = (next: Visibility) => {
+    const before = vis;
+    withViewTransition(() => setVis(next));
+    if (!account) return;
+    setSaveNote(null);
+    startSaving(async () => {
+      const result = await saveVisibility(next);
+      if (result.ok) setSaveNote({ error: false, text: 'Saved' });
+      else {
+        setVis(before);
+        setSaveNote({ error: true, text: result.error });
+      }
+    });
+  };
   const after = sensitiveFields.filter((f) => levels[f.id] === 1).map((f) => f.name.toLowerCase());
   const everyone = sensitiveFields.filter((f) => levels[f.id] === 2).map((f) => f.name.toLowerCase());
   const note =
@@ -113,12 +150,15 @@ export function Privacy() {
             Who can see your portrait
           </h1>
           <p className="t-s c2 mt-1.5">Switch any time. The preview on the right shows exactly what a startup sees.</p>
-          <VisibilityOptions
-            className="mt-4"
-            options={privacyVisibility}
-            value={vis}
-            onChange={(next) => withViewTransition(() => setVis(next))}
-          />
+          <VisibilityOptions className="mt-4" options={options} value={vis} onChange={changeVis} />
+          {account ? (
+            <>
+              <p className={cx('t-xs mt-2', saveNote?.error ? 'err' : 'c2')} role="status">
+                {saving ? 'Saving…' : saveNote?.text}
+              </p>
+              <HandleField className="mt-4 max-w-[440px]" initial={account.handle} />
+            </>
+          ) : null}
         </section>
 
         <aside className={s.preview} aria-labelledby="pv-lab">
@@ -130,9 +170,9 @@ export function Privacy() {
               <div>
                 <p className={s.fno}>08A</p>
                 <p className="t-h3 mt-1.5">{card.name}</p>
-                <p className="t-xs c2">{card.ctx}</p>
+                {card.ctx ? <p className="t-xs c2">{card.ctx}</p> : null}
                 <p className="t-s mt-2.5">{card.line}</p>
-                <p className="t-xs c2 mt-2.5">{card.links}</p>
+                {card.links ? <p className="t-xs c2 mt-2.5">{card.links}</p> : null}
                 {after.length ? (
                   <p className="t-xs mt-2.5">
                     <b>After you connect:</b> {after.join(', ')}
@@ -182,10 +222,14 @@ export function Privacy() {
             Alias
           </h2>
           <div className="mt-3 flex flex-wrap items-baseline gap-3.5">
-            <p className="hand text-[30px] font-semibold">quiet-otter</p>
-            <ChipTag size="sm">CS</ChipTag>
-            <ChipTag size="sm">Junior</ChipTag>
-            <ChipTag size="sm">SoCal</ChipTag>
+            <p className="hand text-[30px] font-semibold">{alias}</p>
+            {account ? null : (
+              <>
+                <ChipTag size="sm">CS</ChipTag>
+                <ChipTag size="sm">Junior</ChipTag>
+                <ChipTag size="sm">SoCal</ChipTag>
+              </>
+            )}
             <Button variant="quiet" size="sm" onClick={editContext}>
               Edit context
             </Button>
@@ -211,7 +255,7 @@ export function Privacy() {
                   Get a new alias
                 </Button>
                 <Button variant="quiet" size="sm" onClick={closeNewAlias}>
-                  Keep quiet-otter
+                  Keep {alias}
                 </Button>
               </div>
             </div>

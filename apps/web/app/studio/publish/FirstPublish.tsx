@@ -1,32 +1,78 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, useTransition } from 'react';
 import { Button, Grow, PencilMark, Ruler, buttonClass, cx, useFlash, withViewTransition } from '@portrait/ui';
 import { FlowBar } from '@/components/chrome';
+import { HandleField } from '@/components/account/HandleField';
 import { VisibilityOptions } from '@/components/entry/VisibilityOptions';
+import type { Account } from '@/lib/account';
+import { setPublished } from '@/lib/account-actions';
 import { lin } from '@/lib/data/cast';
 import { publishChecks, publishVisibility, type PublishCheck, type Visibility } from '@/lib/data/entry';
 import { routes } from '@/lib/routes';
 import s from './publish.module.css';
 
-const LINK = 'portrait.so/lin';
+const EXAMPLE_LINK = 'portrait.so/lin';
 
-/** S15 · first publish: choose who can see the portrait, confirm four things, then the first mark. */
-export function FirstPublish() {
-  const [vis, setVis] = useState<Visibility>('anon');
+/**
+ * S15 · first publish: choose who can see the portrait, confirm four things, then the first mark.
+ * Signed in, publishing saves the visibility and the portrait's status, and a named page asks for
+ * a link (handle) first. Without an account it plays the canvas's example.
+ */
+export function FirstPublish({ account }: { account: Account | null }) {
+  const [vis, setVis] = useState<Visibility>(account?.visibility ?? 'anon');
+  const [handle, setHandle] = useState(account?.handle ?? null);
+  const [error, setError] = useState('');
+  const [busy, startSaving] = useTransition();
+  const [host, setHost] = useState('');
+  useEffect(() => setHost(window.location.host), []);
   const [ok, setOk] = useState<Record<PublishCheck['id'], boolean>>({ a: true, b: true, c: false, d: false });
   const [open, setOpen] = useState<PublishCheck['id'] | ''>('c');
-  const [done, setDone] = useState(false);
+  const [done, setDone] = useState(account?.published ?? false);
   const [copied, flashCopied] = useFlash(2000);
   const base = useId();
   const chooseHeading = useRef<HTMLHeadingElement>(null);
   const doneHeading = useRef<HTMLHeadingElement>(null);
   const changed = useRef(false);
 
-  const sel = publishVisibility.find((o) => o.value === vis) ?? publishVisibility[1]!;
+  // The canvas's choices name Lin and quiet-otter; a real account names its own person and alias.
+  const options = account
+    ? publishVisibility.map((o) => ({
+        ...o,
+        description: o.description.replace('quiet-otter', account.alias),
+        cta:
+          o.value === 'public'
+            ? account.displayName
+              ? `Publish as ${account.displayName}`
+              : 'Publish with your name'
+            : o.cta.replace('quiet-otter', account.alias),
+      }))
+    : publishVisibility;
+  const sel = options.find((o) => o.value === vis) ?? options[1]!;
   const nDone = publishChecks.filter((c) => ok[c.id]).length;
-  const ready = nDone === publishChecks.length;
+  // Public and link-only pages live at /@handle, so they need one before publishing.
+  const needsHandle = !!account && (vis === 'public' || vis === 'link') && !handle;
+  const ready = nDone === publishChecks.length && !needsHandle;
+  const link = account ? (handle ? `${host}/@${handle}` : '') : EXAMPLE_LINK;
+  // Only public pages are open to visitors; for the others the settings preview shows what startups see.
+  const seeHref = account
+    ? vis === 'public' && handle
+      ? routes.portrait(handle)
+      : routes.privacy
+    : vis === 'anon'
+      ? routes.anonPortrait(lin.alias ?? 'quiet-otter')
+      : routes.portrait(lin.handle ?? 'lin');
+
+  const publish = (next: boolean) => {
+    if (!account) return swap(next);
+    setError('');
+    startSaving(async () => {
+      const result = await setPublished(next, next ? vis : undefined);
+      if (result.ok) swap(next);
+      else setError(result.error);
+    });
+  };
 
   // Publishing or unpublishing swaps the whole page: take focus to the new heading.
   useEffect(() => {
@@ -40,7 +86,7 @@ export function FirstPublish() {
   };
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(`https://${LINK}`);
+      await navigator.clipboard.writeText(`${account ? window.location.protocol + '//' : 'https://'}${link}`);
       flashCopied();
     } catch {
       // Clipboard refused (permissions, insecure context): nothing to undo.
@@ -56,7 +102,7 @@ export function FirstPublish() {
             <Link href={routes.landing} className="text-[19px] font-extrabold tracking-[-0.02em] no-underline">
               Portrait
             </Link>
-            <span className="hand text-[17px]">{LINK}</span>
+            {link ? <span className="hand text-[17px]">{link}</span> : null}
           </span>
         }
         right={<span className="t-xs c2">{done ? `Live · ${sel.title}` : 'Draft · nothing is public yet'}</span>}
@@ -81,19 +127,23 @@ export function FirstPublish() {
               the date.
             </p>
             <div className="mt-[22px] flex flex-wrap gap-2">
-              <Link
-                className={buttonClass()}
-                href={vis === 'anon' ? routes.anonPortrait(lin.alias ?? 'quiet-otter') : routes.portrait(lin.handle ?? 'lin')}
-              >
+              <Link className={buttonClass()} href={seeHref}>
                 See it as a startup would
               </Link>
-              <Button variant="secondary" onClick={copy} aria-live="polite">
-                {copied ? 'Copied' : 'Copy link'}
-              </Button>
-              <Button variant="quiet" onClick={() => swap(false)}>
+              {link ? (
+                <Button variant="secondary" onClick={copy} aria-live="polite">
+                  {copied ? 'Copied' : 'Copy link'}
+                </Button>
+              ) : null}
+              <Button variant="quiet" onClick={() => publish(false)} disabled={busy}>
                 Unpublish
               </Button>
             </div>
+            {error ? (
+              <p className="err mt-3" role="alert">
+                {error}
+              </p>
+            ) : null}
           </div>
         ) : (
           <div>
@@ -105,12 +155,12 @@ export function FirstPublish() {
               We picked the setting most people start with. You can change it any time in Settings.
             </p>
             <div className="g12 mt-7 gap-y-6">
-              <VisibilityOptions
-                className="col-[1/span_6] max-md:col-[1/-1]"
-                options={publishVisibility}
-                value={vis}
-                onChange={setVis}
-              />
+              <div className="col-[1/span_6] max-md:col-[1/-1]">
+                <VisibilityOptions options={options} value={vis} onChange={setVis} />
+                {account && (vis === 'public' || vis === 'link') ? (
+                  <HandleField className="mt-4" initial={handle} onSaved={setHandle} />
+                ) : null}
+              </div>
               <div className="col-[7/span_6] max-md:col-[1/-1]">
                 <div className="flex items-baseline justify-between">
                   <p className="lab">Confirm 4 things first</p>
@@ -172,16 +222,23 @@ export function FirstPublish() {
                 aria-disabled={!ready}
                 aria-describedby={`${base}-count`}
                 onClick={() => {
-                  if (ready) swap(true);
+                  if (ready && !busy) publish(true);
                 }}
               >
                 {sel.cta}
               </button>
               <span className="t-xs c2 max-w-[46ch]">
-                {vis === 'anon'
+                {needsHandle
+                  ? 'Choose your link first.'
+                  : vis === 'anon'
                   ? 'Anonymity is our best effort. If you also share your named link widely, people may connect the two.'
                   : 'You can switch to anonymous any time.'}
               </span>
+              {error ? (
+                <p className="err w-full" role="alert">
+                  {error}
+                </p>
+              ) : null}
             </div>
           </div>
         )}
