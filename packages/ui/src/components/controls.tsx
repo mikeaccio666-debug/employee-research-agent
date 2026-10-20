@@ -4,8 +4,8 @@ import {
   useId,
   useRef,
   useState,
+  type ComponentPropsWithRef,
   type CSSProperties,
-  type InputHTMLAttributes,
   type KeyboardEvent,
   type ReactNode,
 } from 'react';
@@ -113,7 +113,7 @@ export function Switch({ checked, defaultChecked = false, onChange, label, id, c
   );
 }
 
-export type TextInputProps = InputHTMLAttributes<HTMLInputElement> & { invalid?: boolean };
+export type TextInputProps = ComponentPropsWithRef<'input'> & { invalid?: boolean };
 
 /** Text input: `.inp`. `invalid` darkens the border and sets aria-invalid. */
 export function TextInput({ invalid, className, style, ...rest }: TextInputProps) {

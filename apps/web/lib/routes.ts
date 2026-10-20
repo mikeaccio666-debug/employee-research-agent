@@ -3,6 +3,7 @@ export const routes = {
   landing: '/',
   birth: '/start',
   studio: '/studio',
+  login: '/login',
   firstPublish: '/studio/publish',
   portrait: (handle: string) => `/@${handle}`,
   anonPortrait: (alias: string) => `/a/${alias}`,

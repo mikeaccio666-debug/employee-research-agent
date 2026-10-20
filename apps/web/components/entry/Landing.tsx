@@ -69,7 +69,7 @@ export function Landing() {
           <Link className={navLink} href={routes.privacy}>
             Privacy
           </Link>
-          <Link className={buttonClass({ variant: 'secondary', size: 'sm', className: 'ml-2' })} href={routes.studio}>
+          <Link className={buttonClass({ variant: 'secondary', size: 'sm', className: 'ml-2' })} href={routes.login}>
             Log in
           </Link>
         </nav>

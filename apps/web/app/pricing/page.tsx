@@ -22,7 +22,7 @@ export default function PricingPage() {
           <Link className={quiet} href={routes.events}>
             Events
           </Link>
-          <Link className={quiet} href={routes.studio}>
+          <Link className={quiet} href={routes.login}>
             Log in
           </Link>
           <Link className={buttonClass({ variant: 'secondary', size: 'sm' })} href={routes.birth}>

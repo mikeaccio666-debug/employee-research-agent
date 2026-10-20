@@ -12,8 +12,34 @@ pnpm build        # turbo → next build
 pnpm typecheck
 ```
 
-There is no backend yet. Data is fixture data from the canvas (`lib/data`), and composers answer
-with an honest "not connected" note (`lib/preview.ts`).
+The backend is arriving in steps (see `docs/architecture.md`). Step 1 adds Supabase sign-in (email
+code and Google) and the accounts schema; screens still show the canvas's fixture data
+(`lib/data`), and composers answer with an honest "not connected" note (`lib/preview.ts`).
+
+## Supabase (step 1)
+
+Without `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (see `.env.example`)
+everything still runs and `/login` says sign-in is not set up. To switch it on:
+
+1. **Schema.** Run `supabase/migrations/*.sql` in order (Supabase dashboard → SQL Editor, or
+   `supabase db push` with the CLI). It creates `profiles` (handle, name, generated alias,
+   visibility; new people start anonymous), one draft `portraits` row per person, row-level
+   security so both stay private to their owner, and the `public_portraits` view, the only
+   public read.
+2. **Email code.** Authentication → Sign In / Providers → Email: on. Authentication → Emails →
+   "Magic Link": add `{{ .Token }}` to the template so the email carries the 6-digit code (the
+   link in it also works, on the same browser).
+3. **Google.** In Google Cloud Console create an OAuth client (Web application) with the
+   redirect URI `https://YOUR-PROJECT-REF.supabase.co/auth/v1/callback`; paste its client ID and
+   secret into Authentication → Sign In / Providers → Google.
+4. **URLs.** Authentication → URL Configuration: Site URL = the production URL; Redirect URLs =
+   `https://YOUR-DOMAIN/auth/callback`, `https://*-YOUR-VERCEL-TEAM.vercel.app/auth/callback`
+   (previews) and `http://localhost:3000/auth/callback`.
+5. **Vercel.** Add the two `NEXT_PUBLIC_…` variables to the project and redeploy (they are read at
+   build time).
+
+`proxy.ts` refreshes the session on each request; `/auth/callback` turns Google's or the email
+link's one-time code into the session; `/auth/signout` (POST) ends it.
 
 ## Where things live
 
