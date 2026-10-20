@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { agentEnv, agentFor, canSwitchModel, DAILY_MESSAGES, PROVIDERS } from '@/lib/agent/env';
+import { agentEnv, agentFor, canSwitchModel, DAILY_MESSAGES, dailyMessagesFor, PROVIDERS } from '@/lib/agent/env';
 import {
   linksIn,
   loadSources,
@@ -64,6 +64,10 @@ export async function POST(req: Request) {
   }
   if ((await sentToday(supabase, conversationId)) >= DAILY_MESSAGES) {
     return json(429, 'daily_limit', 'That’s today’s limit for the agent. Your portrait is saved; pick it up tomorrow.');
+  }
+  const cap = dailyMessagesFor(agent.provider);
+  if (cap !== null && (await sentToday(supabase, conversationId, agent.provider)) >= cap) {
+    return json(429, 'model_daily_limit', 'That’s today’s limit for this model. Switch to the other one, or pick it up tomorrow.');
   }
 
   const encoder = new TextEncoder();

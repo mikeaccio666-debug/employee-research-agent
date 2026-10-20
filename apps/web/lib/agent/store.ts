@@ -67,15 +67,18 @@ export async function append(
   return data.id;
 }
 
-/** Messages the person sent in the last 24 hours. */
-export async function sentToday(supabase: SupabaseClient, conversationId: string): Promise<number> {
+/** Messages the person sent in the last 24 hours, to one provider's model or to any. */
+export async function sentToday(supabase: SupabaseClient, conversationId: string, via?: string): Promise<number> {
   const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-  const { count } = await supabase
+  let query = supabase
     .from('conversation_messages')
     .select('id', { count: 'exact', head: true })
     .eq('conversation_id', conversationId)
     .eq('role', 'user')
     .gte('created_at', since);
+  // Each stored message is marked with the provider it went to (lib/agent/turn.ts).
+  if (via) query = query.eq('items->0->>via', via);
+  const { count } = await query;
   return count ?? 0;
 }
 

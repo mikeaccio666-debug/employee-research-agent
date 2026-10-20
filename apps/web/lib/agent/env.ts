@@ -1,8 +1,9 @@
 // The model behind the studio agent comes from the deployment's environment (Vercel project
 // settings, or .env.local), so it can change without new code. Two providers sit behind
 // lib/agent/turn.ts: OpenAI and Anthropic. AGENT_PROVIDER picks the default; left unset, it is
-// whichever has a key, OpenAI first. People listed in AGENT_ADMIN_EMAILS can switch between the
-// providers that have a key from the studio, for testing. Server-only: never NEXT_PUBLIC.
+// whichever has a key, OpenAI first. People pick between the providers that have a key in the
+// studio (AGENT_MODEL_SWITCHER decides who), each with its own daily cap if set. Server-only:
+// never NEXT_PUBLIC.
 
 export const PROVIDERS = ['openai', 'anthropic'] as const;
 export type Provider = (typeof PROVIDERS)[number];
@@ -59,8 +60,21 @@ const ADMINS = new Set(
     .filter(Boolean),
 );
 
-/** Whether this signed-in person may switch the agent's provider from the studio. */
-export const canSwitchModel = (email: string | null | undefined) => !!email && ADMINS.has(email.toLowerCase());
+// everyone (default): every signed-in person; admins: only AGENT_ADMIN_EMAILS; off: nobody.
+const SWITCHER = process.env.AGENT_MODEL_SWITCHER || 'everyone';
 
-/** How many messages one person may send the agent in 24 hours (a cost backstop). */
+/** Whether this signed-in person may switch the agent's provider from the studio. */
+export const canSwitchModel = (email: string | null | undefined) =>
+  SWITCHER === 'everyone' || (SWITCHER === 'admins' && !!email && ADMINS.has(email.toLowerCase()));
+
+/** How many messages one person may send the agent in 24 hours, on all models together (a cost backstop). */
 export const DAILY_MESSAGES = Number(process.env.AGENT_DAILY_MESSAGES || 200);
+
+/**
+ * The same, per provider (AGENT_DAILY_MESSAGES_OPENAI, AGENT_DAILY_MESSAGES_ANTHROPIC), so a
+ * pricier model can get a smaller allowance. Null when unset: only the overall cap applies.
+ */
+export const dailyMessagesFor = (p: Provider): number | null => {
+  const raw = process.env[`AGENT_DAILY_MESSAGES_${p.toUpperCase()}`];
+  return raw ? Number(raw) : null;
+};
