@@ -340,6 +340,10 @@
     .xlist :global(.xb) {
       padding: 0 16px 20px;
     }
+    /* a summary that wraps keeps its own line height instead of the button's */
+    .xlist :global(.xh .t-s) {
+      display: block;
+    }
     .story {
       display: flex;
       flex-direction: column;

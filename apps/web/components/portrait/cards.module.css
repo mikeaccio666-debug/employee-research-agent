@@ -1,0 +1,174 @@
+/* V2-S02-Share-Cards: three 1200 × 630 cards, shown at their real size and scaled down to fit. */
+@layer theme, base, components, utilities;
+
+@layer components {
+  .page {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+  }
+
+  /* The frame keeps the card's proportions; the card inside stays 1200 × 630 and is scaled. */
+  .frame {
+    position: relative;
+    width: 100%;
+    max-width: 1200px;
+    aspect-ratio: 1200 / 630;
+    overflow: hidden;
+    border-radius: 4px;
+    container-type: inline-size;
+  }
+  .scaler {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1200px;
+    height: 630px;
+    transform-origin: 0 0;
+    scale: var(--k, 1);
+  }
+  @supports (scale: calc(100cqw / 1200px)) {
+    .scaler {
+      scale: min(1, calc(100cqw / 1200px));
+    }
+  }
+
+  .card {
+    position: relative;
+    width: 1200px;
+    height: 630px;
+    overflow: hidden;
+    border-radius: 4px;
+    background: var(--wall);
+    color: var(--ink);
+    box-sizing: border-box;
+    padding: 48px 64px 48px 112px;
+    display: flex;
+    flex-direction: column;
+  }
+  .card > :global(.ruler) {
+    left: 22px;
+  }
+  .cm {
+    position: absolute;
+    left: 30px;
+    width: 120px;
+  }
+  .cm :global(.mark) {
+    width: 100%;
+  }
+  .d {
+    position: absolute;
+    left: 0;
+    top: 14px;
+    font-family: var(--hand);
+    font-size: 15px;
+    color: var(--ink-2);
+    white-space: nowrap;
+  }
+  .top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .wm {
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  .url {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ink-2);
+  }
+  .big {
+    font-size: 168px;
+    line-height: 0.86;
+    font-weight: 800;
+    letter-spacing: -0.05em;
+  }
+  /* color-mix(in oklch, --me 30%, --wall-2) on the canvas, mixed ahead of time (see portrait.module.css). */
+  .ph {
+    width: 236px;
+    height: 236px;
+    border-radius: 3px;
+    background: linear-gradient(170deg, oklch(0.7835 0.044 200.9), var(--wall-2));
+    display: flex;
+    align-items: flex-end;
+    padding: 14px;
+    box-sizing: border-box;
+    flex: none;
+  }
+  .pr {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 46px;
+    padding: 0 16px;
+    border-radius: 4px;
+    background: var(--trim);
+    font-size: 19px;
+    font-weight: 700;
+  }
+  .pr :global(.tally) {
+    height: 20px;
+  }
+  .kiosk {
+    border-radius: 4px;
+    background: var(--trim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .kiosk svg * {
+    fill: none;
+    stroke: var(--ink-3);
+    stroke-width: 3;
+    stroke-linecap: round;
+  }
+  .kiosk svg .f {
+    fill: var(--ink-3);
+    stroke: none;
+  }
+  .rt {
+    display: flex;
+    gap: 22px;
+    align-items: flex-end;
+  }
+  .rt span {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .rt i {
+    display: block;
+    width: 4px;
+    border-radius: 2px;
+    background: var(--ink);
+  }
+  .rt .me {
+    background: var(--me);
+  }
+  /* Maya's persona colour on her card */
+  .work {
+    --me: oklch(0.5 0.12 305);
+  }
+  .cap {
+    font-size: 15px;
+    line-height: 1.6;
+    max-width: 1100px;
+  }
+
+  @media (max-width: 760px) {
+    .page {
+      padding: 24px 16px 40px;
+      gap: 32px;
+    }
+  }
+}

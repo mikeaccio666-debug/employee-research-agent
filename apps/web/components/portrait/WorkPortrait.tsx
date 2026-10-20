@@ -262,7 +262,7 @@ export function WorkPortrait({ data }: { data: WorkPortraitData }) {
                 </div>
                 <div className="g12 mt-2.5 gap-y-5">
                   <div className="col-[1/span_8] max-md:col-[1/-1]">
-                    <p className="t-h2 max-w-[30ch]">{kiosk.headline}</p>
+                    <p className="t-h2 max-w-[30ch] max-sm:text-[22px] max-sm:leading-[1.25]">{kiosk.headline}</p>
                     <div className={w.rounds} role="group" aria-label="Six rounds of testing">
                       {kiosk.rounds.map((x, i) => (
                         <button
