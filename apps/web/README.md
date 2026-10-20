@@ -56,6 +56,36 @@ link's one-time code into the session; `/auth/signout` (POST) ends it.
   cached and refreshed when someone publishes or changes visibility. Only Public portraits show
   there; link-only pages need the view widened first.
 
+## The studio agent (step 2)
+
+Signed in, `/studio` is the person's own portrait: a conversation with the agent on the left and
+the portrait it draws on the right. Without `OPENAI_API_KEY` the studio still loads and says the
+agent isn't connected; without Supabase it stays the canvas's Lin example.
+
+1. **Schema.** Run `supabase/migrations/20261022000000_agent_conversations.sql` after step 1's. It
+   adds `conversations`, `conversation_messages` (append-only: people read and add to their own,
+   nobody edits) and `model_calls`, plus `portraits.published_spec`. The `public_portraits` view
+   now reads `published_spec`, so drafts, rejected lines and the chat quotes behind each line never
+   leave the studio.
+2. **Model.** Set `OPENAI_API_KEY` (server-only) in Vercel; `OPENAI_MODEL`,
+   `OPENAI_REASONING_EFFORT`, `OPENAI_BASE_URL` and `AGENT_DAILY_MESSAGES` are optional (see
+   `.env.example`).
+
+How a turn works (`app/api/agent/chat/route.ts` → `lib/agent/turn.ts`): the person's message is
+saved, the model gets the instructions (`lib/agent/prompt.ts`), the history replayed verbatim and
+the portrait as it stands, and answers as server-sent events (`message.delta`, `portrait.patch`,
+`message.done`, `error`). It changes the portrait only through four tools (`lib/agent/tools.ts`):
+`upsert_claim`, `remove_claim`, `set_headline`, `move_section`. Each call is checked before it
+touches `portraits.spec`: every line must quote the person's own messages, drafts the person
+rejected can't come back, pinned lines are theirs. Refusals go back to the model in plain words.
+
+The portrait (`lib/portrait/spec.ts`) is a list of claims (one line of the page each, with its
+layer, basis and status), a headline and the section order. New lines are drafts, dashed in the
+studio with **Right / Not right** under them (`lib/portrait-actions.ts`). Publishing copies the
+confirmed lines, without their quotes, to `published_spec`; after that the studio offers **Update
+page** whenever the draft moves ahead. `/@handle` renders the published copy
+(`components/portrait/SpecSections.tsx`).
+
 ## Where things live
 
 | Path | What |

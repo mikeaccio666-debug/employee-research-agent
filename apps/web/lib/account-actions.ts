@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache';
 import type { Visibility } from '@/lib/data/entry';
 import { handleProblem, normalizeHandle, toDbVisibility } from '@/lib/account';
 import { supabaseServer } from '@/lib/supabase/server';
+import { loadPortrait } from '@/lib/agent/store';
+import { publishedSpec } from '@/lib/portrait/spec';
 
 // Writes for the signed-in person's own profile and portrait. Row-level security and the column
 // grants in the migration are what actually limit them; these only turn errors into plain words.
@@ -73,10 +75,15 @@ export async function setPublished(published: boolean, visibility?: Visibility):
       .eq('id', user.id);
     if (error) return { ok: false, error: FAILED };
   }
-  const { error } = await supabase
-    .from('portraits')
-    .update(published ? { status: 'published', published_at: new Date().toISOString() } : { status: 'draft' })
-    .eq('owner_id', user.id);
+  // Publishing copies the confirmed lines to the page (publishedSpec); the draft keeps changing.
+  const update = published
+    ? {
+        status: 'published',
+        published_at: new Date().toISOString(),
+        published_spec: publishedSpec((await loadPortrait(supabase, user.id)).spec),
+      }
+    : { status: 'draft' };
+  const { error } = await supabase.from('portraits').update(update).eq('owner_id', user.id);
   if (error) return { ok: false, error: FAILED };
   refreshPortraits();
   return { ok: true };
