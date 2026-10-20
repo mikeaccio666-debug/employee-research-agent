@@ -1,0 +1,17 @@
+{
+  "name": "portrait",
+  "private": true,
+  "packageManager": "pnpm@10.28.0",
+  "scripts": {
+    "dev": "pnpm --filter @portrait/web dev",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "start": "pnpm --filter @portrait/web start"
+  },
+  "devDependencies": {
+    "turbo": "2.11.9"
+  },
+  "engines": {
+    "node": ">=20.9"
+  }
+}

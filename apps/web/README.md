@@ -1,0 +1,120 @@
+# @portrait/web
+
+The Portrait web app: Next.js 16 (App Router) + React 19 + TypeScript, Tailwind CSS 4, and the
+design system in `packages/ui` (`@portrait/ui`). Screens are implemented from the Claude Design
+canvas "页面 v2" (design system v0.2, 身高线 × 晨光). The `/design` page lists every artboard and
+links to its route.
+
+```bash
+pnpm install
+pnpm dev          # http://localhost:3000
+pnpm build        # turbo → next build
+pnpm typecheck
+```
+
+There is no backend yet. Data is fixture data from the canvas (`lib/data`), and composers answer
+with an honest "not connected" note (`lib/preview.ts`).
+
+## Where things live
+
+| Path | What |
+|---|---|
+| `packages/ui/src/styles/system.css` | The canvas's shared stylesheet, ported verbatim (tokens, type, every component class). |
+| `packages/ui/src/styles/extras.css` | Patterns the canvas repeats per board (`.kbd`, `.linklike`). |
+| `packages/ui/src/components/*` | React primitives over those classes (Button, Chip, Composer, Footnoted, Frame …). |
+| `app/globals.css` | Tailwind (theme + utilities, **no preflight**) and the token mapping. |
+| `components/shell` | `AppShell` + `ShellMain`: the signed-in left-nav shell. |
+| `components/agent` | `AgentPanel`: the always-on agent (Talk button, ⌘J, slides in from the right). |
+| `components/workspace` | `Workspace`: chat beside a live canvas (studio, brief, event create, grow). |
+| `components/chrome.tsx` | `PublicHeader` (public pages), `FlowBar` (focused flows). |
+| `lib/routes.ts` | Every screen's URL, and the board list for `/design`. |
+| `lib/nav.ts` | Left-nav sets: talent, company, insider. |
+| `lib/data/cast.ts` | The fictional cast (Lin, Maya, Alex, Jordan, Northwind). |
+
+Portraits live at `/@handle`; `next.config.ts` rewrites that to `app/u/[handle]` because folders
+starting with `@` are parallel routes.
+
+## Styling rules
+
+Three layers, in cascade order: `base` (tokens, resets) → `components` (design classes and
+screen CSS modules) → `utilities` (Tailwind). Later layers win regardless of specificity.
+
+1. **Design classes first.** Type (`t-name t-d t-h1 t-h2 t-h3 t-body t-s t-xs lab hand hcn zh b
+   c2 c3 num`), layout (`wrap g12 panel sunk`), marks (`ruler smark mark band pend fn bm tally
+   tick`), controls (`btn chip seg sw inp opt slot`), folds (`grow gl ln land xrow`), conversation
+   (`thread m-a m-u rcpt status cmp ctx`), editing (`blk br grip note`), contact sheet (`frm must`).
+   Prefer the React primitive when one exists.
+2. **Tailwind for layout and one-off spacing**, translating the canvas's inline styles:
+   `style="margin-top: 22px"` → `mt-[22px]` (or `mt-5.5`), `grid-column: 1 / span 9` →
+   `col-[1/span_9]`, `font-size: 20px` → `text-[20px]`, `letter-spacing:-0.02em` →
+   `tracking-[-0.02em]`. Colours are tokens only: `bg-wall bg-wall-2 bg-trim bg-warm bg-chalk
+   text-ink text-ink-2 text-ink-3 text-on-chalk border-edge text-new bg-me-wash`; fonts `font-sans
+   font-hand font-hand-cn`; easing `ease-spring`. Breakpoints match the canvas: `max-sm:` = phone
+   (≤760px), `max-md:` ≤900px, `max-lg:` ≤1180px.
+   The utilities `grow` and `ring` are switched off (those names are design classes); use `flex-1`.
+3. **A CSS module per screen** for the rules in a board's `<style>` block. Start the file with
+   `@layer theme, base, components, utilities;` and wrap the rules in `@layer components { … }`
+   so they keep the canvas's specificity against the design classes. Inside a module:
+   - class names are local (`s.card`); refer to design classes with `:global(.ruler)`;
+   - keyframe names are scoped, so `animation: pv-land` does **not** reach the global keyframes.
+     Either put the global class on the element (`land`, `draw`, `band sweep`, `ln` inside an
+     open `grow`) or copy the `@keyframes` into the module.
+4. Inline `style={{…}}` only for values computed at runtime (drag transforms, CSS variables).
+5. No Tailwind preflight: elements keep browser defaults plus the canvas reset, exactly as the
+   boards were drawn. `<body>` carries `.pv`, so a board's root `<div class="{{root}}">` becomes a
+   plain wrapper (`min-h-screen relative overflow-hidden` …) without `pv`.
+
+### Theme
+
+Light 晨 and dark 夜 come from tokens. The page follows the system theme unless the person picked
+one (`.light`/`.dark` on `<body>`, saved in `localStorage`). `?theme=dark` shows one page view in
+dark without saving it. Never hard-code a theme on a screen; a fixed-theme object (a share card)
+can wrap itself in `<div className="pv dark">`. The canvas's "wine" tweak variables equal the
+defaults in `system.css` and need no code.
+
+### Motion
+
+The spring is `var(--spring)`; durations `--t-press 120 · --t-s 240 · --t-draw 380 · --t-m 420 ·
+--t-settle 520 · --t-l 640`. Reduced motion is handled in `system.css`; in JS, check
+`prefersReducedMotion()`. The canvas's `vt(fn)` helper is `withViewTransition(() => setState(…))`.
+
+## Porting a board
+
+1. Read the board (`*.dc.html`). Markup sits between `</helmet>` and `</x-dc>`; screen CSS is the
+   `<style>` in `<helmet>`; behaviour is the `DCLogic` class (initial `state`, `renderVals`).
+2. `page.tsx` stays a server component: `export const metadata = { title: '<board <title>>' }` and
+   render the screen. Put interactive parts in a `'use client'` component next to it.
+3. `{{holes}}` become props/state; `<sc-if>` → conditionals; `<sc-for>` → `.map` with keys.
+   Mirror the board's interactions (toggles, grow-in-place, keyboard shortcuts, view transitions).
+4. Copy is verbatim — English and Chinese, curly quotes, `·`, `—`, `›`. Keep `lang="zh-CN"` where
+   the board sets it. The cast is fictional; never present it as real.
+5. Keep the board's ARIA. Buttons are `<button type="button">`; navigation is `next/link`.
+   Links to other boards (`href="V2-S06….dc.html"`) map through `routes`; `href="#"` goes to the
+   most sensible screen or an in-page anchor.
+
+### Shells
+
+```tsx
+<AppShell nav={companyNav} active="hire" footer="Sam Okafor · Northwind"
+  agent={{ context: '07A night-heron', caption: 'Same conversation as your Brief studio · today', thread: <>…</> }}>
+  <ShellMain className={s.main}>…</ShellMain>
+</AppShell>
+```
+
+`ShellMain` is the page column (`padding: 28px 40px 64px`); it makes room when the agent panel
+opens. Every signed-in page gets the agent (Talk ⌘J) unless the board carries its own
+conversation (`agent={false}`). `useShell()` opens the panel from page content.
+
+```tsx
+<Workspace top={…} talk={…} composer={<Composer … />} canvasLabel="Your portrait, live" resizable
+  mobile={{ status: 'Anonymous · discoverable', canvasNote: 'Preview · as the public sees it' }}>
+  …canvas…
+</Workspace>
+```
+
+Public pages use `<PublicHeader>`; focused flows use `<FlowBar left right>`.
+
+## Checking your work
+
+- `npx tsc --noEmit -p tsconfig.json` from `apps/web`.
+- Screens at 1440 × 900 and 390 × 844, light and `?theme=dark`, and with reduced motion.

@@ -1,0 +1,135 @@
+// Every screen's URL in one place. The /design index and the navs link through this map.
+export const routes = {
+  landing: '/',
+  birth: '/start',
+  studio: '/studio',
+  firstPublish: '/studio/publish',
+  portrait: (handle: string) => `/@${handle}`,
+  anonPortrait: (alias: string) => `/a/${alias}`,
+  shareCards: (handle: string) => `/u/${handle}/cards`,
+  brief: '/hire/swe-intern/brief',
+  contactSheet: '/hire/swe-intern',
+  candidate: (frame: string) => `/hire/swe-intern/${frame}`,
+  paywall: '/hire/swe-intern/07a/request',
+  inbox: '/inbox',
+  coffeeChat: '/inbox/coffee/northwind',
+  review: '/inbox/coffee/alex/review',
+  ratings: '/ratings',
+  feed: '/feed',
+  events: '/events',
+  eventInApp: '/events/northwind-ama',
+  eventPublic: '/e/northwind-ama',
+  eventCreate: '/company/events/new',
+  company: '/c/northwind',
+  privacy: '/settings/privacy',
+  pricing: '/pricing',
+  grow: '/grow',
+  insider: '/insider',
+  insiderRequests: '/insider/requests',
+  insiderUnlock: '/insider/unlock',
+  referrals: '/referrals',
+  packet: '/referrals/packet',
+  design: '/design',
+  states: '/design/states',
+  storyboards: '/design/storyboards',
+  colors: '/design/colors',
+  type: '/design/type',
+  foundations: '/design/foundations',
+  components: '/design/components',
+} as const;
+
+export type Board = { k: string; t: string; d: string; href: string };
+export type BoardGroup = { n: string; title: string; note?: string; items: Board[] };
+
+// Mirrors the canvas index board (V2-S00), with each artboard pointing at its route.
+export const boardGroups: BoardGroup[] = [
+  {
+    n: '§12.6',
+    title: '三页改版与分镜',
+    note: '已确认的样板',
+    items: [
+      { k: 'S2', t: 'Lin 的画像页', d: '故事原地展开 · 证据脚注 · 约 coffee chat', href: routes.portrait('lin') },
+      { k: 'S6', t: '印样 · SWE Intern', d: '左右滑动圈选 / 划掉 · 键盘 C X J K', href: routes.contactSheet },
+      { k: 'S1', t: '画像工作室', d: '从来源处生长 · 区块拖动排序', href: `${routes.studio}?theme=dark` },
+      { k: '分镜', t: '收起 → 展开中 → 完成', d: '含减少动态效果版本', href: routes.storyboards },
+    ],
+  },
+  {
+    n: '1',
+    title: '移动端与常驻 agent',
+    note: '同一段对话跟着你走',
+    items: [
+      { k: 'S1', t: '画像工作室 · 移动', d: '三台手机 · 把窗口收窄到手机宽度', href: `${routes.studio}?theme=light` },
+      { k: 'S1b', t: '企业看候选人', d: 'Show on page · 发 coffee chat 请求', href: routes.candidate('07a') },
+      { k: 'S1b', t: '求职者看活动', d: '用自己的经历拟问题 · 匿名或公开', href: routes.eventInApp },
+      { k: 'S1b', t: '在职者看请求', d: '选时段回复（暗色）', href: `${routes.insiderRequests}?theme=dark` },
+    ],
+  },
+  {
+    n: '2',
+    title: '画像页的其他形态',
+    note: '移动、作品优先、分享卡片',
+    items: [
+      { k: 'S2', t: '画像页 · 移动 × 3', d: '实名 / 故事与证据 / 匿名 · 匿名版在 /a/quiet-otter', href: routes.anonPortrait('quiet-otter') },
+      { k: 'S2', t: 'Maya · 作品优先', d: '六轮测试画成六根刻度', href: routes.portrait('maya') },
+      { k: 'S2', t: '分享卡片 × 3', d: '实名 · 匿名 · 作品', href: routes.shareCards('lin') },
+    ],
+  },
+  {
+    n: '3',
+    title: '入口与企业端',
+    items: [
+      { k: 'S3', t: '落地页', d: 'work ↔ people 一键切换', href: routes.landing },
+      { k: 'S4', t: '诞生时刻', d: '画像从 “Show me” 里长出来', href: routes.birth },
+      { k: 'S5', t: 'Brief 工作室', d: '放宽 M4 → 27 · 年龄过滤拦截', href: routes.brief },
+      { k: 'S7', t: '候选人详情', d: '匿名 / 揭示 · 匹配说明点亮证据', href: routes.candidate('08a') },
+    ],
+  },
+  {
+    n: '4',
+    title: '连接、动态与活动',
+    items: [
+      { k: 'S8', t: '收件箱', d: '接受 · 原地展开婉拒', href: routes.inbox },
+      { k: 'S8', t: 'Coffee chat', d: '时间网格可拖选 · PT / ET', href: routes.coffeeChat },
+      { k: 'S9', t: '动态广场', d: '匿名检查 · 模糊 logo', href: routes.feed },
+      { k: 'S10', t: '活动节目单', d: '报名后圈出日期', href: routes.events },
+      { k: 'S10', t: '活动页', d: '投票画计数线 · 别名提问', href: routes.eventPublic },
+      { k: 'S10', t: '创建活动', d: '点字段即编辑（暗色）', href: `${routes.eventCreate}?theme=dark` },
+    ],
+  },
+  {
+    n: '5',
+    title: '公司、隐私、价格与状态',
+    items: [
+      { k: 'S11', t: 'Northwind 公司页', d: '公司的身高线：3 → 40 家', href: routes.company },
+      { k: 'S12', t: '隐私与可见性', d: '预览实时变化', href: routes.privacy },
+      { k: 'S13', t: '价格页', d: '直接回答可展开', href: routes.pricing },
+      { k: 'S13', t: '付费时刻', d: '方案原地展开 · 草稿保留', href: routes.paywall },
+      { k: 'S14', t: '状态合集', d: '8 种状态', href: routes.states },
+      { k: 'S15', t: '首次发布', d: '门框上的第一道线', href: routes.firstPublish },
+    ],
+  },
+  {
+    n: '6',
+    title: '成长、在职者与评价',
+    items: [
+      { k: 'S17', t: '成长计划', d: '完成一项，证据行跟着变（中文对话）', href: routes.grow },
+      { k: 'S18', t: '在职者主页', d: '请求原地展开 · 内推记录', href: routes.insider },
+      { k: 'S18', t: '解锁在职者', d: '4 帧分镜', href: routes.insiderUnlock },
+      { k: 'S19', t: '内推订阅', d: '核验进度画成刻度', href: routes.referrals },
+      { k: 'S19', t: '内推包', d: '逐行确认后入池', href: routes.packet },
+      { k: 'S20', t: '双向评价', d: '用计数线打分，不用星星', href: routes.review },
+      { k: 'S20', t: '评分与争议', d: '被标记的行 · 申诉', href: routes.ratings },
+    ],
+  },
+  {
+    n: 'v0.2',
+    title: '设计系统',
+    items: [
+      { k: '01', t: '颜色', d: '酒红可调 · 定稿 C 0.025 · H 1 · L 0.30', href: routes.colors },
+      { k: '02', t: '字体', d: 'Atkinson · Shantell · 霞鹜文楷 · 思源黑体', href: routes.type },
+      { k: '03', t: '空间、网格与动效', d: '弹簧与减少动态效果', href: routes.foundations },
+      { k: '04', t: '组件', d: '可交互', href: routes.components },
+    ],
+  },
+];

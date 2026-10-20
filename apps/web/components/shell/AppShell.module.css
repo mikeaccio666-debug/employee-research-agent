@@ -1,0 +1,101 @@
+/* The signed-in shell from the canvas: left nav on wall-2 with its own ruler,
+   page on the wall. Shared by S01b, S06–S10, S12, S13b, S18, S19. */
+@layer theme, base, components, utilities;
+
+@layer components {
+  .shell {
+    position: relative;
+    display: flex;
+    min-height: 100vh;
+  }
+  .nav {
+    position: relative;
+    flex: none;
+    width: 200px;
+    padding: 24px 20px 24px 72px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: var(--wall-2);
+  }
+  .nav :global(.ruler) {
+    left: 16px;
+  }
+  .brand {
+    font-size: 19px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-bottom: 18px;
+    text-decoration: none;
+  }
+  .link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 40px;
+    font-size: 15px;
+    font-weight: 700;
+    text-decoration: none;
+    color: var(--ink-2);
+    border-radius: 4px;
+    padding: 0 10px;
+    margin-left: -10px;
+  }
+  .link.on {
+    color: var(--ink);
+    background: var(--trim);
+  }
+  .foot {
+    margin-top: auto;
+  }
+  /* The canvas hides the nav below 900px; a compact row keeps the app navigable. */
+  .mnav {
+    display: none;
+  }
+  .page {
+    flex: 1;
+    min-width: 0;
+    padding: 28px 40px 64px;
+    transition: padding-right var(--t-m) var(--spring);
+  }
+  .withp {
+    padding-right: 480px;
+  }
+  @media (max-width: 900px) {
+    .shell {
+      flex-direction: column;
+    }
+    .nav {
+      display: none;
+    }
+    .mnav {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 10px 16px;
+      background: var(--wall-2);
+      overflow-x: auto;
+    }
+    .mnav .brand {
+      margin: 0 10px 0 0;
+      font-size: 17px;
+    }
+    .mnav .link {
+      margin: 0;
+      min-height: 36px;
+      font-size: 14px;
+      white-space: nowrap;
+    }
+    .withp {
+      padding-right: 40px;
+    }
+  }
+  @media (max-width: 760px) {
+    .page {
+      padding: 20px 16px 56px;
+    }
+    .withp {
+      padding-right: 16px;
+    }
+  }
+}

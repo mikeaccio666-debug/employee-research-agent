@@ -1,0 +1,96 @@
+/* From the S01b boards (company, event, insider). The canvas positions the panel
+   absolutely inside a 100vh board; here it is fixed to the viewport so it stays put
+   while long pages scroll. */
+@layer theme, base, components, utilities;
+
+@layer components {
+  .panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 440px;
+    background: var(--wall-2);
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    transform: translateX(100%);
+    transition: transform var(--t-m) var(--spring);
+    z-index: 10;
+  }
+  .panel.open {
+    transform: none;
+  }
+  .edge {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 6px;
+    height: 56px;
+    margin-top: -28px;
+    border-radius: 3px;
+    background: var(--trim);
+    cursor: ew-resize;
+  }
+  .ph {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 16px 20px 10px 24px;
+  }
+  .ctxrow {
+    padding: 0 20px 12px 24px;
+  }
+  .look {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 34px;
+    padding: 0 4px 0 12px;
+    border-radius: 3px;
+    background: var(--trim);
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .look button {
+    border: 0;
+    background: transparent;
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+    color: inherit;
+  }
+  .pscroll {
+    overflow: auto;
+    padding: 4px 24px 12px;
+  }
+  .composer {
+    margin: 0 16px 16px;
+  }
+  .talkbtn {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    min-height: 52px;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 4px;
+    background: var(--ink);
+    color: var(--wall);
+    font: 700 16px/1 var(--f);
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    z-index: 9;
+    transition: transform var(--t-press) var(--spring);
+  }
+  .talkbtn:active {
+    transform: scale(0.98);
+  }
+  @media (max-width: 900px) {
+    .panel {
+      width: 100%;
+    }
+  }
+}

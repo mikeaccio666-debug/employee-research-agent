@@ -1,0 +1,158 @@
+/* Chat beside a live canvas: S01 studio, S05 brief, S10c event, S17 grow.
+   Phones (S01 mobile): one pane at a time, with a preview strip and a Talk button. */
+@layer theme, base, components, utilities;
+
+@layer components {
+  .app {
+    display: grid;
+    grid-template-rows: 64px minmax(0, 1fr);
+    height: 100vh;
+    min-height: 720px;
+  }
+  .top {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 0 20px;
+    background: var(--wall-2);
+    min-width: 0;
+  }
+  .brand {
+    font-size: 19px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    text-decoration: none;
+  }
+  .body {
+    display: grid;
+    grid-template-columns: var(--talk-w, minmax(380px, 38%)) 14px minmax(0, 1fr);
+    min-height: 0;
+  }
+  .talk {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    min-height: 0;
+    background: var(--wall-2);
+  }
+  .scroll {
+    overflow: auto;
+    padding: 24px 28px 12px;
+    min-height: 0;
+  }
+  .cmpwrap {
+    padding: 0 20px 18px;
+  }
+  .split {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--wall-2);
+    touch-action: none;
+  }
+  .split.resizable {
+    cursor: col-resize;
+  }
+  .split i {
+    width: 4px;
+    height: 44px;
+    border-radius: 2px;
+    background: var(--trim);
+  }
+  .canvas {
+    overflow: auto;
+    min-height: 0;
+    position: relative;
+  }
+  .mbar,
+  .strip,
+  .mtalk {
+    display: none;
+  }
+
+  @media (max-width: 760px) {
+    .app {
+      grid-template-rows: auto minmax(0, 1fr);
+      height: 100dvh;
+      min-height: 0;
+    }
+    .top,
+    .split {
+      display: none;
+    }
+    .mbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 48px;
+      padding: 6px 20px 0;
+      gap: 12px;
+    }
+    .body {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .talk {
+      background: var(--wall);
+    }
+    .scroll {
+      padding: 22px 20px 16px;
+    }
+    .cmpwrap {
+      padding: 0 12px 22px;
+    }
+    .app[data-view='talk'] .canvas,
+    .app[data-view='canvas'] .talk {
+      display: none;
+    }
+    .strip {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 0 12px 12px;
+      padding: 10px 12px;
+      border-radius: 4px;
+      background: var(--trim);
+      border: 0;
+      text-align: left;
+      cursor: pointer;
+      width: calc(100% - 24px);
+      color: var(--ink);
+    }
+    .thumb {
+      width: 44px;
+      height: 56px;
+      border-radius: 3px;
+      background: var(--wall-2);
+      position: relative;
+      flex: none;
+      overflow: hidden;
+    }
+    .thumb i {
+      position: absolute;
+      left: 6px;
+      right: 10px;
+      height: 3px;
+      border-radius: 2px;
+      background: var(--ink-3);
+    }
+    .mtalk {
+      position: fixed;
+      right: 20px;
+      bottom: 24px;
+      min-height: 52px;
+      padding: 0 20px;
+      border-radius: 4px;
+      border: 0;
+      background: var(--ink);
+      color: var(--wall);
+      font: 700 16px/1 var(--f);
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      z-index: 9;
+    }
+    .app[data-view='talk'] .mtalk {
+      display: none;
+    }
+  }
+}

@@ -1,0 +1,76 @@
+/* V2-S00 index board. */
+@layer theme, base, components, utilities;
+
+@layer components {
+  .grp {
+    padding-top: 44px;
+    position: relative;
+  }
+  .gh {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .n {
+    font-family: var(--hand);
+    font-size: 22px;
+    font-weight: 600;
+  }
+  .list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .it {
+    display: grid;
+    grid-template-columns: 62px minmax(0, 1fr);
+    column-gap: 12px;
+    align-items: baseline;
+    padding: 14px 16px;
+    border-radius: 4px;
+    background: var(--trim);
+    text-decoration: none;
+    color: var(--ink);
+    transition:
+      background-color var(--t-s) var(--spring),
+      transform var(--t-press) var(--spring);
+  }
+  .it:hover {
+    background: var(--warm);
+  }
+  .it:active {
+    transform: scale(0.98);
+  }
+  .k {
+    font-family: var(--hand);
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .cast {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .cast > div {
+    border-radius: 4px;
+    background: var(--wall-2);
+    padding: 14px 16px;
+  }
+  @media (max-width: 1100px) {
+    .list {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .cast {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 760px) {
+    .list,
+    .cast {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+}

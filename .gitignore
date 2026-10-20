@@ -24,3 +24,12 @@
 
 # Claude Code machine-local settings
 .claude/settings.local.json
+
+# Node / Next / Turbo
+node_modules/
+.next/
+.turbo/
+next-env.d.ts
+*.tsbuildinfo
+test-results/
+playwright-report/
