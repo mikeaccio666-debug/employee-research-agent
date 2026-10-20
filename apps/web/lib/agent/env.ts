@@ -8,6 +8,8 @@
 export const PROVIDERS = ['openai', 'anthropic'] as const;
 export type Provider = (typeof PROVIDERS)[number];
 export type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+/** The thinking levels people can pick in the studio. */
+export const EFFORTS = ['low', 'medium', 'high'] as const satisfies readonly Effort[];
 
 const KEYS: Record<Provider, string | undefined> = {
   openai: process.env.OPENAI_API_KEY,
@@ -17,6 +19,19 @@ const MODELS: Record<Provider, string> = {
   openai: process.env.OPENAI_MODEL || 'gpt-6.1-sol',
   anthropic: process.env.ANTHROPIC_MODEL || 'claude-opus-5-5',
 };
+/**
+ * The models people can pick for each provider, the default first: OPENAI_MODELS and
+ * ANTHROPIC_MODELS (comma-separated ids), or the defaults below.
+ */
+const MODEL_LISTS: Record<Provider, string[]> = {
+  openai: list(process.env.OPENAI_MODELS, [MODELS.openai, 'gpt-6-luna']),
+  anthropic: list(process.env.ANTHROPIC_MODELS, [MODELS.anthropic, 'claude-sonnet-5-5', 'claude-haiku-5-5']),
+};
+function list(raw: string | undefined, fallback: string[]) {
+  const ids = raw ? raw.split(',').map((m) => m.trim()).filter(Boolean) : fallback;
+  return [...new Set(ids)];
+}
+const DEFAULT_EFFORT = (process.env.AGENT_EFFORT || 'medium') as Effort;
 const BASE_URLS: Record<Provider, string | undefined> = {
   // Optional: another endpoint for the same API (a gateway, or a local stand-in in tests).
   openai: process.env.OPENAI_BASE_URL || undefined,
@@ -25,16 +40,22 @@ const BASE_URLS: Record<Provider, string | undefined> = {
 
 export type AgentEnv = { provider: Provider; apiKey: string; model: string; effort: Effort; baseURL: string | undefined };
 
-/** The settings for one provider, or null when it has no key. */
-export function agentFor(provider: Provider): AgentEnv | null {
+/** The model a provider uses unless someone picks another. */
+export const defaultModel = (provider: Provider) => MODELS[provider];
+
+/**
+ * The settings for one provider, or null when it has no key. A model or thinking level that isn't
+ * on offer falls back to the default.
+ */
+export function agentFor(provider: Provider, pick: { model?: string; effort?: Effort } = {}): AgentEnv | null {
   const apiKey = KEYS[provider];
   if (!apiKey) return null;
   return {
     provider,
     apiKey,
-    model: MODELS[provider],
+    model: pick.model && MODEL_LISTS[provider].includes(pick.model) ? pick.model : MODELS[provider],
     // How hard the model thinks before answering; medium suits a live interview.
-    effort: (process.env.AGENT_EFFORT || 'medium') as Effort,
+    effort: pick.effort && (EFFORTS as readonly string[]).includes(pick.effort) ? pick.effort : DEFAULT_EFFORT,
     baseURL: BASE_URLS[provider],
   };
 }
@@ -49,8 +70,11 @@ export const agentEnv: AgentEnv | null = PROVIDERS.includes(chosen as Provider)
     ? agentFor(availableProviders[0])
     : null;
 
-/** The studio's switcher: each provider with a key, by name and model. */
-export const modelChoices = () => availableProviders.map((p) => ({ value: p, label: p === 'openai' ? 'OpenAI' : 'Claude', model: MODELS[p] }));
+/** The studio's switcher: each provider with a key, by name, with its models (the default first). */
+export const modelChoices = () =>
+  availableProviders.map((p) => ({ value: p, label: p === 'openai' ? 'OpenAI' : 'Claude', models: MODEL_LISTS[p] }));
+/** The thinking level used unless someone picks another. */
+export const defaultEffort = (): Effort => ((EFFORTS as readonly string[]).includes(DEFAULT_EFFORT) ? DEFAULT_EFFORT : 'medium');
 export type ModelChoice = ReturnType<typeof modelChoices>[number];
 
 const ADMINS = new Set(

@@ -20,7 +20,7 @@ import { Workspace } from '@/components/workspace/Workspace';
 import { IdentityLines, SpecSections } from '@/components/portrait/SpecSections';
 import { confirmHeadline, confirmLine, rejectLine, updatePage } from '@/lib/portrait-actions';
 import { toConfirm, type Claim, type Spec } from '@/lib/portrait/spec';
-import type { ModelChoice, Provider } from '@/lib/agent/env';
+import type { Effort, ModelChoice, Provider } from '@/lib/agent/env';
 import type { Attachment, Receipt as ReceiptData, ThreadMessage } from '@/lib/agent/store';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { OPENER } from '@/lib/agent/prompt';
@@ -41,11 +41,27 @@ export type LiveStudioProps = {
   publishedRev: number | null;
   /** False when the deployment has no model key: the studio says so instead of pretending. */
   agentReady: boolean;
-  /** For people allowed to switch the agent's model: the choices and the default. */
-  models: { choices: ModelChoice[]; current: Provider | null } | null;
+  /** For people allowed to switch the agent's model: the choices and the defaults. */
+  models: { choices: ModelChoice[]; current: Provider | null; effort: Effort } | null;
 };
 
-const MODEL_KEY = 'studio.provider';
+/** Which provider, model and thinking level answer. */
+type ModelPick = { provider: Provider; model: string; effort: Effort };
+
+const MODEL_KEY = 'studio.model';
+const LEVELS: { value: Effort; label: string }[] = [
+  { value: 'low', label: 'Quick' },
+  { value: 'medium', label: 'Balanced' },
+  { value: 'high', label: 'Deep' },
+];
+// claude-opus-5-5 → Opus 5.5, gpt-6-luna → GPT-6 Luna; ids we don't know read as they are.
+const title = (w: string) => `${w[0]!.toUpperCase()}${w.slice(1)}`;
+const modelName = (id: string) => {
+  const claude = /^claude-([a-z]+)-(\d+)(?:-(\d+))?$/.exec(id);
+  if (claude) return `${title(claude[1]!)} ${claude[2]}${claude[3] ? `.${claude[3]}` : ''}`;
+  const gpt = /^gpt-([\d.]+)-([a-z]+)$/.exec(id);
+  return gpt ? `GPT-${gpt[1]} ${title(gpt[2]!)}` : id;
+};
 // What someone typed on the landing page before signing in (components/entry/Landing.tsx).
 const LANDING_DRAFT_KEY = 'pv-landing-draft';
 
@@ -112,7 +128,12 @@ export function LiveStudio(props: LiveStudioProps) {
   const end = useRef<HTMLDivElement>(null);
   const picker = useRef<HTMLInputElement>(null);
   const [host, setHost] = useState('');
-  const [provider, setProvider] = useState(props.models?.current ?? null);
+  const firstPick = (): ModelPick | null => {
+    const m = props.models;
+    const choice = m?.choices.find((c) => c.value === m.current) ?? m?.choices[0];
+    return m && choice ? { provider: choice.value, model: choice.models[0]!, effort: m.effort } : null;
+  };
+  const [pick, setPick] = useState<ModelPick | null>(firstPick);
   const [landingDraft, setLandingDraft] = useState('');
   useEffect(() => {
     // Carried into the box, not sent: the person sends it when they're ready.
@@ -126,16 +147,29 @@ export function LiveStudio(props: LiveStudioProps) {
   }, []);
   useEffect(() => {
     setHost(window.location.host);
-    // The last model this person picked, if it is still on offer.
+    // The last model and level this person picked, if they are still on offer.
     try {
-      const saved = localStorage.getItem(MODEL_KEY);
-      if (props.models?.choices.some((c) => c.value === saved)) setProvider(saved as Provider);
+      const saved = JSON.parse(localStorage.getItem(MODEL_KEY) ?? 'null') as Partial<ModelPick> | null;
+      const choice = props.models?.choices.find((c) => c.value === saved?.provider);
+      if (saved && choice) {
+        setPick({
+          provider: choice.value,
+          model: choice.models.includes(saved.model ?? '') ? saved.model! : choice.models[0]!,
+          effort: LEVELS.some((l) => l.value === saved.effort) ? saved.effort! : props.models!.effort,
+        });
+      }
     } catch {}
   }, [props.models]);
-  const pickModel = (p: Provider) => {
-    setProvider(p);
+  const choose = (change: Partial<ModelPick>) => {
+    if (!pick) return;
+    const next = { ...pick, ...change };
+    // A new provider starts on its default model.
+    if (change.provider && change.provider !== pick.provider) {
+      next.model = props.models?.choices.find((c) => c.value === change.provider)?.models[0] ?? next.model;
+    }
+    setPick(next);
     try {
-      localStorage.setItem(MODEL_KEY, p);
+      localStorage.setItem(MODEL_KEY, JSON.stringify(next));
     } catch {}
   };
 
@@ -169,7 +203,7 @@ export function LiveStudio(props: LiveStudioProps) {
         const res = await fetch('/api/agent/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: text, resume, ...(props.models && provider ? { provider } : {}) }),
+          body: JSON.stringify({ message: text, resume, ...(props.models && pick ? pick : {}) }),
         });
         if (!res.ok || !res.body) {
           const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
@@ -286,18 +320,37 @@ export function LiveStudio(props: LiveStudioProps) {
     </>
   );
 
-  // Which model answers: in the composer, so it is there on phones too.
+  // Which model answers, and how hard it thinks: in the composer, so it is there on phones too.
+  const models = props.models;
+  const choice = models?.choices.find((c) => c.value === pick?.provider);
   const modelPicker =
-    props.models && props.models.choices.length > 1 && provider ? (
-      <div className="mb-2 flex flex-wrap items-center gap-2">
-        <span className="t-xs c2">Model</span>
-        <Segmented<Provider>
-          label="Model"
-          value={provider}
-          onChange={pickModel}
-          options={props.models.choices.map((c) => ({ value: c.value, label: c.label }))}
-        />
-        <span className="t-xs c2">{props.models.choices.find((c) => c.value === provider)?.model}</span>
+    models && pick && choice ? (
+      <div className="mb-2 flex flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="t-xs c2">Model</span>
+          {models.choices.length > 1 ? (
+            <Segmented<Provider>
+              label="Provider"
+              value={pick.provider}
+              onChange={(provider) => choose({ provider })}
+              options={models.choices.map((c) => ({ value: c.value, label: c.label }))}
+            />
+          ) : null}
+          {choice.models.length > 1 ? (
+            <Segmented<string>
+              label="Model"
+              value={pick.model}
+              onChange={(model) => choose({ model })}
+              options={choice.models.map((m) => ({ value: m, label: modelName(m) }))}
+            />
+          ) : (
+            <span className="t-xs c2">{modelName(pick.model)}</span>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="t-xs c2">Thinking</span>
+          <Segmented<Effort> label="Thinking" value={pick.effort} onChange={(effort) => choose({ effort })} options={LEVELS} />
+        </div>
       </div>
     ) : null;
 
