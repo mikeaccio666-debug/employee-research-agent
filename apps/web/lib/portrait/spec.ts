@@ -79,13 +79,25 @@ const Claim = z.object({
 });
 export type Claim = z.infer<typeof Claim>;
 
-const Headline = z.object({
+const HeadlineOption = z.object({
   text: z.string().min(1).max(LIMITS.headline),
   /** The lines that back it: a headline is never a fact of its own. */
   claims: z.array(z.string()).min(1).max(8),
+});
+export type HeadlineOption = z.infer<typeof HeadlineOption>;
+
+const Headline = HeadlineOption.extend({
   status: z.enum(['draft', 'confirmed']),
+  /** Other headlines the agent offered with a draft, for the person to pick from instead. */
+  alternatives: z.array(HeadlineOption).max(2).default([]),
 });
 export type Headline = z.infer<typeof Headline>;
+
+/** The headline once a line is gone: its alternatives lose any resting on it, and it goes if it did. */
+export function headlineWithout(headline: Headline | null, claimId: string): Headline | null {
+  if (!headline || headline.claims.includes(claimId)) return null;
+  return { ...headline, alternatives: headline.alternatives.filter((a) => !a.claims.includes(claimId)) };
+}
 
 /** Something the agent wants to come back to ("ask what the Kafka work was for"). Never shown. */
 const Note = z.object({
@@ -134,7 +146,7 @@ export function publishedSpec(spec: Spec): Spec {
   const claims = visibleClaims(spec).map((c) => ({ ...c, evidence: [] }));
   const ids = new Set(claims.map((c) => c.id));
   const h = spec.headline;
-  const headline = h && h.status === 'confirmed' && h.claims.every((id) => ids.has(id)) ? h : null;
+  const headline = h && h.status === 'confirmed' && h.claims.every((id) => ids.has(id)) ? { ...h, alternatives: [] } : null;
   return { rev: spec.rev, headline, order: spec.order, claims, notes: [] };
 }
 

@@ -7,7 +7,7 @@ import { plan, PLAN_TAG } from './planner';
 import type { Adapter, Item } from './providers/types';
 import { append, logCall, saveSpec, type Attachment, type Receipt, type Row } from './store';
 import type { Source, SourceKind } from './sources';
-import { runTool, snapshot, type Said } from './tools';
+import { runTool, snapshot, type Ask, type Said } from './tools';
 
 // One turn of the studio conversation (docs/architecture.md §4.1): the person's message goes to
 // the model with the history and the portrait as it stands; text streams back as it is written;
@@ -264,6 +264,20 @@ export async function runTurn({
   const said: Said = rows.filter((r) => r.role === 'user').map((r) => ({ id: r.id, text: r.body ?? '', at: r.created_at }));
   let spec = start;
   const history = replay(rows, env, adapter);
+  // Checks a tool runs on the side (the headline critic) use the provider's cheaper model.
+  const side = using(summarizerFor(agent));
+  const ask: Ask = async (instructions, text) => {
+    const began = Date.now();
+    try {
+      const { text: out, log } = await side.adapter.summarize(instructions, text, signal);
+      await logCall(supabase, conversationId, { provider: side.env.provider, ...log, latency_ms: Date.now() - began, error: null });
+      return out;
+    } catch (e) {
+      const error = e instanceof Error ? e.message : String(e);
+      await logCall(supabase, conversationId, { provider: side.env.provider, model: side.env.model, latency_ms: Date.now() - began, stop_reason: 'failed', error });
+      throw e;
+    }
+  };
   let lastId: number | null = null;
 
   for (let step = 0; step < MAX_STEPS; step++) {
@@ -302,7 +316,7 @@ export async function runTurn({
     const receipts: Receipt[] = [];
     const refused: Notes['refused'] = [];
     for (const call of answer.calls) {
-      const result = await runTool(call.name, call.input, spec, { said, sources });
+      const result = await runTool(call.name, call.input, spec, { said, sources }, new Date(), ask);
       spec = result.spec;
       if (result.change) {
         receipts.push(result.change);
