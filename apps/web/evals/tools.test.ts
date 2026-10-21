@@ -221,3 +221,11 @@ describe('interview plan', () => {
     assert.match(note, /a result, scale or number for "Robotics club"/);
   });
 });
+
+describe('long quotes', () => {
+  it('says how to shorten a quote over the limit', async () => {
+    const long = 'x'.repeat(250);
+    const r = await runTool('upsert_claim', upsert({ quote: long }), emptySpec(), grounds(long));
+    assert.match(r.output, /keep it to 200 characters or fewer/);
+  });
+});

@@ -96,7 +96,7 @@ const upsertClaim = tool({
   name: 'upsert_claim',
   description: `Add one line to the portrait, or rewrite one you added earlier (pass its id). New and rewritten lines are drafts until the person confirms them on the page.
 Use it for one fact at a time: one experience with its result folded in, one skill, one trait, one thing they want. When a document arrives, call it several times in the same step to draw the skeleton.
-Every line rests on a quote copied exactly from the person's messages or a document they shared, and every number in the statement must appear in that quote; widen the quote to include it. Don't use it for something you'd have to guess: ask first.
+Every line rests on a quote copied exactly from the person's messages or a document they shared, and every number in the statement must appear in that quote; widen the quote just enough to include it (at most ${LIMITS.quote} characters). Don't use it for something you'd have to guess: ask first.
 Example: statement "Built Campus Marketplace, a buy-and-sell site now used by about 300 students a month", quote "about 300 students use it every month".`,
   parameters: {
     type: 'object',
@@ -146,7 +146,11 @@ Example: statement "Built Campus Marketplace, a buy-and-sell site now used by ab
     when: z.string().trim().max(LIMITS.when).nullable(),
     statement: z.string().trim().min(1).max(LIMITS.statement),
     basis: z.enum(['stated', 'inferred']),
-    quote: z.string().trim().min(1).max(LIMITS.quote),
+    quote: z
+      .string()
+      .trim()
+      .min(1)
+      .max(LIMITS.quote, `keep it to ${LIMITS.quote} characters or fewer: copy only the words that back this line, or split the line in two`),
   }),
   risk: 'draft',
   run(args, { spec, grounds, at }) {
