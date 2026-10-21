@@ -146,6 +146,7 @@ function fakeNotion(persona: Persona, sources: Source[]): Connectors | undefined
   return {
     connected: persona.notionConnected === false ? [] : ['notion'],
     available: persona.notionConnected === false ? ['notion'] : [],
+    request: async () => {},
     async read(_id, action, input) {
       const q = input.toLowerCase();
       if (action === 'search') {

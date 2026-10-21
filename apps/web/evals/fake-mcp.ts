@@ -17,6 +17,8 @@ export type FakeApp = {
   expireTokens(): void;
   /** Forgets every token, refresh tokens too: the person signed out of us on the app's side. */
   revokeAll(): void;
+  /** Tokens we asked the app to forget (RFC 7009), as their type hints. */
+  revoked: string[];
   calls: { tool: string; args: unknown }[];
   close(): Promise<void>;
 };
@@ -31,6 +33,7 @@ export async function fakeApp(): Promise<FakeApp> {
   const access = new Set<string>();
   const refresh = new Set<string>();
   const calls: FakeApp['calls'] = [];
+  const revoked: string[] = [];
   let base = '';
 
   const json = (res: ServerResponse, status: number, body: unknown, headers: Record<string, string> = {}) => {
@@ -79,6 +82,7 @@ export async function fakeApp(): Promise<FakeApp> {
         authorization_endpoint: `${base}/authorize`,
         token_endpoint: `${base}/token`,
         registration_endpoint: `${base}/register`,
+        revocation_endpoint: `${base}/revoke`,
         response_types_supported: ['code'],
         grant_types_supported: ['authorization_code', 'refresh_token'],
         code_challenge_methods_supported: ['S256'],
@@ -111,6 +115,12 @@ export async function fakeApp(): Promise<FakeApp> {
       }
       return json(res, 400, { error: 'unsupported_grant_type' });
     }
+    if (url.pathname === '/revoke' && req.method === 'POST') {
+      const form = new URLSearchParams(await body(req));
+      const token = form.get('token') ?? '';
+      if (clients.has(form.get('client_id') ?? '') && (access.delete(token) || refresh.delete(token))) revoked.push(form.get('token_type_hint') ?? '?');
+      return json(res, 200, {});
+    }
     if (url.pathname === '/mcp') {
       const token = /^Bearer (.+)$/.exec(req.headers.authorization ?? '')?.[1];
       if (!token || !access.has(token)) {
@@ -137,6 +147,7 @@ export async function fakeApp(): Promise<FakeApp> {
   return {
     url: `${base}/mcp`,
     calls,
+    revoked,
     consent(authorizationUrl) {
       const q = authorizationUrl.searchParams;
       const client = clients.get(q.get('client_id') ?? '');

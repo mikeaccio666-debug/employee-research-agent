@@ -1,26 +1,36 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { UnauthorizedError } from '@modelcontextprotocol/sdk/client/auth.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { connectorUrl, type Action, type Connector } from './catalog';
+import type { Reached } from './adapters/types';
+import { connectorUrl, type Action, type Connector, type McpReader } from './catalog';
 import type { ConnectionAuth } from './store';
 
-// One read from a connected app over MCP: connect with the person's tokens (refreshed by the SDK
+// One read from a connected app. Over MCP: connect with the person's tokens (refreshed by the SDK
 // when they have expired), call the one allow-listed tool for the action, and hand back its text.
-// A connection lasts one call; a turn reads from an app a few times at most.
+// A connection lasts one call; a turn reads from an app a few times at most. Through an API
+// adapter: the adapter makes the read with the token. Those apps' tokens don't expire (GitHub's
+// don't); one the app stops accepting means connecting again.
 
-export type Reached =
-  | { ok: true; text: string }
-  /** `reconnect`: the app no longer accepts the sign-in; the person has to connect it again. */
-  | { ok: false; error: string; reconnect?: boolean };
+export type { Reached };
 
 const TIMEOUT_MS = 20_000;
 
 export async function callConnector(c: Connector, auth: ConnectionAuth, action: Action, input: string, signal?: AbortSignal): Promise<Reached> {
+  if (!c.reader) return { ok: false, error: `${c.name} can’t be read yet` };
+  if (c.reader.kind === 'api') {
+    const token = auth.secret.tokens?.access_token;
+    if (!token) return { ok: false, reconnect: true, error: `${c.name} no longer accepts the sign-in; they need to connect it again in the studio` };
+    return c.reader.adapter.read(action, input, token, signal);
+  }
+  return callMcp({ ...c, reader: c.reader }, auth, action, input, signal);
+}
+
+async function callMcp(c: Connector & { reader: McpReader }, auth: ConnectionAuth, action: Action, input: string, signal?: AbortSignal): Promise<Reached> {
   const client = new Client({ name: 'portrait', version: '1.0.0' });
   const transport = new StreamableHTTPClientTransport(new URL(connectorUrl(c)), { authProvider: auth });
   try {
     await client.connect(transport, { signal, timeout: TIMEOUT_MS });
-    const { tool, args } = c.tools[action];
+    const { tool, args } = c.reader.tools[action];
     const res = await client.callTool({ name: tool, arguments: args(input) }, undefined, { signal, timeout: TIMEOUT_MS });
     const text = (Array.isArray(res.content) ? res.content : [])
       .map((b: { type?: string; text?: unknown }) => (b.type === 'text' && typeof b.text === 'string' ? b.text : ''))

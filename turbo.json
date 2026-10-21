@@ -4,7 +4,7 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": [".next/**", "!.next/cache/**"],
-      "env": ["NEXT_PUBLIC_*", "SUPABASE_*", "OPENAI_*", "ANTHROPIC_*", "AGENT_*", "GITHUB_TOKEN", "CONNECTOR_*"]
+      "env": ["NEXT_PUBLIC_*", "SUPABASE_*", "OPENAI_*", "ANTHROPIC_*", "AGENT_*", "GITHUB_TOKEN", "CONNECTOR_*", "LEGAL_*"]
     },
     "typecheck": { "dependsOn": ["^typecheck"] },
     "dev": { "cache": false, "persistent": true }

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { agentEnv, canSwitchModel, defaultEffort, modelChoices } from '@/lib/agent/env';
 import { conversationFor, history, loadPortrait, toThread } from '@/lib/agent/store';
-import { CONNECTOR_IDS, CONNECTORS } from '@/lib/connectors/catalog';
+import { canConnect, CONNECTOR_IDS, CONNECTORS } from '@/lib/connectors/catalog';
 import { canSeal } from '@/lib/connectors/seal';
 import { connectionsOf } from '@/lib/connectors/store';
 import { privacyVisibility } from '@/lib/data/entry';
@@ -31,7 +31,7 @@ export default async function StudioPage({ searchParams }: { searchParams: Promi
     searchParams,
   ]);
   const apps = connections
-    ? CONNECTOR_IDS.map((app) => ({
+    ? CONNECTOR_IDS.filter(canConnect).map((app) => ({
         id: app,
         name: CONNECTORS[app].name,
         holds: CONNECTORS[app].holds,

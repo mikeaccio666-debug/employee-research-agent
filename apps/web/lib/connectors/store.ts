@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
 import type { OAuthClientInformationMixed, OAuthClientMetadata, OAuthTokens } from '@modelcontextprotocol/sdk/shared/auth.js';
+import type { Registered } from './adapters/types';
 import type { ConnectorId } from './catalog';
 import { seal, unseal } from './seal';
 
@@ -58,7 +59,8 @@ export async function removeConnection(supabase: SupabaseClient, ownerId: string
 
 /**
  * The MCP SDK's view of one connection: it registers us with the app (dynamic client
- * registration), runs the PKCE sign-in and refreshes tokens, keeping what it learns in `secret`.
+ * registration) unless we registered in advance, runs the PKCE sign-in and refreshes tokens,
+ * keeping what it learns in `secret`.
  * `persist` is called whenever that changes, so a refreshed token outlives the request.
  */
 export class ConnectionAuth implements OAuthClientProvider {
@@ -70,6 +72,8 @@ export class ConnectionAuth implements OAuthClientProvider {
     private readonly redirect: string,
     private readonly nonce: string | null,
     private readonly persist: (secret: Secret) => Promise<void> = async () => {},
+    /** For an app we registered with in advance: that registration, never stored with the row. */
+    private readonly registered: Registered | null = null,
   ) {}
 
   get redirectUrl() {
@@ -93,7 +97,7 @@ export class ConnectionAuth implements OAuthClientProvider {
   }
 
   clientInformation() {
-    return this.secret.client;
+    return this.registered ?? this.secret.client;
   }
 
   async saveClientInformation(client: OAuthClientInformationMixed) {

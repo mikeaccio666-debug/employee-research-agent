@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { readSpec, type Spec } from '@/lib/portrait/spec';
+import type { SourceKind } from './sources';
 
 // The studio conversation and portrait, read and written as the signed-in person. Row-level
 // security (supabase/migrations) keeps every query to their own rows; nothing here needs the
@@ -16,7 +17,7 @@ export type Row = {
 /** What the thread shows for one message. */
 export type ThreadMessage = { id: number; role: 'user' | 'assistant'; body: string; receipts: Receipt[]; attachments?: Attachment[] };
 /** A résumé or link shared with a message. */
-export type Attachment = { kind: 'resume' | 'website' | 'github' | 'notion'; name: string };
+export type Attachment = { kind: SourceKind; name: string };
 /** `connect`: an app the agent offered to connect, shown as a Connect button under the reply. */
 export type Receipt = { note: string; dashed: boolean; claimId?: string; connect?: string };
 

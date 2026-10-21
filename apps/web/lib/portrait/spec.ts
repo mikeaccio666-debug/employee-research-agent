@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CONNECTOR_IDS } from '@/lib/connectors/ids';
 
 // The portrait the agent draws (docs/agent-design.md §2 and §6.1, cut down for step 2). It lives
 // in portraits.spec as JSON: a list of claims, each one line of the page with the person's own
@@ -56,7 +57,7 @@ const Evidence = z.union([
   }),
   z.object({
     /** A résumé or link the person shared (lib/agent/sources.ts). */
-    source: z.enum(['resume', 'website', 'github', 'notion']),
+    source: z.enum(['resume', 'website', ...CONNECTOR_IDS]),
     sourceId: z.string().uuid(),
     /** The PDF page the quote is on; null for documents without pages. */
     page: z.number().int().nullable(),

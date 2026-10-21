@@ -79,7 +79,7 @@ const RESUME_TYPES: Record<string, string> = {
   pdf: 'application/pdf',
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 };
-const KIND_LABEL: Record<Attachment['kind'], string> = { resume: 'Résumé', website: 'Link', github: 'GitHub', notion: 'Notion' };
+const KIND_LABEL: Partial<Record<Attachment['kind'], string>> = { resume: 'Résumé', website: 'Link', github: 'GitHub', notion: 'Notion' };
 
 /** Reads server-sent events from a fetch body: `event: x` / `data: {...}` blocks. */
 async function readEvents(body: ReadableStream<Uint8Array>, on: (event: string, data: unknown) => void) {
@@ -556,7 +556,12 @@ function ConnectedApps({
   const noted = notice ? apps.find((a) => a.id === notice.app) : null;
   return (
     <section className="mt-6 max-w-[520px] px-1" aria-label="Connected apps">
-      <p className="t-xs c2">Connected apps · the agent can search and read them for evidence, never change anything</p>
+      <p className="t-xs c2">
+        Connected apps · the agent can search and read them for evidence, never change anything ·{' '}
+        <Link href={routes.apps} className="linklike">
+          All apps
+        </Link>
+      </p>
       {noted && APP_NOTICE[notice!.result] ? (
         <p className="t-xs mt-1" role="status">
           {noted.name} {APP_NOTICE[notice!.result]}
@@ -633,7 +638,7 @@ function Shared({ attachments }: { attachments?: Attachment[] }) {
     <ul className="mt-1 flex flex-col gap-0.5">
       {attachments.map((a, i) => (
         <li key={i} className="t-xs c2">
-          {KIND_LABEL[a.kind]} · {a.name}
+          {KIND_LABEL[a.kind] ?? a.kind} · {a.name}
         </li>
       ))}
     </ul>

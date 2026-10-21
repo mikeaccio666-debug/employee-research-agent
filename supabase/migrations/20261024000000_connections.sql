@@ -38,3 +38,26 @@ grant select, insert, update, delete on public.connections to authenticated;
 -- the app's id as its kind. Like `provider`, the app checks which kinds exist.
 alter table public.sources drop constraint sources_kind_check;
 alter table public.sources add constraint sources_kind_check check (kind ~ '^[a-z][a-z0-9_-]{0,39}$');
+
+-- Apps people asked for that can't be connected yet: "I want this" in the app store, or an app
+-- the agent heard them mention (offer_connect). Counted across everyone, it says which app to
+-- build next. `app` is a catalog id or the name they used, lowercased.
+create table public.app_requests (
+  owner_id uuid not null references public.profiles (id) on delete cascade,
+  app text not null check (app ~ '^[a-z0-9][a-z0-9 ._-]{0,39}$'),
+  source text not null check (source in ('store', 'chat')),
+  created_at timestamptz not null default now(),
+  primary key (owner_id, app)
+);
+
+alter table public.app_requests enable row level security;
+
+create policy "app_requests: owner reads" on public.app_requests
+  for select to authenticated using (owner_id = (select auth.uid()));
+create policy "app_requests: owner adds" on public.app_requests
+  for insert to authenticated with check (owner_id = (select auth.uid()));
+create policy "app_requests: owner removes" on public.app_requests
+  for delete to authenticated using (owner_id = (select auth.uid()));
+
+revoke all on public.app_requests from anon, authenticated;
+grant select, insert, delete on public.app_requests to authenticated;

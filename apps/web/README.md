@@ -111,13 +111,27 @@ message is read too: a GitHub profile through GitHub's API (`GITHUB_TOKEN` optio
 limits), any other public page as plain text. LinkedIn can't be read; the agent asks for the
 profile's PDF export instead.
 
-**Connected apps** (Notion first) let the agent search and read someone's own pages over MCP,
-read-only. Below the page in the studio, **Connect** signs them in to the app with OAuth (we
-register with the app's MCP server on the fly, so there is no app to set up on its side); the
-agent's `read_connector` tool then calls only the allow-listed search and fetch tools
-(`lib/connectors/catalog.ts`). A page it reads becomes one of their sources, so lines quote it
-like a résumé. Tokens are sealed with `CONNECTOR_KEY` (`lib/connectors/seal.ts`) in the
-`connections` table; **Disconnect** deletes them. Without `CONNECTOR_KEY` the studio hides it.
+**Connected apps** let the agent search and read someone's own material, read-only. The
+**Apps** page (`/apps`, the app store) lists the catalog in `lib/connectors/catalog.ts`: apps to
+connect or disconnect, and ones not here yet, which people can ask for (counted in
+`app_requests`, as is any app the agent hears them mention). **Connect** signs them in to the
+app with OAuth; the agent's `read_connector` tool then makes only the catalog's two reads,
+search and fetch. A page it reads becomes one of their sources, so lines quote it like a résumé.
+Tokens are sealed with `CONNECTOR_KEY` (`lib/connectors/seal.ts`) in the `connections` table;
+**Disconnect** asks the app to revoke them and deletes them. Without `CONNECTOR_KEY` no app can
+be connected. Adding an app is one catalog entry, no migration:
+
+- An app with a remote MCP server that registers clients on the fly (Notion): its URL and the
+  allow-listed read tools.
+- One that needs an app registered with it in advance (GitHub, later Google): register an OAuth
+  app there with the callback `https://<site>/api/connectors/<id>/callback`, then set
+  `CONNECTOR_CLIENT_ID_<ID>` and `CONNECTOR_CLIENT_SECRET_<ID>`. Until both are set it shows as
+  coming soon.
+- One with no MCP server: an adapter in `lib/connectors/adapters/` (GitHub reads public
+  repositories through the REST API).
+
+The privacy policy and terms are at `/legal/privacy` and `/legal/terms` (OAuth app
+registrations ask for both); `LEGAL_CONTACT_EMAIL` adds a contact address to them.
 
 1. **Schema.** Run `supabase/migrations/20261023000000_sources.sql`. It adds `sources` (what was
    read, page by page; people read, add and remove their own, nobody edits) and a private

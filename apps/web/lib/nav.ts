@@ -9,6 +9,7 @@ export const talentNav: NavItem[] = [
   { key: 'feed', label: 'Feed', href: routes.feed },
   { key: 'events', label: 'Events', href: routes.events },
   { key: 'inbox', label: 'Inbox', href: routes.inbox },
+  { key: 'apps', label: 'Apps', href: routes.apps },
   { key: 'settings', label: 'Settings', href: routes.privacy },
 ];
 

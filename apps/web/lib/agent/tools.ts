@@ -16,7 +16,7 @@ import {
   type Preferences,
   type Spec,
 } from '@/lib/portrait/spec';
-import { CONNECTOR_IDS, CONNECTORS } from '@/lib/connectors/catalog';
+import { connectorNamed, CONNECTORS, isConnectorId, READER_IDS } from '@/lib/connectors/catalog';
 import type { Connectors } from './connectors';
 import { fillerIn, unclaimedLevel, unquotedNumbers, workAuthIn } from './guards';
 import { SKILLS, skillNamed } from './skills';
@@ -653,7 +653,7 @@ Use it when they ask for a résumé or CV, or are applying for a specific role. 
 
 const readConnector = tool({
   name: 'read_connector',
-  description: `Look something up in an app the person connected (${CONNECTOR_IDS.map((id) => `${CONNECTORS[id].name}: ${CONNECTORS[id].holds}`).join('; ')}). Which apps are connected is in <interview_plan>; this only reads, never changes anything there.
+  description: `Look something up in an app the person connected (${READER_IDS.map((id) => `${CONNECTORS[id].name}: ${CONNECTORS[id].holds}`).join('; ')}). Which apps are connected is in <interview_plan>; this only reads, never changes anything there.
 search finds pages by words and lists them; fetch reads one page whole (pass its id or URL from a search). A fetched page becomes one of their documents: quote it exactly for a line, and say in your reply that it came from that app.
 Use it when they point you at something in the app ("my project notes are in Notion"), or to look for evidence of something they told you. Don't browse their whole workspace, and don't read pages they didn't ask about beyond what the search shows.`,
   parameters: {
@@ -661,12 +661,12 @@ Use it when they point you at something in the app ("my project notes are in Not
     additionalProperties: false,
     required: ['connector', 'action', 'query'],
     properties: {
-      connector: { type: 'string', enum: [...CONNECTOR_IDS] },
+      connector: { type: 'string', enum: [...READER_IDS] },
       action: { type: 'string', enum: ['search', 'fetch'] },
       query: { type: 'string', maxLength: 300, description: 'search: the words to look for. fetch: the page id or URL from a search result.' },
     },
   },
-  args: z.object({ connector: z.enum(CONNECTOR_IDS), action: z.enum(['search', 'fetch']), query: z.string().trim().min(1).max(300) }),
+  args: z.object({ connector: z.enum(READER_IDS), action: z.enum(['search', 'fetch']), query: z.string().trim().min(1).max(300) }),
   risk: 'read',
   async run({ connector, action, query }, { spec, grounds }) {
     const app = CONNECTORS[connector].name;
@@ -691,24 +691,28 @@ Use it when they point you at something in the app ("my project notes are in Not
 
 const offerConnect = tool({
   name: 'offer_connect',
-  description: `Put a Connect button for an app under your reply, when the person says something they want you to see is there (their notes, write-ups, portfolio) and they haven't connected it. The apps they could connect are in <interview_plan>.
+  description: `Put a Connect button for an app under your reply, when the person says something they want you to see is there (their notes, write-ups, portfolio, code) and they haven't connected it. The apps they could connect are in <interview_plan>; for any other app they mention, call it with the app's name anyway: it notes that they'd like it, and you suggest pasting the text, uploading the file or sharing a link instead.
 Only when they bring the app up; never to promote it. Once per app in a conversation unless they ask again. Signing in is theirs to do: say what it lets you do (search and read, never change anything) and that they can paste the text instead. Don't read until <interview_plan> lists it as connected.`,
   parameters: {
     type: 'object',
     additionalProperties: false,
     required: ['connector'],
-    properties: { connector: { type: 'string', enum: [...CONNECTOR_IDS] } },
+    properties: { connector: { type: 'string', maxLength: 40, description: 'The app\'s id from <interview_plan>, or the name they used for another app.' } },
   },
-  args: z.object({ connector: z.enum(CONNECTOR_IDS) }),
+  args: z.object({ connector: z.string().trim().min(1).max(40) }),
   risk: 'read',
-  run({ connector }, { spec, grounds }) {
-    const app = CONNECTORS[connector].name;
-    if (grounds.connectors?.connected.includes(connector)) return refuse(spec, `${app} is already connected; read it with read_connector.`);
-    if (!grounds.connectors?.available.includes(connector)) return refuse(spec, `${app} can't be connected here yet. Ask them to paste the text or share a link instead.`);
+  async run({ connector }, { spec, grounds }) {
+    const id = isConnectorId(connector) ? connector : connectorNamed(connector);
+    const app = id ? CONNECTORS[id].name : connector;
+    if (id && grounds.connectors?.connected.includes(id)) return refuse(spec, `${app} is already connected; read it with read_connector.`);
+    if (!id || !grounds.connectors?.available.includes(id)) {
+      await grounds.connectors?.request(id ?? connector);
+      return { spec, output: `${app} can't be connected here yet; the app noted that they'd like it. Don't promise when. Ask them to paste the text, upload the file or share a link instead.` };
+    }
     return {
       spec,
       output: `A Connect ${app} button is now under your reply. Tell them in a sentence what it does and that pasting the text works too; once they've connected, the plan lists it and read_connector can read it.`,
-      change: { note: `Connect ${app} so I can search and read it`, dashed: false, connect: connector },
+      change: { note: `Connect ${app} so I can search and read it`, dashed: false, connect: id },
     };
   },
 });

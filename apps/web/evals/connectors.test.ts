@@ -5,10 +5,14 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { connectorsFor } from '@/lib/agent/connectors';
 import { plan } from '@/lib/agent/planner';
 import { runTool } from '@/lib/agent/tools';
+import { canConnect } from '@/lib/connectors/catalog';
+import { revokeTokens } from '@/lib/connectors/revoke';
 import { seal, unseal } from '@/lib/connectors/seal';
 import { finishSignIn, startSignIn } from '@/lib/connectors/signin';
 import { loadConnection } from '@/lib/connectors/store';
+import type { Source } from '@/lib/agent/sources';
 import { emptySpec } from '@/lib/portrait/spec';
+import { fakeGithub, GITHUB_CLIENT, type FakeGithub } from './fake-github';
 import { fakeApp, type FakeApp } from './fake-mcp';
 
 // Connected apps (lib/connectors, read_connector): signing in to a stand-in for Notion's MCP
@@ -20,9 +24,9 @@ const ORIGIN = 'https://portrait.test';
 
 type Row = Record<string, unknown>;
 
-/** Just enough of supabase-js for the connections and sources tables. */
+/** Just enough of supabase-js for the connections, sources and app_requests tables. */
 function fakeSupabase() {
-  const tables: Record<string, Row[]> = { connections: [], sources: [] };
+  const tables: Record<string, Row[]> = { connections: [], sources: [], app_requests: [] };
   const query = (table: string) => {
     const filters: [string, unknown][] = [];
     const rows = () => tables[table]!.filter((r) => filters.every(([k, v]) => r[k] === v));
@@ -32,10 +36,11 @@ function fakeSupabase() {
       order: () => q,
       returns: () => Promise.resolve({ data: rows(), error: null }),
       maybeSingle: () => Promise.resolve({ data: rows()[0] ?? null, error: null }),
-      upsert: (row: Row) => {
-        const old = tables[table]!.find((r) => r.owner_id === row.owner_id && r.provider === row.provider);
-        if (old) Object.assign(old, row);
-        else tables[table]!.push({ ...row });
+      upsert: (row: Row, opts: { onConflict: string; ignoreDuplicates?: boolean }) => {
+        const keys = opts.onConflict.split(',');
+        const old = tables[table]!.find((r) => keys.every((k) => r[k] === row[k]));
+        if (old && !opts.ignoreDuplicates) Object.assign(old, row);
+        else if (!old) tables[table]!.push({ ...row });
         return Promise.resolve({ error: null });
       },
       insert: (row: Row) => {
@@ -58,12 +63,20 @@ function fakeSupabase() {
 }
 
 let app: FakeApp;
+let gh: FakeGithub;
 before(async () => {
   process.env.CONNECTOR_KEY = randomBytes(32).toString('base64');
   app = await fakeApp();
   process.env.CONNECTOR_URL_NOTION = app.url;
+  gh = await fakeGithub();
+  process.env.CONNECTOR_URL_GITHUB = gh.url;
+  process.env.CONNECTOR_CLIENT_ID_GITHUB = GITHUB_CLIENT.id;
+  process.env.CONNECTOR_CLIENT_SECRET_GITHUB = GITHUB_CLIENT.secret;
 });
-after(() => app.close());
+after(async () => {
+  await app.close();
+  await gh.close();
+});
 
 /** Signs the owner in to the fake app, as the start and callback routes do. */
 async function connect(db: SupabaseClient) {
@@ -118,7 +131,7 @@ describe('read_connector', () => {
   it('offers a Connect button for an app they mention but haven’t connected, and only then', async () => {
     const { db } = fakeSupabase();
     const g = grounds(await connectorsFor(db, OWNER, ORIGIN, []));
-    assert.deepEqual(g.connectors.available, ['notion']);
+    assert.deepEqual(g.connectors.available, ['notion', 'github']);
     const offer = await runTool('offer_connect', JSON.stringify({ connector: 'notion' }), emptySpec(), g);
     assert.equal(offer.change?.connect, 'notion');
     await connect(db);
@@ -214,5 +227,95 @@ describe('read_connector', () => {
     const conn = await loadConnection(db, OWNER, 'notion');
     assert.equal(conn?.status, 'pending');
     assert.equal(conn?.secret.tokens, undefined);
+  });
+});
+
+describe('the app store’s catalog', () => {
+  it('lists an app that needs our registration as coming soon until it is set', () => {
+    assert.equal(canConnect('notion'), true);
+    assert.equal(canConnect('github'), true);
+    const id = process.env.CONNECTOR_CLIENT_ID_GITHUB;
+    delete process.env.CONNECTOR_CLIENT_ID_GITHUB;
+    assert.equal(canConnect('github'), false);
+    process.env.CONNECTOR_CLIENT_ID_GITHUB = id;
+    // Not built yet: never connectable, whatever the environment says.
+    assert.equal(canConnect('figma'), false);
+  });
+
+  it('offer_connect notes an app that isn’t here, by catalog id or the name they used', async () => {
+    const { db, tables } = fakeSupabase();
+    const g = { said: [], sources: [], connectors: await connectorsFor(db, OWNER, ORIGIN, []) };
+    assert.deepEqual(g.connectors.available, ['notion', 'github']);
+    for (const name of ['figma', 'Behance', 'Google Docs', 'Behance']) {
+      const r = await runTool('offer_connect', JSON.stringify({ connector: name }), emptySpec(), g);
+      assert.match(r.output, /can't be connected here yet/);
+      assert.equal(r.change, undefined);
+    }
+    assert.deepEqual(tables.app_requests!.map((r) => r.app).sort(), ['behance', 'figma', 'google-drive']);
+    const gh = await runTool('offer_connect', JSON.stringify({ connector: 'GitHub' }), emptySpec(), g);
+    assert.equal(gh.change?.connect, 'github');
+  });
+});
+
+describe('an app read through its API (GitHub)', () => {
+  const grounds = async (db: SupabaseClient) => ({ said: [], sources: [] as Source[], connectors: await connectorsFor(db, OWNER, ORIGIN, []) });
+  const read = (args: object, g: Awaited<ReturnType<typeof grounds>>) => runTool('read_connector', JSON.stringify({ connector: 'github', ...args }), emptySpec(), g);
+  async function connectGithub(db: SupabaseClient) {
+    const to = await startSignIn(db, OWNER, 'github', ORIGIN);
+    assert.equal(to.origin + to.pathname, `${gh.url}/login/oauth/authorize`);
+    assert.equal(await finishSignIn(db, OWNER, 'github', ORIGIN, gh.consent(to)), true);
+  }
+
+  it('signs in with our registration and PKCE, asking for no scopes, and keeps only the token', async () => {
+    const { db, tables } = fakeSupabase();
+    await connectGithub(db);
+    assert.ok(!String(tables.connections![0]!.secret).includes('gho_'));
+    const conn = await loadConnection(db, OWNER, 'github');
+    assert.equal(conn?.status, 'active');
+    assert.match(conn?.secret.tokens?.access_token ?? '', /^gho_/);
+    assert.equal(conn?.secret.client, undefined);
+  });
+
+  it('lists their repositories, and reads one they own or contributed to, never someone else’s', async () => {
+    const { db, tables } = fakeSupabase();
+    await connectGithub(db);
+    const g = await grounds(db);
+    const found = await read({ action: 'search', query: 'bus' }, g);
+    assert.match(found.output, /dana\/bus-buddy: Live campus bus arrival times/);
+    assert.doesNotMatch(found.output, /dotfiles/);
+
+    const own = await read({ action: 'fetch', query: 'https://github.com/dana/bus-buddy' }, g);
+    assert.match(own.output, /<source kind="github" name="GitHub · dana\/bus-buddy" url="https:\/\/github.com\/dana\/bus-buddy">/);
+    assert.match(own.output, /About 300 students used it each day/);
+    assert.equal(tables.sources!.length, 1);
+
+    const club = await read({ action: 'fetch', query: 'campus/club-site' }, g);
+    assert.match(club.output, /dana contributed to it/);
+
+    const theirs = await read({ action: 'fetch', query: 'stranger/famous-lib' }, g);
+    assert.match(theirs.output, /^Not done: GitHub said: stranger\/famous-lib isn’t theirs/);
+    assert.equal(tables.sources!.length, 2);
+  });
+
+  it('disconnecting tells GitHub to forget the token', async () => {
+    const { db } = fakeSupabase();
+    await connectGithub(db);
+    const conn = (await loadConnection(db, OWNER, 'github'))!;
+    await revokeTokens('github', conn.secret);
+    assert.deepEqual(gh.revoked, [conn.secret.tokens!.access_token]);
+    // A copy of the token reads nothing now, and the studio offers to connect again.
+    const r = await read({ action: 'search', query: 'bus' }, await grounds(db));
+    assert.match(r.output, /^Not done: GitHub no longer accepts the sign-in/);
+    assert.equal((await loadConnection(db, OWNER, 'github'))?.status, 'pending');
+  });
+});
+
+describe('disconnecting an MCP app', () => {
+  it('revokes the refresh and access tokens where the app offers revocation', async () => {
+    const { db } = fakeSupabase();
+    await connect(db);
+    const conn = (await loadConnection(db, OWNER, 'notion'))!;
+    await revokeTokens('notion', conn.secret);
+    assert.deepEqual(app.revoked.slice(-2), ['refresh_token', 'access_token']);
   });
 });

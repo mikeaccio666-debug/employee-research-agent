@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { CONNECTOR_IDS, CONNECTORS, type Action, type ConnectorId } from '@/lib/connectors/catalog';
+import { canConnect, CONNECTOR_IDS, CONNECTORS, registeredClient, type Action, type ConnectorId } from '@/lib/connectors/catalog';
 import { callConnector } from '@/lib/connectors/client';
+import { requestApp } from '@/lib/connectors/requests';
 import { canSeal } from '@/lib/connectors/seal';
 import { ConnectionAuth, connectionsOf, loadConnection, saveConnection } from '@/lib/connectors/store';
 import { cap, saveSource, tidy, type Source } from './sources';
@@ -18,9 +19,16 @@ export type Connectors = {
   /** The apps they could connect here and haven't (offer_connect offers one). */
   available: ConnectorId[];
   read(id: ConnectorId, action: Action, input: string): Promise<ConnectorRead>;
+  /** Counts an app they mentioned that can't be connected here yet (lib/connectors/requests.ts). */
+  request(name: string): Promise<void>;
 };
 
-export const NO_CONNECTORS: Connectors = { connected: [], available: [], read: async () => ({ ok: false, error: 'no apps are connected' }) };
+export const NO_CONNECTORS: Connectors = {
+  connected: [],
+  available: [],
+  read: async () => ({ ok: false, error: 'no apps are connected' }),
+  request: async () => {},
+};
 
 /** Where an app sends the person back after they sign in. */
 export const callbackUrl = (origin: string, id: ConnectorId) => `${origin}/api/connectors/${id}/callback`;
@@ -36,15 +44,18 @@ const titleOf = (text: string) =>
     ?.slice(0, 80) ?? null;
 
 export async function connectorsFor(supabase: SupabaseClient, ownerId: string, origin: string, sources: Source[]): Promise<Connectors> {
-  if (!canSeal()) return NO_CONNECTORS;
-  const connected = (await connectionsOf(supabase, ownerId)).filter((c) => c.status === 'active').map((c) => c.provider);
+  const request = (name: string) => requestApp(supabase, ownerId, name, 'chat').catch(() => {});
+  if (!canSeal()) return { ...NO_CONNECTORS, request };
+  const connected = (await connectionsOf(supabase, ownerId)).filter((c) => c.status === 'active' && canConnect(c.provider)).map((c) => c.provider);
   return {
     connected,
-    available: CONNECTOR_IDS.filter((id) => !connected.includes(id)),
+    available: CONNECTOR_IDS.filter((id) => canConnect(id) && !connected.includes(id)),
+    request,
     async read(id, action, input) {
       const conn = await loadConnection(supabase, ownerId, id);
       if (!conn || conn.status !== 'active') return { ok: false, error: `${CONNECTORS[id].name} isn’t connected` };
-      const auth = new ConnectionAuth(conn.secret, callbackUrl(origin, id), null, (secret) => saveConnection(supabase, ownerId, { ...conn, secret }));
+      const registered = CONNECTORS[id].signIn === 'registered' ? registeredClient(id) : null;
+      const auth = new ConnectionAuth(conn.secret, callbackUrl(origin, id), null, (secret) => saveConnection(supabase, ownerId, { ...conn, secret }), registered);
       const reached = await callConnector(CONNECTORS[id], auth, action, input);
       if (!reached.ok) {
         // Signed out on the app's side: forget the tokens, so the studio offers to connect again.
@@ -54,7 +65,7 @@ export async function connectorsFor(supabase: SupabaseClient, ownerId: string, o
       const text = tidy(reached.text);
       if (action === 'search') return { ok: true, text: text.slice(0, SEARCH_CHARS), source: null };
       if (text.length < 20) return { ok: false, error: 'that page has no text to read' };
-      const url = /^https?:\/\//.test(input.trim()) ? input.trim() : null;
+      const url = reached.url ?? (/^https?:\/\//.test(input.trim()) ? input.trim() : null);
       const name = `${CONNECTORS[id].name} · ${titleOf(text) ?? input.slice(0, 60)}`;
       // The same page read again, unchanged, is the same source.
       const same = sources.find((s) => s.kind === id && s.name === name && s.pages[0]?.text === cap([{ page: null, text }])[0]?.text);
