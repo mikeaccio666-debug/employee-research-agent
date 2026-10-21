@@ -46,6 +46,7 @@ export function plan(spec: Spec, sources: Source[]): string {
     `Stage: ${stage}: ${STAGES[stage]}.`,
     gaps.length ? `Still missing, most useful first:\n${gaps.slice(0, 3).map((g) => `- ${g}`).join('\n')}` : 'Nothing basic is missing.',
     `Lines: ${live.length} (${waiting} waiting for them to confirm on the page).`,
+    spec.notes.length ? `Your open notes (close each with note once dealt with):\n${spec.notes.map((n) => `- ${n.id}: ${n.text}`).join('\n')}` : null,
     sources.length
       ? `Documents they shared (read_source looks inside one):\n${sources.map((s) => `- ${s.id}: ${s.name} (${s.kind}${s.pages.length > 1 ? `, ${s.pages.length} pages` : ''})`).join('\n')}`
       : null,

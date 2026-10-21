@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { emptySpec, type Claim, type Spec } from '@/lib/portrait/spec';
+import { emptySpec, publishedSpec, readSpec, type Claim, type Spec } from '@/lib/portrait/spec';
 import { numbersIn, unquotedNumbers } from '@/lib/agent/guards';
 import { plan } from '@/lib/agent/planner';
+import { parseSkill, SKILLS } from '@/lib/agent/skills';
 import { findQuote, runTool, TOOL_DEFS, type Grounds } from '@/lib/agent/tools';
 
 // The rules the studio agent's tools enforce (lib/agent/tools.ts), checked without a model.
@@ -205,7 +206,7 @@ describe('read_source and load_skill', () => {
   it('gives both providers every tool, in a fixed order', () => {
     assert.deepEqual(
       TOOL_DEFS.map((t) => t.name),
-      ['upsert_claim', 'remove_claim', 'set_headline', 'move_section', 'read_source', 'load_skill'],
+      ['upsert_claim', 'remove_claim', 'set_headline', 'move_section', 'read_source', 'load_skill', 'note'],
     );
   });
 });
@@ -230,5 +231,53 @@ describe('long quotes', () => {
     const long = 'x'.repeat(250);
     const r = await runTool('upsert_claim', upsert({ quote: long }), emptySpec(), grounds(long));
     assert.match(r.output, /keep it to 200 characters or fewer/);
+  });
+});
+
+describe('skills', () => {
+  it('loads every SKILL.md under lib/agent/skills, sorted by name', () => {
+    const names = SKILLS.map((s) => s.name);
+    assert.deepEqual(names, [...names].sort());
+    for (const n of ['business', 'career-switch', 'design', 'international-student', 'research', 'software-engineering']) assert.ok(names.includes(n), n);
+    for (const s of SKILLS) assert.ok(s.description.length > 20 && s.body.length > 200, s.name);
+  });
+
+  it('reads front matter, quoted or not, and refuses a file without it', () => {
+    const s = parseSkill('---\nname: pdf-resume\ndescription: "Use when: they want a PDF"\ntools: [generate_resume, read_source]\n---\n\nSteps.\n');
+    assert.deepEqual(s, { name: 'pdf-resume', description: 'Use when: they want a PDF', body: 'Steps.', tools: ['generate_resume', 'read_source'] });
+    assert.throws(() => parseSkill('Steps only'), /no front matter/);
+    assert.throws(() => parseSkill('---\nname: Bad Name\ndescription: x\n---\nbody'), /lowercase/);
+  });
+});
+
+describe('note', () => {
+  const add = (text: string, spec = emptySpec()) => runTool('note', JSON.stringify({ add: text, close: null }), spec, grounds('x'));
+
+  it('keeps notes off the page and out of rev, and lists them in the plan', async () => {
+    const r = await add('ask about the hackathon win');
+    assert.match(r.output, /^Noted as nte_/);
+    assert.equal(r.spec.rev, 0);
+    assert.equal(r.change, undefined);
+    assert.match(plan(r.spec, []), /ask about the hackathon win/);
+    assert.deepEqual(publishedSpec(r.spec).notes, []);
+  });
+
+  it('closes a note by id, and only one that exists', async () => {
+    const { spec } = await add('check the internship dates');
+    const id = spec.notes[0]!.id;
+    const closed = await runTool('note', JSON.stringify({ add: null, close: id }), spec, grounds('x'));
+    assert.equal(closed.spec.notes.length, 0);
+    assert.match((await runTool('note', JSON.stringify({ add: null, close: 'nte_nope000000' }), spec, grounds('x'))).output, /no open note/);
+  });
+
+  it('caps open notes', async () => {
+    let spec = emptySpec();
+    for (let i = 0; i < 12; i++) spec = (await add(`note ${i}`, spec)).spec;
+    assert.match((await add('one more', spec)).output, /Close one/);
+  });
+
+  it('reads a stored spec from before notes existed', () => {
+    const { notes, ...old } = emptySpec();
+    assert.deepEqual(readSpec(old).notes, []);
   });
 });

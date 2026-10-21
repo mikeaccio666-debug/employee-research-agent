@@ -23,7 +23,7 @@ import { toConfirm, type Claim, type Spec } from '@/lib/portrait/spec';
 import type { Effort, ModelChoice, Provider } from '@/lib/agent/env';
 import type { Attachment, Receipt as ReceiptData, ThreadMessage } from '@/lib/agent/store';
 import { supabaseBrowser } from '@/lib/supabase/client';
-import { OPENER } from '@/lib/agent/prompt';
+import { OPENER } from '@/lib/agent/opener';
 import { routes } from '@/lib/routes';
 import s from './studio.module.css';
 
