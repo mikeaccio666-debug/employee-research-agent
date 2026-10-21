@@ -37,3 +37,6 @@ playwright-report/
 # Local secrets
 .env*.local
 .env
+
+# Eval runs (apps/web/evals)
+apps/web/evals/out/
