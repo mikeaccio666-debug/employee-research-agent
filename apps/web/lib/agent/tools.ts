@@ -1,6 +1,22 @@
 import { z } from 'zod';
-import { headlineWithout, LAYERS, LIMITS, SECTIONS, SECTION_LABEL, SECTION_OF, type Claim, type Evidence, type HeadlineOption, type Note, type Spec } from '@/lib/portrait/spec';
-import { fillerIn, unclaimedLevel, unquotedNumbers } from './guards';
+import {
+  headlineWithout,
+  JOB_TYPES,
+  LAYERS,
+  LIMITS,
+  PREFERENCE_FIELDS,
+  SECTIONS,
+  SECTION_LABEL,
+  SECTION_OF,
+  WORK_MODES,
+  type Claim,
+  type Evidence,
+  type HeadlineOption,
+  type Note,
+  type Preferences,
+  type Spec,
+} from '@/lib/portrait/spec';
+import { fillerIn, unclaimedLevel, unquotedNumbers, workAuthIn } from './guards';
 import { SKILLS, skillNamed } from './skills';
 import type { Source } from './sources';
 
@@ -167,6 +183,13 @@ Example: statement "Built Campus Marketplace, a buy-and-sell site now used by ab
     const filler = fillerIn(args.statement);
     if (filler.length) {
       return refuse(spec, `"${filler.join('", "')}" says nothing on its own. Write what they did instead, or leave the line out.`);
+    }
+    const auth = workAuthIn(args.statement);
+    if (auth) {
+      return refuse(
+        spec,
+        `"${auth}" is about work authorization, which stays off the page. Save it with set_preferences (work_auth), which only matching reads, and tell them it won't be shown.`,
+      );
     }
     const target = args.id ? spec.claims.find((c) => c.id === args.id) : undefined;
     const numbers = unquotedNumbers(args.statement, [args.quote, ...(target?.evidence.map((e) => e.quote) ?? [])]);
@@ -476,7 +499,100 @@ Use it when they mention something worth asking about later but you're following
   },
 });
 
-const REGISTRY = [upsertClaim, removeClaim, setHeadline, moveSection, readSource, loadSkill, note];
+const list = (description: string, item: Record<string, unknown>, max: number) => ({
+  type: ['array', 'null'],
+  items: item,
+  maxItems: max,
+  description: `${description} null leaves it as it is; [] clears it.`,
+});
+
+/** Preferences in a line each, for the model and the receipt. */
+export function describePreferences(p: Preferences): string[] {
+  return [
+    p.roles.length && `roles: ${p.roles.join(', ')}`,
+    p.jobTypes.length && `job types: ${p.jobTypes.join(', ')}`,
+    p.locations.length && `locations: ${p.locations.join(', ')}`,
+    p.workModes.length && `work modes: ${p.workModes.join(', ')}`,
+    p.start && `start: ${p.start}`,
+    p.workAuth && `work authorization: ${p.workAuth}`,
+  ].filter((l): l is string => !!l);
+}
+
+const setPreferences = tool({
+  name: 'set_preferences',
+  description: `Save what they're looking for, for matching them with roles: the roles, job types, places, ways of working, when they can start, and their work authorization. These are never shown on the page; only matching reads them, and the person sees and edits them in the studio.
+Use it as soon as they say any of these, in addition to the lines you draw: what they want still goes on the page as an intent line ("Looking for"), and where they are now as an identity line. Work authorization is the exception: it only goes here. Pass only what they said and null for the rest; each call rests on a quote from their messages, and dates stay as they said them. Work authorization (visa, sponsorship, OPT) goes here and never on the page; save it only when they volunteer it, and tell them it's used for matching only.`,
+  parameters: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['roles', 'job_types', 'locations', 'work_modes', 'start', 'work_auth', 'quote'],
+    properties: {
+      roles: list('Roles they want, short ("analog IC design", "backend engineering").', { type: 'string', maxLength: LIMITS.pref }, LIMITS.prefs),
+      job_types: list('Kinds of job.', { type: 'string', enum: [...JOB_TYPES] }, JOB_TYPES.length),
+      locations: list('Places they would work ("Bay Area", "Shanghai", "anywhere in the US").', { type: 'string', maxLength: LIMITS.pref }, LIMITS.prefs),
+      work_modes: list('Onsite, hybrid or remote.', { type: 'string', enum: [...WORK_MODES] }, WORK_MODES.length),
+      start: nullableString(LIMITS.start, 'When they can start, as they said it ("June 2026"). null leaves it; "" clears it.'),
+      work_auth: nullableString(LIMITS.workAuth, 'Their work authorization, as they said it ("F-1, will need sponsorship"). null leaves it; "" clears it.'),
+      quote: {
+        type: 'string',
+        maxLength: LIMITS.quote,
+        description: 'Words copied exactly from one of the person’s messages (or a document they shared) that back what you save.',
+      },
+    },
+  },
+  args: z.object({
+    roles: z.array(z.string().trim().min(1).max(LIMITS.pref)).max(LIMITS.prefs).nullable(),
+    job_types: z.array(z.enum(JOB_TYPES)).max(JOB_TYPES.length).nullable(),
+    locations: z.array(z.string().trim().min(1).max(LIMITS.pref)).max(LIMITS.prefs).nullable(),
+    work_modes: z.array(z.enum(WORK_MODES)).max(WORK_MODES.length).nullable(),
+    start: z.string().trim().max(LIMITS.start).nullable(),
+    work_auth: z.string().trim().max(LIMITS.workAuth).nullable(),
+    quote: z.string().trim().min(1).max(LIMITS.quote, `keep it to ${LIMITS.quote} characters or fewer`),
+  }),
+  risk: 'draft',
+  run(args, { spec, grounds }) {
+    const given = [args.roles, args.job_types, args.locations, args.work_modes, args.start, args.work_auth].filter((v) => v !== null);
+    if (!given.length) return refuse(spec, 'pass at least one preference.');
+    const evidence = findQuote(args.quote, grounds);
+    if (!evidence) return refuse(spec, 'the quote is not in the person’s messages or the documents they shared. Copy the words exactly, or ask them first.');
+    const numbers = unquotedNumbers([args.start, args.work_auth].filter(Boolean).join(' '), [args.quote]);
+    if (numbers.length) return refuse(spec, `${numbers.join(', ')} ${numbers.length > 1 ? 'are' : 'is'} not in the quote. Keep dates as they said them.`);
+    const uniq = <T>(xs: T[]) => [...new Set(xs)];
+    const old = spec.preferences;
+    const preferences: Preferences = {
+      roles: args.roles ? uniq(args.roles) : old.roles,
+      jobTypes: args.job_types ? uniq(args.job_types) : old.jobTypes,
+      locations: args.locations ? uniq(args.locations) : old.locations,
+      workModes: args.work_modes ? uniq(args.work_modes) : old.workModes,
+      start: args.start === null ? old.start : args.start || null,
+      workAuth: args.work_auth === null ? old.workAuth : args.work_auth || null,
+      evidence: [...old.evidence.filter((e) => e.quote !== evidence.quote), evidence].slice(-10),
+    };
+    const changed = PREFERENCE_FIELDS.filter((f) => JSON.stringify(preferences[f]) !== JSON.stringify(old[f]));
+    if (!changed.length) return { spec, output: 'Nothing new: their preferences already say that.' };
+    const now = describePreferences(preferences);
+    return {
+      // Not on the page, so rev stays: the published page isn't behind.
+      spec: { ...spec, preferences },
+      output: `Saved. Their search preferences now: ${now.join('; ') || 'none'}. Only matching reads these; they are not on the page.`,
+      change: {
+        note: `What you're looking for — ${changed.map((f) => FIELD_LABEL[f]).join(', ')} (for matching, not shown)`,
+        dashed: false,
+      },
+    };
+  },
+});
+
+const FIELD_LABEL: Record<(typeof PREFERENCE_FIELDS)[number], string> = {
+  roles: 'roles',
+  jobTypes: 'job types',
+  locations: 'locations',
+  workModes: 'way of working',
+  start: 'start date',
+  workAuth: 'work authorization',
+};
+
+const REGISTRY = [upsertClaim, removeClaim, setHeadline, moveSection, readSource, loadSkill, note, setPreferences];
 
 /** The tools as the model reads them, in a fixed order so the providers can cache them. */
 export const TOOL_DEFS = REGISTRY.map(({ name, description, parameters }) => ({ name, description, parameters }));
@@ -521,6 +637,7 @@ export function snapshot(spec: Spec): string {
     'The portrait right now (rejected lines are kept so you don’t propose them again unless the person asks):',
     `Headline: ${spec.headline ? `${spec.headline.text} (${spec.headline.status})` : 'none yet'}${spec.headline?.alternatives.length ? `; also offered: ${spec.headline.alternatives.map((a) => `"${a.text}"`).join(', ')}` : ''}`,
     `Section order: ${spec.order.join(', ')}`,
+    `Search preferences (matching only, not on the page): ${describePreferences(spec.preferences).join('; ') || 'none yet'}`,
     lines.length ? lines.join('\n') : '(no lines yet)',
   ].join('\n');
 }

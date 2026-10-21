@@ -18,8 +18,8 @@ import {
 } from '@portrait/ui';
 import { Workspace } from '@/components/workspace/Workspace';
 import { IdentityLines, SpecSections } from '@/components/portrait/SpecSections';
-import { chooseHeadline, confirmHeadline, confirmLine, rejectLine, updatePage } from '@/lib/portrait-actions';
-import { toConfirm, type Claim, type Spec } from '@/lib/portrait/spec';
+import { chooseHeadline, clearPreference, confirmHeadline, confirmLine, rejectLine, updatePage } from '@/lib/portrait-actions';
+import { PREFERENCE_FIELDS, prefSet, toConfirm, type Claim, type PreferenceField, type Preferences, type Spec } from '@/lib/portrait/spec';
 import type { Effort, ModelChoice, Provider } from '@/lib/agent/env';
 import type { Attachment, Receipt as ReceiptData, ThreadMessage } from '@/lib/agent/store';
 import { supabaseBrowser } from '@/lib/supabase/client';
@@ -478,7 +478,51 @@ export function LiveStudio(props: LiveStudioProps) {
           </p>
         )}
       </div>
+      <SearchPreferences
+        preferences={spec.preferences}
+        disabled={saving}
+        onClear={(f) => answer(() => clearPreference(f), `${PREFERENCE_LABEL[f]} cleared`)}
+      />
     </Workspace>
+  );
+}
+
+const PREFERENCE_LABEL: Record<PreferenceField, string> = {
+  roles: 'Roles',
+  jobTypes: 'Job type',
+  locations: 'Where',
+  workModes: 'Way of working',
+  start: 'Can start',
+  workAuth: 'Work authorization',
+};
+
+/**
+ * What they're looking for, as matching reads it: off the page, so it sits below the sheet. They
+ * can clear anything the agent saved.
+ */
+function SearchPreferences({ preferences, disabled, onClear }: { preferences: Preferences; disabled: boolean; onClear: (f: PreferenceField) => void }) {
+  const fields = PREFERENCE_FIELDS.filter((f) => prefSet(preferences, f));
+  if (!fields.length) return null;
+  return (
+    <section className="mt-6 max-w-[520px] px-1" aria-label="What you’re looking for">
+      <p className="t-xs c2">What you’re looking for · used to match you, never shown on your page</p>
+      <dl className="mt-2 flex flex-col gap-2">
+        {fields.map((f) => {
+          const v = preferences[f];
+          return (
+            <div key={f} className="flex items-baseline justify-between gap-3">
+              <div>
+                <dt className="t-xs c2">{PREFERENCE_LABEL[f]}</dt>
+                <dd className="t-body">{Array.isArray(v) ? v.join(', ') : v}</dd>
+              </div>
+              <Chip size="sm" tone="wall" disabled={disabled} onClick={() => onClear(f)}>
+                Clear
+              </Chip>
+            </div>
+          );
+        })}
+      </dl>
+    </section>
   );
 }
 

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { loadPortrait, saveSpec } from '@/lib/agent/store';
-import { headlineWithout, publishedSpec, type Spec } from '@/lib/portrait/spec';
+import { headlineWithout, PREFERENCE_FIELDS, publishedSpec, type PreferenceField, type Spec } from '@/lib/portrait/spec';
 import { supabaseServer } from '@/lib/supabase/server';
 import type { Result } from '@/lib/account-actions';
 
@@ -83,4 +83,10 @@ export async function updatePage(): Promise<Result> {
   if (error) return { ok: false, error: FAILED };
   revalidatePath('/u/[handle]', 'page');
   return { ok: true };
+}
+
+/** Clearing one of their search preferences in the studio. Matching only, so the page's rev stays. */
+export async function clearPreference(field: PreferenceField) {
+  if (!PREFERENCE_FIELDS.includes(field)) return { ok: false as const, error: FAILED };
+  return edit((spec) => ({ ...spec, preferences: { ...spec.preferences, [field]: Array.isArray(spec.preferences[field]) ? [] : null } }));
 }
