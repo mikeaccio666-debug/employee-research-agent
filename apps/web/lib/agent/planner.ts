@@ -1,4 +1,5 @@
-import type { Claim, Spec } from '@/lib/portrait/spec';
+import { prefSet, type Claim, type Spec } from '@/lib/portrait/spec';
+import { describePreferences } from './tools';
 import type { Source } from './sources';
 
 // The interview planner (docs/agent-design.md §4.2, §4.3): plain code that reads the portrait and
@@ -26,14 +27,18 @@ export function plan(spec: Spec, sources: Source[]): string {
   const experiences = of('experience');
   const thin = experiences.filter((c) => !hasNumber(c));
 
+  const prefs = spec.preferences;
+  const wants = of('intent').length > 0 || prefSet(prefs, 'roles');
   const stage: keyof typeof STAGES =
-    experiences.length < 2 ? 'skeleton' : thin.length ? 'deepen' : !of('trait').length ? 'distinct' : !of('intent').length ? 'intent' : 'ready';
+    experiences.length < 2 ? 'skeleton' : thin.length ? 'deepen' : !of('trait').length ? 'distinct' : !wants ? 'intent' : 'ready';
 
   const gaps = [
     !of('identity').length && 'who they are now: school, degree and year, or current role',
     experiences.length < 2 && 'another experience they are proud of: a project, internship, job or activity',
     ...thin.slice(0, 2).map((c) => `a result, scale or number for "${name(c)}" (a range is fine), or their own part in it`),
-    !of('intent').length && 'what role they want next, and where',
+    !wants && 'what role they want next, and where',
+    wants && !prefSet(prefs, 'locations') && !prefSet(prefs, 'workModes') && 'where they would work, or remote (for matching)',
+    wants && !prefSet(prefs, 'start') && 'when they can start (for matching)',
     experiences.length >= 2 && !of('capability').length && 'the skills their stories show',
     experiences.length >= 2 && !of('trait').length && 'how they work or what drives them, through a story',
     !spec.headline && live.length >= 4 && 'headlines to pick from, resting on the strongest lines',
@@ -46,6 +51,7 @@ export function plan(spec: Spec, sources: Source[]): string {
     `Stage: ${stage}: ${STAGES[stage]}.`,
     gaps.length ? `Still missing, most useful first:\n${gaps.slice(0, 3).map((g) => `- ${g}`).join('\n')}` : 'Nothing basic is missing.',
     `Lines: ${live.length} (${waiting} waiting for them to confirm on the page).`,
+    `Search preferences (set_preferences; matching only, never on the page): ${describePreferences(prefs).join('; ') || 'none yet'}.`,
     spec.notes.length ? `Your open notes (close each with note once dealt with):\n${spec.notes.map((n) => `- ${n.id}: ${n.text}`).join('\n')}` : null,
     sources.length
       ? `Documents they shared (read_source looks inside one):\n${sources.map((s) => `- ${s.id}: ${s.name} (${s.kind}${s.pages.length > 1 ? `, ${s.pages.length} pages` : ''})`).join('\n')}`

@@ -117,3 +117,11 @@ const LEVEL = /\b(expert|advanced|proficient|fluent|strong|deep|senior|mastery|s
 export function unclaimedLevel(statement: string, quote: string): boolean {
   return LEVEL.test(statement) && !LEVEL.test(quote);
 }
+
+// Work authorization is matching-only (PRD PRIV-02): it goes in the search preferences, never on
+// the page. Lines that mention it are refused; set_preferences takes it instead.
+const WORK_AUTH =
+  /\b(visas?|(need|needs|require|requires|requiring|needing) (visa )?sponsorship|without sponsorship|work (authori[sz]ation|permit)|green card|citizenship|permanent resident|(stem )?opt|cpt|h-?1b|f-1|j-1|ead)\b|签证|工签|绿卡|身份担保|工作许可|永居/i;
+
+/** The work-authorization words in a line, if any. */
+export const workAuthIn = (text: string) => WORK_AUTH.exec(text)?.[0] ?? null;

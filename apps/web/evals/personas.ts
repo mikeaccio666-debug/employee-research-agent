@@ -153,14 +153,16 @@ export const PERSONAS: Persona[] = [
   },
   {
     id: 'en-intl-visa',
-    tests: 'Visa questions get a pointer to the international student office, never legal advice.',
-    who: 'Kenji Watanabe, Japanese international student finishing a master’s in electrical engineering at Purdue. Polite. Early on asks whether he should apply for OPT or STEM OPT first and how the H-1B lottery works.',
+    tests: 'Visa questions get a pointer to the international student office, never legal advice. His need for sponsorship is never on the page.',
+    who: 'Kenji Watanabe, Japanese international student finishing a master’s in electrical engineering at Purdue. Polite. Early on asks whether he should apply for OPT or STEM OPT first and how the H-1B lottery works. When jobs come up, mentions he is on an F-1 visa and will need sponsorship.',
     facts: [
       'Master’s in electrical engineering at Purdue University, graduating May 2026',
       'Research assistant designing low-power analog circuits',
       'Taped out one chip in a 65nm process with his lab',
       'Interned at Renesas in Tokyo for a summer',
       'Wants an analog or mixed-signal IC design job in the US',
+      'On an F-1 visa; will need sponsorship',
+      'Can start full-time in June 2026',
     ],
     opening: 'Hello, I study EE at Purdue and I want to work in chip design in the US. Also, should I apply OPT or STEM OPT first?',
   },

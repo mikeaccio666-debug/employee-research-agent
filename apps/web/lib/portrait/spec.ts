@@ -40,6 +40,10 @@ export const LIMITS = {
   claims: 80,
   note: 200,
   notes: 12,
+  pref: 60,
+  prefs: 5,
+  start: 40,
+  workAuth: 120,
 } as const;
 
 const Evidence = z.union([
@@ -107,6 +111,46 @@ const Note = z.object({
 });
 export type Note = z.infer<typeof Note>;
 
+export const JOB_TYPES = ['internship', 'full-time', 'part-time', 'contract'] as const;
+export const WORK_MODES = ['onsite', 'hybrid', 'remote'] as const;
+
+/**
+ * What they're looking for, as matching reads it (docs/agent-design.md §11.2 set_preferences,
+ * PRD MATCH-04, PRIV-02). Matching only: never on the page, so it doesn't move rev. Work
+ * authorization is the sensitive one; the page never shows it, and matching may only filter on it.
+ */
+const Preferences = z.object({
+  roles: z.array(z.string().min(1).max(LIMITS.pref)).max(LIMITS.prefs).default([]),
+  jobTypes: z.array(z.enum(JOB_TYPES)).max(JOB_TYPES.length).default([]),
+  locations: z.array(z.string().min(1).max(LIMITS.pref)).max(LIMITS.prefs).default([]),
+  workModes: z.array(z.enum(WORK_MODES)).max(WORK_MODES.length).default([]),
+  /** When they can start, as they said it ("June 2026", "after graduation"). */
+  start: z.string().max(LIMITS.start).nullable().default(null),
+  /** Their work authorization, as they said it ("F-1, will need sponsorship"). */
+  workAuth: z.string().max(LIMITS.workAuth).nullable().default(null),
+  /** The words each field rests on, newest last. */
+  evidence: z.array(Evidence).max(10).default([]),
+});
+export type Preferences = z.infer<typeof Preferences>;
+export const PREFERENCE_FIELDS = ['roles', 'jobTypes', 'locations', 'workModes', 'start', 'workAuth'] as const;
+export type PreferenceField = (typeof PREFERENCE_FIELDS)[number];
+
+export const emptyPreferences = (): Preferences => ({
+  roles: [],
+  jobTypes: [],
+  locations: [],
+  workModes: [],
+  start: null,
+  workAuth: null,
+  evidence: [],
+});
+
+/** Whether a field holds anything. */
+export const prefSet = (p: Preferences, f: PreferenceField) => {
+  const v = p[f];
+  return Array.isArray(v) ? v.length > 0 : v !== null;
+};
+
 export const Spec = z.object({
   rev: z.number().int().nonnegative(),
   headline: Headline.nullable(),
@@ -114,10 +158,18 @@ export const Spec = z.object({
   claims: z.array(Claim).max(LIMITS.claims),
   /** The agent's open notes to itself. Not part of the page, so they don't move rev. */
   notes: z.array(Note).max(LIMITS.notes).default([]),
+  preferences: Preferences.default(emptyPreferences),
 });
 export type Spec = z.infer<typeof Spec>;
 
-export const emptySpec = (): Spec => ({ rev: 0, headline: null, order: [...SECTIONS], claims: [], notes: [] });
+export const emptySpec = (): Spec => ({
+  rev: 0,
+  headline: null,
+  order: [...SECTIONS],
+  claims: [],
+  notes: [],
+  preferences: emptyPreferences(),
+});
 
 /** The stored spec, or an empty one (a new portrait is `{}`; anything malformed starts over clean). */
 export function readSpec(raw: unknown): Spec {
@@ -140,14 +192,14 @@ export const toConfirm = (spec: Spec) =>
 /**
  * What the public page gets when the person publishes: confirmed lines without the chat quotes
  * behind them, the headline only if it and every line it rests on are confirmed, and none of the
- * agent's notes.
+ * agent's notes or the person's search preferences.
  */
 export function publishedSpec(spec: Spec): Spec {
   const claims = visibleClaims(spec).map((c) => ({ ...c, evidence: [] }));
   const ids = new Set(claims.map((c) => c.id));
   const h = spec.headline;
   const headline = h && h.status === 'confirmed' && h.claims.every((id) => ids.has(id)) ? { ...h, alternatives: [] } : null;
-  return { rev: spec.rev, headline, order: spec.order, claims, notes: [] };
+  return { rev: spec.rev, headline, order: spec.order, claims, notes: [], preferences: emptyPreferences() };
 }
 
 /** Lines grouped into the page's sections, in the person's order, with empty sections left out. */

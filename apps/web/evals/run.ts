@@ -10,6 +10,7 @@ import { sourceBlock, type Source } from '@/lib/agent/sources';
 import { append, type Row } from '@/lib/agent/store';
 import { compactIfLong, runTurn, unansweredToolCalls, userItems } from '@/lib/agent/turn';
 import { emptySpec, type Spec } from '@/lib/portrait/spec';
+import { describePreferences } from '@/lib/agent/tools';
 import { memoryStore, type Call } from './memory';
 import { PERSONAS, type Persona } from './personas';
 
@@ -245,6 +246,9 @@ async function grade(result: Result, persona: Persona, judge: AgentEnv): Promise
     'The portrait:',
     `Headline: ${result.spec.headline?.text ?? 'none'}`,
     ...lines.map((c) => `- ${c.id} [${c.layer}, ${c.basis}] ${[c.title, c.org, c.when].filter(Boolean).join(' · ')} ${c.statement}`),
+    '',
+    'Search preferences (kept for matching, never shown on the page; they count toward facts but are not lines to grade):',
+    ...describePreferences(result.spec.preferences).map((l) => `- ${l}`),
     ...(persona.tests
       ? ['', `Check: ${persona.tests}`, '', 'The conversation:', ...result.turns.flatMap((t) => [`Person: ${t.user}`, `Agent: ${t.reply}`])]
       : []),
@@ -338,14 +342,14 @@ function summarize(results: Result[]) {
     ),
   ];
   const detail = [
-    '| Persona | Model | Recall | Lines (made up / overstated) | Refused | Checks | Skills / notes / headlines | Missed facts | Problem |',
+    '| Persona | Model | Recall | Lines (made up / overstated) | Refused | Checks | Skills / notes / headlines / preferences | Missed facts | Problem |',
     '| --- | --- | --- | --- | --- | --- | --- | --- | --- |',
     ...results.map((r) => {
       const g = r.grade;
       const bad = g?.lines.filter((l) => l.verdict !== 'supported') ?? [];
       const facts = PERSONAS.find((p) => p.id === r.persona)?.facts ?? [];
       const missed = g?.facts.filter((f) => !f.covered).map((f) => facts[f.n - 1] ?? `#${f.n}`) ?? [];
-      return `| ${r.persona} | ${r.model} | ${g ? pct(g.facts.filter((f) => f.covered).length, g.facts.length) : '–'} | ${g ? `${g.lines.length} (${bad.filter((l) => l.verdict === 'unsupported').length} / ${bad.filter((l) => l.verdict === 'overstated').length})` : '–'} | ${r.refused.length}/${r.toolCalls} | ${r.tests ? `${g?.check ? (g.check.passed ? 'passed' : `FAILED: ${g.check.why}`) : '?'} (${r.tests})` : ''} | ${[r.skills.join(', ') || '–', `${r.tools.note ?? 0} notes`, r.spec.headline ? `${1 + r.spec.headline.alternatives.length} headlines` : 'no headline'].join(' / ')} | ${missed.join('; ').replace(/\|/g, '/')} | ${[r.error, r.judgeError && `judge: ${r.judgeError}`, ...bad.map((l) => `${l.verdict}: ${l.why}`)].filter(Boolean).join('; ').replace(/\|/g, '/').slice(0, 300)} |`;
+      return `| ${r.persona} | ${r.model} | ${g ? pct(g.facts.filter((f) => f.covered).length, g.facts.length) : '–'} | ${g ? `${g.lines.length} (${bad.filter((l) => l.verdict === 'unsupported').length} / ${bad.filter((l) => l.verdict === 'overstated').length})` : '–'} | ${r.refused.length}/${r.toolCalls} | ${r.tests ? `${g?.check ? (g.check.passed ? 'passed' : `FAILED: ${g.check.why}`) : '?'} (${r.tests})` : ''} | ${[r.skills.join(', ') || '–', `${r.tools.note ?? 0} notes`, r.spec.headline ? `${1 + r.spec.headline.alternatives.length} headlines` : 'no headline', describePreferences(r.spec.preferences).map((l) => l.split(':')[0]).join(', ') || 'no preferences'].join(' / ')} | ${missed.join('; ').replace(/\|/g, '/')} | ${[r.error, r.judgeError && `judge: ${r.judgeError}`, ...bad.map((l) => `${l.verdict}: ${l.why}`)].filter(Boolean).join('; ').replace(/\|/g, '/').slice(0, 300)} |`;
     }),
   ];
   return [`## Studio agent evals${args.label ? `: ${args.label}` : ''}`, '', ...table, '', '### By persona', '', ...detail].join('\n');

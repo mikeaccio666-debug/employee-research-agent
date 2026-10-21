@@ -206,7 +206,7 @@ describe('read_source and load_skill', () => {
   it('gives both providers every tool, in a fixed order', () => {
     assert.deepEqual(
       TOOL_DEFS.map((t) => t.name),
-      ['upsert_claim', 'remove_claim', 'set_headline', 'move_section', 'read_source', 'load_skill', 'note'],
+      ['upsert_claim', 'remove_claim', 'set_headline', 'move_section', 'read_source', 'load_skill', 'note', 'set_preferences'],
     );
   });
 });
@@ -324,5 +324,57 @@ describe('headline options', () => {
     assert.deepEqual(publishedSpec(spec).headline?.alternatives, []);
     assert.deepEqual(headlineWithout(spec.headline, 'clm_aaaaaaaaaa')?.alternatives, []);
     assert.equal(headlineWithout(spec.headline, 'clm_bbbbbbbbbb'), null);
+  });
+});
+
+describe('search preferences', () => {
+  const prefs = (over: Record<string, unknown> = {}) =>
+    JSON.stringify({ roles: null, job_types: null, locations: null, work_modes: null, start: null, work_auth: null, quote: '', ...over });
+  const g = grounds('I want analog IC design jobs in the Bay Area or remote, from June 2026. I am on F-1 and will need sponsorship.');
+
+  it('saves what they said without touching the page', async () => {
+    const spec = withClaims(claim());
+    const r = await runTool(
+      'set_preferences',
+      prefs({ roles: ['analog IC design'], locations: ['Bay Area'], work_modes: ['remote'], start: 'June 2026', quote: 'analog IC design jobs in the Bay Area or remote, from June 2026' }),
+      spec,
+      g,
+    );
+    assert.match(r.output, /^Saved/);
+    assert.equal(r.spec.rev, spec.rev);
+    assert.deepEqual(r.spec.preferences.roles, ['analog IC design']);
+    assert.equal(r.spec.preferences.start, 'June 2026');
+    assert.equal(r.spec.preferences.evidence.length, 1);
+    assert.ok(r.change);
+    // null leaves a field; a later call adds to the rest.
+    const r2 = await runTool('set_preferences', prefs({ work_auth: 'F-1, will need sponsorship', quote: 'I am on F-1 and will need sponsorship' }), r.spec, g);
+    assert.deepEqual(r2.spec.preferences.roles, ['analog IC design']);
+    assert.equal(r2.spec.preferences.workAuth, 'F-1, will need sponsorship');
+  });
+
+  it('refuses without a real quote, with nothing to save, or with a date they never said', async () => {
+    const spec = emptySpec();
+    assert.match((await runTool('set_preferences', prefs({ roles: ['PM'], quote: 'I want PM jobs' }), spec, g)).output, /not in the person/);
+    assert.match((await runTool('set_preferences', prefs({ quote: 'Bay Area' }), spec, g)).output, /at least one/);
+    assert.match((await runTool('set_preferences', prefs({ start: 'June 2027', quote: 'from June 2026' }), spec, g)).output, /2027 is not in the quote/);
+  });
+
+  it('keeps work authorization off the page and out of the published spec', async () => {
+    const said = grounds('I am on F-1 and will need sponsorship');
+    const r = await runTool('upsert_claim', upsert({ layer: 'intent', kind: 'role_pref', title: null, org: null, when: null, statement: 'Will need visa sponsorship', quote: 'will need sponsorship' }), emptySpec(), said);
+    assert.match(r.output, /work authorization/);
+    assert.equal(r.spec.claims.length, 0);
+    const saved = await runTool('set_preferences', prefs({ work_auth: 'F-1, will need sponsorship', quote: 'I am on F-1 and will need sponsorship' }), emptySpec(), said);
+    assert.equal(publishedSpec(saved.spec).preferences.workAuth, null);
+    // Club sponsorship is not work authorization.
+    const club = await runTool('upsert_claim', upsert({ statement: 'Raised sponsorship for the hackathon from 300 students', quote: '300 students use it' }), emptySpec(), grounds('300 students use it'));
+    assert.match(club.output, /^Added/);
+  });
+
+  it('reads old specs without preferences, and the plan lists them', async () => {
+    const old = readSpec({ rev: 1, headline: null, order: [], claims: [], notes: [] });
+    assert.deepEqual(old.preferences.roles, []);
+    const r = await runTool('set_preferences', prefs({ roles: ['analog IC design'], quote: 'analog IC design jobs' }), old, g);
+    assert.match(plan(r.spec, []), /roles: analog IC design/);
   });
 });
