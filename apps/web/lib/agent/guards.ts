@@ -8,6 +8,8 @@ const EN_UNITS: Record<string, number> = {
   twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90,
 };
 const EN_SCALES: Record<string, number> = { hundred: 100, thousand: 1000, million: 1_000_000 };
+// Month names, so "May 2027" backs "2027 年 5 月".
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 const ZH_DIGITS: Record<string, number> = { 零: 0, 〇: 0, 一: 1, 二: 2, 两: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9 };
 const ZH_SCALES: Record<string, number> = { 十: 10, 百: 100, 千: 1000, 万: 10_000 };
 
@@ -48,8 +50,8 @@ function english(text: string): number[] {
 }
 
 /**
- * Every number written in the text: in digits, and unless `digitsOnly`, in English words or
- * Chinese numerals too.
+ * Every number written in the text: in digits, and unless `digitsOnly`, in English words, month
+ * names or Chinese numerals too.
  */
 export function numbersIn(text: string, digitsOnly = false): Set<number> {
   const out = new Set<number>();
@@ -62,6 +64,9 @@ export function numbersIn(text: string, digitsOnly = false): Set<number> {
   }
   if (digitsOnly) return out;
   for (const n of english(text)) out.add(n);
+  for (const m of text.matchAll(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?(?=[\s,\d]|$)/gi)) {
+    out.add(MONTHS.indexOf(m[1]!.toLowerCase()) + 1);
+  }
   for (const m of text.matchAll(/[零〇一二两三四五六七八九十百千万]+/g)) {
     const n = chinese(m[0]);
     if (n !== null) out.add(n);

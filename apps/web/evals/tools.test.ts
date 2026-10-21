@@ -150,6 +150,9 @@ describe('guards on what a line says', () => {
   it('finds numbers the quote doesn’t hold', () => {
     assert.deepEqual(unquotedNumbers('Interned for 3 months', ['实习了三个月']), []);
     assert.deepEqual(unquotedNumbers('500+ followers', ['大概几百个人关注']), [500]);
+    // A month name backs its number, so dates can be written either way.
+    assert.deepEqual(unquotedNumbers('2027 年 5 月毕业', ['expected May 2027']), []);
+    assert.deepEqual(unquotedNumbers('2024 年 6 月到 9 月', ['Jun 2024 – Sep 2024']), []);
     // Number words in the line itself aren't counted.
     assert.deepEqual(unquotedNumbers('One of the first members', ['joined early']), []);
   });
