@@ -18,7 +18,20 @@ import {
 } from '@portrait/ui';
 import { Workspace } from '@/components/workspace/Workspace';
 import { IdentityLines, SpecSections } from '@/components/portrait/SpecSections';
-import { chooseHeadline, clearPreference, confirmHeadline, confirmLine, rejectLine, updatePage } from '@/lib/portrait-actions';
+import {
+  chooseHeadline,
+  clearPreference,
+  confirmHeadline,
+  confirmLine,
+  editLine,
+  loadHistory,
+  rejectLine,
+  restoreTo,
+  undoChange,
+  updatePage,
+} from '@/lib/portrait-actions';
+import { LIMITS } from '@/lib/portrait/spec';
+import type { VersionEntry } from '@/lib/portrait/history';
 import { PREFERENCE_FIELDS, prefSet, toConfirm, type Claim, type PreferenceField, type Preferences, type Spec } from '@/lib/portrait/spec';
 import type { Effort, ModelChoice, Provider } from '@/lib/agent/env';
 import type { Attachment, Receipt as ReceiptData, ThreadMessage } from '@/lib/agent/store';
@@ -125,6 +138,10 @@ export function LiveStudio(props: LiveStudioProps) {
   const [lit, setLit] = useState<string | null>(null);
   const [announce, setAnnounce] = useState('');
   const [saving, startSaving] = useTransition();
+  // The line being rewritten in place, and what the box holds.
+  const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
+  // The version history, loaded when opened and again after each change while it is open.
+  const [history, setHistory] = useState<VersionEntry[] | null>(null);
   const end = useRef<HTMLDivElement>(null);
   const picker = useRef<HTMLInputElement>(null);
   const [host, setHost] = useState('');
@@ -263,14 +280,38 @@ export function LiveStudio(props: LiveStudioProps) {
     send('', file);
   };
 
-  const answer = (action: () => Promise<{ ok: true; spec: Spec } | { ok: false; error: string }>, done: string) =>
+  const refreshHistory = async () => {
+    const r = await loadHistory();
+    if (r.ok) setHistory(r.versions);
+    else setError(r.error);
+  };
+
+  const answer = (action: () => Promise<{ ok: true; spec: Spec } | { ok: false; error: string }>, done: string, after?: () => void) =>
     startSaving(async () => {
       const r = await action();
       if (r.ok) {
         setSpec(r.spec);
         setAnnounce(done);
+        after?.();
       } else setError(r.error);
     });
+
+  const toggleHistory = () => {
+    if (history) return setHistory(null);
+    startSaving(refreshHistory);
+  };
+  const showHistory = () => {
+    if (!history) toggleHistory();
+    document.getElementById('history')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  // While history is open, a turn that changed the portrait shows up in it too.
+  const historyOpen = history !== null;
+  const rev = spec.rev;
+  useEffect(() => {
+    if (historyOpen && !busy) void refreshHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rev, busy]);
 
   const publishUpdate = () =>
     startSaving(async () => {
@@ -286,17 +327,56 @@ export function LiveStudio(props: LiveStudioProps) {
   const behind = published && publishedRev !== spec.rev;
 
   const lineActions = (c: Claim) =>
-    c.status === 'draft' ? (
+    editing?.id === c.id ? (
+      <form
+        className="mt-2 flex flex-col gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          answer(() => editLine(c.id, editing.text), 'Line saved', () => setEditing(null));
+        }}
+      >
+        <label className="sr" htmlFor={`edit-${c.id}`}>
+          Rewrite this line
+        </label>
+        <textarea
+          id={`edit-${c.id}`}
+          className="inp min-h-[72px] resize-y py-2"
+          value={editing.text}
+          maxLength={LIMITS.statement}
+          autoFocus
+          onChange={(e) => setEditing({ id: c.id, text: e.target.value })}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setEditing(null);
+          }}
+        />
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="submit" size="sm" disabled={saving}>
+            Save
+          </Button>
+          <Button type="button" variant="quiet" size="sm" onClick={() => setEditing(null)}>
+            Cancel
+          </Button>
+          <span className="t-xs c2">Your words stay as you write them; I’ll ask before changing this line.</span>
+        </div>
+      </form>
+    ) : (
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        {c.basis === 'inferred' ? <span className="t-xs c2">My reading — is it right?</span> : null}
-        <Chip size="sm" tone="wall" disabled={saving} onClick={() => answer(() => confirmLine(c.id), 'Line confirmed')}>
-          Right
-        </Chip>
-        <Chip size="sm" tone="wall" disabled={saving} onClick={() => answer(() => rejectLine(c.id), 'Line removed')}>
-          Not right
+        {c.status === 'draft' && c.basis === 'inferred' ? <span className="t-xs c2">My reading — is it right?</span> : null}
+        {c.status === 'draft' ? (
+          <>
+            <Chip size="sm" tone="wall" disabled={saving} onClick={() => answer(() => confirmLine(c.id), 'Line confirmed')}>
+              Right
+            </Chip>
+            <Chip size="sm" tone="wall" disabled={saving} onClick={() => answer(() => rejectLine(c.id), 'Line removed')}>
+              Not right
+            </Chip>
+          </>
+        ) : null}
+        <Chip size="sm" tone="wall" disabled={saving || busy} onClick={() => setEditing({ id: c.id, text: c.statement })}>
+          Edit
         </Chip>
       </div>
-    ) : null;
+    );
 
   const top = (
     <>
@@ -305,6 +385,9 @@ export function LiveStudio(props: LiveStudioProps) {
         <span className={s.pill}>{visibilityLabel}</span>
       </span>
       <span className="flex-1" />
+      <Button variant="quiet" onClick={showHistory}>
+        History
+      </Button>
       <span className="t-xs c2 whitespace-nowrap">
         {pendingCount ? `${pendingCount} ${pendingCount === 1 ? 'thing' : 'things'} to confirm` : 'All confirmed'}
       </span>
@@ -478,6 +561,20 @@ export function LiveStudio(props: LiveStudioProps) {
           </p>
         )}
       </div>
+      <History
+        open={historyOpen}
+        versions={history}
+        disabled={saving || busy}
+        onToggle={toggleHistory}
+        onUndo={(id) =>
+          answer(async () => {
+            const r = await undoChange(id);
+            if (r.ok && r.skipped) setError(`Undone, except ${r.skipped === 1 ? 'one part that has' : `${r.skipped} parts that have`} changed again since.`);
+            return r;
+          }, 'Change undone')
+        }
+        onRestore={(id) => answer(() => restoreTo(id), 'Portrait brought back to that version')}
+      />
       <ResumeLinks spec={spec} />
       <SearchPreferences
         preferences={spec.preferences}
@@ -485,6 +582,71 @@ export function LiveStudio(props: LiveStudioProps) {
         onClear={(f) => answer(() => clearPreference(f), `${PREFERENCE_LABEL[f]} cleared`)}
       />
     </Workspace>
+  );
+}
+
+const MADE_BY: Record<VersionEntry['madeBy'], string> = { agent: 'Portrait', person: 'You', undo: 'You · undo' };
+
+const when = (iso: string) =>
+  new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+
+/**
+ * Version history (STU-10): every change to the page, newest first. Any one change can be undone
+ * on its own, or the portrait taken back to how it was at a version; neither erases the history.
+ */
+function History({
+  open,
+  versions,
+  disabled,
+  onToggle,
+  onUndo,
+  onRestore,
+}: {
+  open: boolean;
+  versions: VersionEntry[] | null;
+  disabled: boolean;
+  onToggle: () => void;
+  onUndo: (id: number) => void;
+  onRestore: (id: number) => void;
+}) {
+  return (
+    <section className="mt-6 max-w-[520px] scroll-mt-20 px-1" id="history" aria-label="Version history">
+      <div className="flex items-center justify-between gap-3">
+        <p className="t-xs c2">History · undo any change, yours or mine</p>
+        <Chip size="sm" tone="wall" aria-expanded={open} disabled={disabled && !open} onClick={onToggle}>
+          {open ? 'Hide' : 'Show history'}
+        </Chip>
+      </div>
+      {open && versions ? (
+        versions.length ? (
+          <ol className="mt-2 flex flex-col gap-3">
+            {versions.map((v, i) => (
+              <li key={v.id} className="flex flex-col gap-1">
+                <p className="t-xs c2">
+                  {when(v.at)} · {MADE_BY[v.madeBy]}
+                  {i === 0 ? ' · now' : ''}
+                </p>
+                <p className="t-s">{v.summary}</p>
+                <div className="flex flex-wrap gap-2">
+                  {v.undoable ? (
+                    <Chip size="sm" tone="wall" disabled={disabled} onClick={() => onUndo(v.id)}>
+                      Undo this change
+                    </Chip>
+                  ) : null}
+                  {i > 0 ? (
+                    <Chip size="sm" tone="wall" disabled={disabled} onClick={() => onRestore(v.id)}>
+                      Go back to this version
+                    </Chip>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p className="t-s c2 mt-2">No changes yet.</p>
+        )
+      ) : null}
+    </section>
   );
 }
 

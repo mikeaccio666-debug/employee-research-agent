@@ -1,8 +1,9 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { loadPortrait, saveSpec } from '@/lib/agent/store';
-import { headlineWithout, PREFERENCE_FIELDS, publishedSpec, type PreferenceField, type Spec } from '@/lib/portrait/spec';
+import { loadPortrait } from '@/lib/agent/store';
+import { entries, restoreVersion, revertChange, type MadeBy, type VersionEntry } from '@/lib/portrait/history';
+import { headlineWithout, LIMITS, PREFERENCE_FIELDS, publishedSpec, readSpec, type PreferenceField, type Spec } from '@/lib/portrait/spec';
 import { supabaseServer } from '@/lib/supabase/server';
 import type { Result } from '@/lib/account-actions';
 
@@ -13,7 +14,7 @@ import type { Result } from '@/lib/account-actions';
 const NOT_SIGNED_IN = 'You’re signed out. Sign in again to save.';
 const FAILED = 'That didn’t save. Try again in a moment.';
 
-async function edit(change: (spec: Spec) => Spec | string): Promise<Result<{ spec: Spec }>> {
+async function edit(change: (spec: Spec) => Spec | string, by: MadeBy = 'person'): Promise<Result<{ spec: Spec }>> {
   const supabase = await supabaseServer();
   if (!supabase) return { ok: false, error: FAILED };
   const {
@@ -23,11 +24,12 @@ async function edit(change: (spec: Spec) => Spec | string): Promise<Result<{ spe
   const { spec } = await loadPortrait(supabase, user.id);
   const next = change(spec);
   if (typeof next === 'string') return { ok: false, error: next };
-  try {
-    await saveSpec(supabase, user.id, next);
-  } catch {
-    return { ok: false, error: FAILED };
-  }
+  // "_by" tells the version history who made the change; the database trigger takes it off.
+  const { error } = await supabase
+    .from('portraits')
+    .update({ spec: { ...next, _by: by } })
+    .eq('owner_id', user.id);
+  if (error) return { ok: false, error: FAILED };
   return { ok: true, spec: next };
 }
 
@@ -89,4 +91,72 @@ export async function updatePage(): Promise<Result> {
 export async function clearPreference(field: PreferenceField) {
   if (!PREFERENCE_FIELDS.includes(field)) return { ok: false as const, error: FAILED };
   return edit((spec) => ({ ...spec, preferences: { ...spec.preferences, [field]: Array.isArray(spec.preferences[field]) ? [] : null } }));
+}
+
+/** The person rewrites a line themselves (STU-07): it is theirs now, so it is confirmed and pinned. */
+export async function editLine(id: string, text: string) {
+  const statement = text.trim().replace(/\s+/g, ' ');
+  if (!statement) return { ok: false as const, error: 'Write something, or use Not right to take the line off.' };
+  if (statement.length > LIMITS.statement) return { ok: false as const, error: `At most ${LIMITS.statement} characters.` };
+  return edit((spec) => {
+    const line = spec.claims.find((c) => c.id === id);
+    if (!line) return 'That line is gone. Refresh to see the latest.';
+    if (line.statement === statement && line.status === 'confirmed') return spec;
+    const claims = spec.claims.map((c) =>
+      c.id === id ? { ...c, statement, status: 'confirmed' as const, pinned: true, updatedAt: new Date().toISOString() } : c,
+    );
+    return { ...spec, rev: spec.rev + 1, claims };
+  });
+}
+
+type VersionRow = { id: number; rev: number; spec: unknown; made_by: MadeBy; created_at: string };
+
+/** The kept versions, newest first, each with what it changed. */
+export async function loadHistory(): Promise<Result<{ versions: VersionEntry[] }>> {
+  const supabase = await supabaseServer();
+  if (!supabase) return { ok: false, error: FAILED };
+  const { data, error } = await supabase
+    .from('portrait_versions')
+    .select('id, rev, spec, made_by, created_at')
+    .order('id', { ascending: false })
+    .limit(50)
+    .returns<VersionRow[]>();
+  if (error) return { ok: false, error: 'History isn’t available yet.' };
+  const versions = entries(data.map((v) => ({ id: v.id, rev: v.rev, madeBy: v.made_by, at: v.created_at, spec: readSpec(v.spec) })));
+  return { ok: true, versions };
+}
+
+/** A version and the one before it, read as the person (row-level security keeps it to their own). */
+async function versionPair(id: number) {
+  const supabase = await supabaseServer();
+  if (!supabase) return null;
+  const { data } = await supabase
+    .from('portrait_versions')
+    .select('id, rev, spec, made_by, created_at')
+    .lte('id', id)
+    .order('id', { ascending: false })
+    .limit(2)
+    .returns<VersionRow[]>();
+  const [after, before] = data ?? [];
+  return after?.id === id ? { after: readSpec(after.spec), before: before ? readSpec(before.spec) : null } : null;
+}
+
+/** Undo one change, whoever made it, and keep everything since. */
+export async function undoChange(id: number): Promise<Result<{ spec: Spec; skipped: number }>> {
+  const pair = await versionPair(id);
+  if (!pair?.before) return { ok: false, error: 'That change can’t be undone on its own. Go back to a version instead.' };
+  let skipped = 0;
+  const r = await edit((spec) => {
+    const out = revertChange(pair.before, pair.after, spec);
+    skipped = out.skipped;
+    return out.spec;
+  }, 'undo');
+  return r.ok ? { ...r, skipped } : r;
+}
+
+/** Go back to how the portrait was at a version. Later versions stay in the history. */
+export async function restoreTo(id: number) {
+  const pair = await versionPair(id);
+  if (!pair) return { ok: false as const, error: 'That version is gone. Refresh to see the latest.' };
+  return edit((spec) => restoreVersion(pair.after, spec), 'undo');
 }
