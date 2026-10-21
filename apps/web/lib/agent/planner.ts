@@ -37,11 +37,12 @@ export function plan(spec: Spec, sources: Source[]): string {
     experiences.length < 2 && 'another experience they are proud of: a project, internship, job or activity',
     ...thin.slice(0, 2).map((c) => `a result, scale or number for "${name(c)}" (a range is fine), or their own part in it`),
     !wants && 'what role they want next, and where',
-    wants && !prefSet(prefs, 'locations') && !prefSet(prefs, 'workModes') && 'where they would work, or remote (for matching)',
-    wants && !prefSet(prefs, 'start') && 'when they can start (for matching)',
     experiences.length >= 2 && !of('capability').length && 'the skills their stories show',
     experiences.length >= 2 && !of('trait').length && 'how they work or what drives them, through a story',
     !spec.headline && live.length >= 4 && 'headlines to pick from, resting on the strongest lines',
+    // Matching details wait until the portrait itself has its basics.
+    stage === 'ready' && !prefSet(prefs, 'locations') && !prefSet(prefs, 'workModes') && 'where they would work, or remote (for matching)',
+    stage === 'ready' && !prefSet(prefs, 'start') && 'when they can start (for matching)',
   ].filter((g): g is string => !!g);
 
   const waiting = live.filter((c) => c.status === 'draft').length;

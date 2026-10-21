@@ -42,7 +42,7 @@ export const LIMITS = {
   notes: 12,
   pref: 60,
   prefs: 5,
-  start: 40,
+  start: 60,
   workAuth: 120,
 } as const;
 
