@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { LAYERS, LIMITS, SECTIONS, SECTION_LABEL, SECTION_OF, type Claim, type Evidence, type Spec } from '@/lib/portrait/spec';
+import { LAYERS, LIMITS, SECTIONS, SECTION_LABEL, SECTION_OF, type Claim, type Evidence, type Note, type Spec } from '@/lib/portrait/spec';
 import { fillerIn, unclaimedLevel, unquotedNumbers } from './guards';
 import { SKILLS, skillNamed } from './skills';
 import type { Source } from './sources';
@@ -81,7 +81,7 @@ export function findQuote(quote: string, { said, sources }: Grounds): Evidence |
   return null;
 }
 
-const newId = () => `clm_${Math.random().toString(36).slice(2, 12).padEnd(10, '0')}`;
+const newId = (prefix = 'clm') => `${prefix}_${Math.random().toString(36).slice(2, 12).padEnd(10, '0')}`;
 
 const label = (c: Pick<Claim, 'layer' | 'title' | 'statement'>) => {
   const section = SECTION_OF[c.layer];
@@ -377,7 +377,39 @@ const loadSkill = tool({
   },
 });
 
-const REGISTRY = [upsertClaim, removeClaim, setHeadline, moveSection, readSource, loadSkill];
+const note = tool({
+  name: 'note',
+  description: `Keep a short note to yourself about something to come back to, or close one you've dealt with. Open notes are listed in <interview_plan> on every message, even after older messages are condensed. The person never sees them.
+Use it when they mention something worth asking about later but you're following another thread ("mentioned a hackathon win; ask about it after the internship"), or for a fact you still need to check. Not for things already on the portrait. Close a note once you've asked or it no longer matters.`,
+  parameters: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['add', 'close'],
+    properties: {
+      add: nullableString(LIMITS.note, 'The note, in a few words, or null.'),
+      close: nullableString(32, 'The id of a note to close (from <interview_plan>), or null.'),
+    },
+  },
+  args: z.object({ add: z.string().trim().min(1).max(LIMITS.note).nullable(), close: z.string().nullable() }),
+  risk: 'draft',
+  run({ add, close }, { spec, at }) {
+    if (!add && !close) return refuse(spec, 'pass a note to add, a note id to close, or both.');
+    let notes = spec.notes;
+    if (close) {
+      if (!notes.some((n) => n.id === close)) return refuse(spec, `there is no open note ${close}.`);
+      notes = notes.filter((n) => n.id !== close);
+    }
+    let added: Note | null = null;
+    if (add) {
+      if (notes.length >= LIMITS.notes) return refuse(spec, `${LIMITS.notes} notes are open. Close one you've dealt with first.`);
+      added = { id: newId('nte'), text: add, at };
+      notes = [...notes, added];
+    }
+    return { spec: { ...spec, notes }, output: [added && `Noted as ${added.id}.`, close && `Closed ${close}.`].filter(Boolean).join(' ') };
+  },
+});
+
+const REGISTRY = [upsertClaim, removeClaim, setHeadline, moveSection, readSource, loadSkill, note];
 
 /** The tools as the model reads them, in a fixed order so the providers can cache them. */
 export const TOOL_DEFS = REGISTRY.map(({ name, description, parameters }) => ({ name, description, parameters }));

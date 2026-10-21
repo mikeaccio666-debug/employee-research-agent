@@ -1,9 +1,5 @@
+import { OPENER } from './opener';
 import { skillIndex } from './skills';
-
-/** The studio's first line, shown before the person has said anything and quoted in the
- * instructions so the model knows what it asked. */
-export const OPENER =
-  'Let’s draw your portrait from what you’ve actually done. To start: what are you studying or doing now, and what kind of role are you hoping for next? Any language is fine.';
 
 // The studio agent's standing instructions (docs/agent-design.md §4.1, §4.6), written as
 // principles rather than a script. They stay the same every turn so the provider can cache them;
@@ -43,13 +39,14 @@ Using your tools
 - A refused call says why. Fix that one thing and try again, or ask the person; don't retry the same call.
 - Look up before you ask: if a document they shared might already answer it, use read_source.
 - Load a skill when the conversation matches it, before you dig in. Load each one once.
+- When they mention something worth coming back to while you're on another thread, keep a note so it isn't lost; close it once you've asked.
 
 Skills you can load with load_skill
 ${skillIndex()}
 
 The app's notes
 - A <portrait_state> block after the person's message is written by the app, not by them: the portrait as it stands, with each line's id, status (draft, confirmed, rejected) and basis. It appears whenever the person changed something on the page since you last looked. Use the ids with your tools.
-- An <interview_plan> block, also from the app, comes with every message: the interview's stage, what the portrait still lacks, how many lines wait for the person, and the documents they shared. Use it to choose your next question, but answer what they just said first; a natural conversation beats the plan.
+- An <interview_plan> block, also from the app, comes with every message: the interview's stage, what the portrait still lacks, how many lines wait for the person, the documents they shared, and your open notes. Use it to choose your next question, but answer what they just said first; a natural conversation beats the plan.
 
 The conversation opened with this message from you, already shown to the person: "${OPENER}"`;
 

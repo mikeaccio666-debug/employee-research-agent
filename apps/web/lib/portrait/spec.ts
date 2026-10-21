@@ -38,6 +38,8 @@ export const LIMITS = {
   quote: 200,
   headline: 120,
   claims: 80,
+  note: 200,
+  notes: 12,
 } as const;
 
 const Evidence = z.union([
@@ -85,15 +87,25 @@ const Headline = z.object({
 });
 export type Headline = z.infer<typeof Headline>;
 
+/** Something the agent wants to come back to ("ask what the Kafka work was for"). Never shown. */
+const Note = z.object({
+  id: z.string().regex(/^nte_[a-z0-9]{6,20}$/),
+  text: z.string().min(1).max(LIMITS.note),
+  at: z.string(),
+});
+export type Note = z.infer<typeof Note>;
+
 export const Spec = z.object({
   rev: z.number().int().nonnegative(),
   headline: Headline.nullable(),
   order: z.array(z.enum(SECTIONS)),
   claims: z.array(Claim).max(LIMITS.claims),
+  /** The agent's open notes to itself. Not part of the page, so they don't move rev. */
+  notes: z.array(Note).max(LIMITS.notes).default([]),
 });
 export type Spec = z.infer<typeof Spec>;
 
-export const emptySpec = (): Spec => ({ rev: 0, headline: null, order: [...SECTIONS], claims: [] });
+export const emptySpec = (): Spec => ({ rev: 0, headline: null, order: [...SECTIONS], claims: [], notes: [] });
 
 /** The stored spec, or an empty one (a new portrait is `{}`; anything malformed starts over clean). */
 export function readSpec(raw: unknown): Spec {
@@ -115,14 +127,15 @@ export const toConfirm = (spec: Spec) =>
 
 /**
  * What the public page gets when the person publishes: confirmed lines without the chat quotes
- * behind them, and the headline only if it and every line it rests on are confirmed.
+ * behind them, the headline only if it and every line it rests on are confirmed, and none of the
+ * agent's notes.
  */
 export function publishedSpec(spec: Spec): Spec {
   const claims = visibleClaims(spec).map((c) => ({ ...c, evidence: [] }));
   const ids = new Set(claims.map((c) => c.id));
   const h = spec.headline;
   const headline = h && h.status === 'confirmed' && h.claims.every((id) => ids.has(id)) ? h : null;
-  return { rev: spec.rev, headline, order: spec.order, claims };
+  return { rev: spec.rev, headline, order: spec.order, claims, notes: [] };
 }
 
 /** Lines grouped into the page's sections, in the person's order, with empty sections left out. */
