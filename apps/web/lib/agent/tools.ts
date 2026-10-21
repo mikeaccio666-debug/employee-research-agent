@@ -521,7 +521,7 @@ export function describePreferences(p: Preferences): string[] {
 const setPreferences = tool({
   name: 'set_preferences',
   description: `Save what they're looking for, for matching them with roles: the roles, job types, places, ways of working, when they can start, and their work authorization. These are never shown on the page; only matching reads them, and the person sees and edits them in the studio.
-Use it as soon as they say any of these, alongside an intent line for the page if they want one there. Pass only what they said and null for the rest; each call rests on a quote from their messages, and dates stay as they said them. Work authorization (visa, sponsorship, OPT) goes here and never on the page; save it only when they volunteer it, and tell them it's used for matching only.`,
+Use it as soon as they say any of these, in addition to the lines you draw: what they want still goes on the page as an intent line ("Looking for"), and where they are now as an identity line. Work authorization is the exception: it only goes here. Pass only what they said and null for the rest; each call rests on a quote from their messages, and dates stay as they said them. Work authorization (visa, sponsorship, OPT) goes here and never on the page; save it only when they volunteer it, and tell them it's used for matching only.`,
   parameters: {
     type: 'object',
     additionalProperties: false,
