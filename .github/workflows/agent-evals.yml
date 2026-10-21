@@ -1,8 +1,9 @@
 # Checks and evals for the studio agent (apps/web/lib/agent, apps/web/evals).
 #
 # - checks: tool rule tests and the eval runner against a scripted stand-in. Free, every pull request.
-# - smoke: four simulated interviews on the default model, when the agent's code changes and the
-#   repository has an OPENAI_API_KEY secret. Spends real money (a few cents to a few tens of cents).
+# - smoke: four simulated interviews on the default model, on the base branch's agent and on the
+#   pull request's, when the agent's code changes and the repository has an OPENAI_API_KEY secret.
+#   Spends real money (well under a dollar a run).
 # - full: run by hand (Actions → Agent evals → Run workflow), any models and persona set.
 
 name: Agent evals
@@ -75,8 +76,17 @@ jobs:
           cache: pnpm
       - if: steps.key.outputs.skip != 'true'
         run: pnpm install --frozen-lockfile
+      # The same interviews on the base branch's agent first, so the summary shows before and after.
       - if: steps.key.outputs.skip != 'true'
-        run: pnpm --filter @portrait/web eval --set smoke --turns 8
+        name: Smoke evals on the base branch's agent
+        run: |
+          git fetch --depth=1 origin "${{ github.base_ref }}"
+          git checkout FETCH_HEAD -- apps/web/lib/agent apps/web/lib/portrait
+          pnpm --filter @portrait/web eval --set smoke --turns 8 --out evals/out/before --label "before (${{ github.base_ref }})" || true
+          git checkout HEAD -- apps/web/lib/agent apps/web/lib/portrait
+      - if: steps.key.outputs.skip != 'true'
+        name: Smoke evals on this pull request's agent
+        run: pnpm --filter @portrait/web eval --set smoke --turns 8 --out evals/out/after --label "after (this pull request)"
       - if: steps.key.outputs.skip != 'true' && always()
         uses: actions/upload-artifact@v4
         with:

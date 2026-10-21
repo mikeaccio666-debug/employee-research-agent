@@ -3,6 +3,7 @@ import type { Spec } from '@/lib/portrait/spec';
 import { CONTEXT_TOKENS, defaultModel, summarizerFor, type AgentEnv, type Provider } from './env';
 import { anthropicAdapter } from './providers/anthropic';
 import { openaiAdapter } from './providers/openai';
+import { plan, PLAN_TAG } from './planner';
 import type { Adapter, Item } from './providers/types';
 import { append, logCall, saveSpec, type Attachment, type Receipt, type Row } from './store';
 import type { Source, SourceKind } from './sources';
@@ -41,6 +42,8 @@ type Notes = {
   snapshotRev?: number;
   attachments?: Attachment[];
   contextSummary?: Summary;
+  /** Tool calls refused this step, and why: what to look at first when the agent misbehaves. */
+  refused?: { tool: string; why: string }[];
 };
 
 /** What the conversation said up to row `through`, condensed. */
@@ -51,8 +54,9 @@ const STATE_TAG = '<portrait_state>';
 // Recent messages the model always gets verbatim, however long the conversation.
 const KEEP_TURNS = 6;
 
-// Enough for "add three lines, set the headline, then answer"; a model stuck in a loop stops here.
-const MAX_STEPS = 8;
+// Enough for "load a skill, look in the résumé, add three lines, set the headline, then answer";
+// a model stuck in a loop stops here.
+const MAX_STEPS = 10;
 
 const ADAPTERS: Record<Provider, (env: AgentEnv) => Adapter> = { openai: openaiAdapter, anthropic: anthropicAdapter };
 
@@ -92,7 +96,7 @@ function replay(rows: Row[], env: AgentEnv, adapter: Adapter): Item[] {
   return head.concat(unsummarized(rows).flatMap((row) => {
     if (native(row, env)) {
       return (row.items as (Item & Notes)[]).map(
-        ({ via: _v, viaModel: _m, receipts: _r, snapshotRev: _s, attachments: _a, contextSummary: _y, ...item }) => item,
+        ({ via: _v, viaModel: _m, receipts: _r, snapshotRev: _s, attachments: _a, contextSummary: _y, refused: _f, ...item }) => item,
       );
     }
     // Another provider's turn: its words stay, its tool calls (already applied) don't.
@@ -104,7 +108,8 @@ function replay(rows: Row[], env: AgentEnv, adapter: Adapter): Item[] {
 
 /**
  * What the person sent, with the documents the app added to it: every text block of the stored
- * message except an old portrait state, whichever provider's format it is in.
+ * message except the app's notes on the moment (portrait state, interview plan), whichever
+ * provider's format it is in.
  */
 function userText(row: Row): string | null {
   const content = (row.items[0] as { content?: unknown } | undefined)?.content;
@@ -112,7 +117,7 @@ function userText(row: Row): string | null {
   return (
     (content as { text?: unknown }[])
       .map((b) => (typeof b.text === 'string' ? b.text : ''))
-      .filter((t) => t && !t.startsWith(STATE_TAG))
+      .filter((t) => t && !t.startsWith(STATE_TAG) && !t.startsWith(PLAN_TAG))
       .join('\n\n') || row.body
   );
 }
@@ -135,7 +140,8 @@ export function unansweredToolCalls(rows: Row[], agent: AgentEnv): Item[] {
  * The person's message as stored. The portrait's current state rides along whenever it changed
  * since the model last saw it (the person confirmed or rejected lines, another model was in use,
  * or the message it last saw it in was condensed away); the model's own changes it already knows
- * from the tool results. A new summary of the older conversation rides along as a note.
+ * from the tool results. The interview plan (lib/agent/planner.ts) comes last on every message,
+ * where the model attends most. A new summary of the older conversation rides along as a note.
  */
 export function userItems(
   text: string,
@@ -144,6 +150,7 @@ export function userItems(
   agent: AgentEnv,
   shared: { blocks: string[]; attachments: Attachment[] } = { blocks: [], attachments: [] },
   summary: Summary | null = null,
+  sources: Source[] = [],
 ): Item[] {
   const { env, adapter } = using(agent);
   // A new summary always brings the full state along: the message it was last in may be condensed.
@@ -155,9 +162,10 @@ export function userItems(
     ...(shared.attachments.length ? { attachments: shared.attachments } : {}),
     ...(summary ? { contextSummary: summary } : {}),
   };
-  if (seen === spec.rev) return stored(adapter.user(text, shared.blocks), env, notes);
+  const next = plan(spec, sources);
+  if (seen === spec.rev) return stored(adapter.user(text, [...shared.blocks, next]), env, notes);
   const state = `${STATE_TAG}\n${snapshot(spec)}\n</portrait_state>`;
-  return stored(adapter.user(text, [...shared.blocks, state]), env, { ...notes, snapshotRev: spec.rev });
+  return stored(adapter.user(text, [...shared.blocks, state, next]), env, { ...notes, snapshotRev: spec.rev });
 }
 
 const SUMMARY_INSTRUCTIONS = `You condense the older part of a conversation between a career agent and a person it is interviewing to draw their portrait: a page about what they have actually done. The agent will carry on with only your notes, the latest messages and the portrait's current state, so keep everything it would need:
@@ -262,7 +270,7 @@ export async function runTurn({
     const began = Date.now();
     let answer: Awaited<ReturnType<Adapter['step']>>;
     try {
-      answer = await adapter.step(history, (text) => emit({ event: 'message.delta', data: { text } }), signal);
+      answer = await adapter.step(history, (text) => emit({ event: 'message.delta', data: { text } }), signal, conversationId);
     } catch (e) {
       const error = e instanceof Error ? e.message : String(e);
       await logCall(supabase, conversationId, {
@@ -292,21 +300,32 @@ export async function runTurn({
 
     const results = [];
     const receipts: Receipt[] = [];
+    const refused: Notes['refused'] = [];
     for (const call of answer.calls) {
-      const result = runTool(call.name, call.input, spec, { said, sources });
+      const result = await runTool(call.name, call.input, spec, { said, sources });
       spec = result.spec;
       if (result.change) {
         receipts.push(result.change);
         emit({ event: 'portrait.patch', data: { ops: [{ op: 'replace', path: '', value: spec }], receipt: result.change } });
       }
-      results.push({ call, output: result.output, failed: result.output.startsWith('Not done') });
+      const failed = result.output.startsWith('Not done');
+      if (failed) refused.push({ tool: call.name, why: result.output.slice(0, 300) });
+      results.push({ call, output: result.output, failed });
     }
+    // Visible in the deployment's logs, and kept on the stored row.
+    if (refused.length) console.info('agent tool refused', { conversationId, model: env.model, refused });
     // The portrait is saved before the tool results are, so a crash never leaves the history
     // claiming a change the page doesn't have.
     if (spec !== start) await saveSpec(supabase, ownerId, spec);
     const answers = adapter.results(results);
     // The model knows its own changes from the results, so the portrait it has seen moves on too.
-    await append(supabase, conversationId, 'tool', stored(answers, env, { receipts, snapshotRev: spec.rev }), null);
+    await append(
+      supabase,
+      conversationId,
+      'tool',
+      stored(answers, env, { receipts, snapshotRev: spec.rev, ...(refused.length ? { refused } : {}) }),
+      null,
+    );
     history.push(...answers);
   }
 

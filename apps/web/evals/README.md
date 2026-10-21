@@ -41,9 +41,12 @@ Costs use the prices in `run.ts`; models without one show "no price". Add or cor
 ## In GitHub Actions
 
 `.github/workflows/agent-evals.yml`: every pull request that touches the agent runs `test` and
-`eval:dry`, then the smoke set on `gpt-6.1-sol` if the repository has an `OPENAI_API_KEY` secret.
-A full run is by hand: Actions → Agent evals → Run workflow. Results land in the run's summary and
-as a downloadable artifact.
+`eval:dry`, then, if the repository has an `OPENAI_API_KEY` secret, the smoke set on `gpt-6.1-sol`
+twice: on the base branch's agent and on the pull request's, so the summary shows before and
+after. A full run is by hand: Actions → Agent evals → Run workflow. Results land in the run's
+summary and as a downloadable artifact.
+
+`--label` names a run in its report heading.
 
 ## Adding a persona
 

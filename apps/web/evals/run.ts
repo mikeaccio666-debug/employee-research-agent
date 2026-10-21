@@ -33,6 +33,8 @@ const { values: args } = parseArgs({
     effort: { type: 'string', default: 'medium' },
     concurrency: { type: 'string', default: '4' },
     out: { type: 'string', default: 'evals/out' },
+    /** Names the run in the report ("before", "after"). */
+    label: { type: 'string', default: '' },
   },
 });
 
@@ -84,7 +86,8 @@ function cost(calls: Call[]): number | null {
 function refusals(items: unknown): string[] {
   if (typeof items === 'string') return items.startsWith('Not done:') ? [items] : [];
   if (Array.isArray(items)) return items.flatMap(refusals);
-  if (items && typeof items === 'object') return Object.values(items).flatMap(refusals);
+  // Our own note of the same refusals (lib/agent/turn.ts) would count them twice.
+  if (items && typeof items === 'object') return Object.entries(items).flatMap(([k, v]) => (k === 'refused' ? [] : refusals(v)));
   return [];
 }
 
@@ -161,7 +164,7 @@ async function interview(persona: Persona, agent: AgentEnv, simulator: AgentEnv,
     const unanswered = unansweredToolCalls(before, agent);
     if (unanswered.length) await append(supabase, conversationId, 'tool', unanswered, null);
     const summary = await compactIfLong({ agent, supabase, conversationId, rows: [...store.rows] });
-    await append(supabase, conversationId, 'user', userItems(text, store.spec, [...store.rows], agent, shared, summary), text);
+    await append(supabase, conversationId, 'user', userItems(text, store.spec, [...store.rows], agent, shared, summary, sources), text);
 
     const began = Date.now();
     let reply = '';
@@ -330,7 +333,7 @@ function summarize(results: Result[]) {
       return `| ${r.persona} | ${r.model} | ${g ? pct(g.facts.filter((f) => f.covered).length, g.facts.length) : '–'} | ${g ? `${g.lines.length} (${bad.filter((l) => l.verdict === 'unsupported').length} / ${bad.filter((l) => l.verdict === 'overstated').length})` : '–'} | ${r.refused.length}/${r.toolCalls} | ${r.tests ? `${g?.check ? (g.check.passed ? 'passed' : `FAILED: ${g.check.why}`) : '?'} (${r.tests})` : ''} | ${[r.error, r.judgeError && `judge: ${r.judgeError}`, ...bad.map((l) => `${l.verdict}: ${l.why}`)].filter(Boolean).join('; ').replace(/\|/g, '/').slice(0, 300)} |`;
     }),
   ];
-  return ['## Studio agent evals', '', ...table, '', '### By persona', '', ...detail].join('\n');
+  return [`## Studio agent evals${args.label ? `: ${args.label}` : ''}`, '', ...table, '', '### By persona', '', ...detail].join('\n');
 }
 
 async function main() {
