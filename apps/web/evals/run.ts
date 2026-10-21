@@ -326,12 +326,14 @@ function summarize(results: Result[]) {
     ),
   ];
   const detail = [
-    '| Persona | Model | Recall | Lines (made up / overstated) | Refused | Checks | Problem |',
-    '| --- | --- | --- | --- | --- | --- | --- |',
+    '| Persona | Model | Recall | Lines (made up / overstated) | Refused | Checks | Missed facts | Problem |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- |',
     ...results.map((r) => {
       const g = r.grade;
       const bad = g?.lines.filter((l) => l.verdict !== 'supported') ?? [];
-      return `| ${r.persona} | ${r.model} | ${g ? pct(g.facts.filter((f) => f.covered).length, g.facts.length) : '–'} | ${g ? `${g.lines.length} (${bad.filter((l) => l.verdict === 'unsupported').length} / ${bad.filter((l) => l.verdict === 'overstated').length})` : '–'} | ${r.refused.length}/${r.toolCalls} | ${r.tests ? `${g?.check ? (g.check.passed ? 'passed' : `FAILED: ${g.check.why}`) : '?'} (${r.tests})` : ''} | ${[r.error, r.judgeError && `judge: ${r.judgeError}`, ...bad.map((l) => `${l.verdict}: ${l.why}`)].filter(Boolean).join('; ').replace(/\|/g, '/').slice(0, 300)} |`;
+      const facts = PERSONAS.find((p) => p.id === r.persona)?.facts ?? [];
+      const missed = g?.facts.filter((f) => !f.covered).map((f) => facts[f.n - 1] ?? `#${f.n}`) ?? [];
+      return `| ${r.persona} | ${r.model} | ${g ? pct(g.facts.filter((f) => f.covered).length, g.facts.length) : '–'} | ${g ? `${g.lines.length} (${bad.filter((l) => l.verdict === 'unsupported').length} / ${bad.filter((l) => l.verdict === 'overstated').length})` : '–'} | ${r.refused.length}/${r.toolCalls} | ${r.tests ? `${g?.check ? (g.check.passed ? 'passed' : `FAILED: ${g.check.why}`) : '?'} (${r.tests})` : ''} | ${missed.join('; ').replace(/\|/g, '/')} | ${[r.error, r.judgeError && `judge: ${r.judgeError}`, ...bad.map((l) => `${l.verdict}: ${l.why}`)].filter(Boolean).join('; ').replace(/\|/g, '/').slice(0, 300)} |`;
     }),
   ];
   return [`## Studio agent evals${args.label ? `: ${args.label}` : ''}`, '', ...table, '', '### By persona', '', ...detail].join('\n');
