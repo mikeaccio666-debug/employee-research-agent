@@ -20,8 +20,11 @@ export type Step = {
 };
 
 export type Adapter = {
-  /** One call to the model with the history so far; text streams out through onText. Throws on failure. */
-  step(history: Item[], onText: (text: string) => void, signal?: AbortSignal): Promise<Step>;
+  /**
+   * One call to the model with the history so far; text streams out through onText. `cacheKey`
+   * names the conversation, for providers that route by it to keep its cache warm. Throws on failure.
+   */
+  step(history: Item[], onText: (text: string) => void, signal?: AbortSignal, cacheKey?: string): Promise<Step>;
   /** The person's message (may be empty), followed by blocks the app adds: shared documents, the portrait's state. */
   user(text: string, extras: string[]): Item[];
   /** A plain text message, for history written by another provider. */

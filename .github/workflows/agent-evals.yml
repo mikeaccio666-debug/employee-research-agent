@@ -1,0 +1,120 @@
+# Checks and evals for the studio agent (apps/web/lib/agent, apps/web/evals).
+#
+# - checks: tool rule tests and the eval runner against a scripted stand-in. Free, every pull request.
+# - smoke: four simulated interviews on the default model, on the base branch's agent and on the
+#   pull request's, when the agent's code changes and the repository has an OPENAI_API_KEY secret.
+#   Spends real money (well under a dollar a run).
+# - full: run by hand (Actions → Agent evals → Run workflow), any models and persona set.
+
+name: Agent evals
+
+on:
+  pull_request:
+    paths:
+      - 'apps/web/lib/agent/**'
+      - 'apps/web/lib/portrait/**'
+      - 'apps/web/evals/**'
+      - 'apps/web/package.json'
+      - '.github/workflows/agent-evals.yml'
+  workflow_dispatch:
+    inputs:
+      models:
+        description: 'Comma-separated provider:model[:effort], e.g. openai:gpt-6.1-sol,openai:gpt-6-luna,anthropic:claude-sonnet-5-5'
+        default: 'openai:gpt-6.1-sol'
+      set:
+        description: 'smoke, all, or comma-separated persona ids'
+        default: 'all'
+      turns:
+        description: 'Turns per interview'
+        default: '10'
+      effort:
+        description: 'Thinking level when a model does not name one: low, medium, high'
+        default: 'medium'
+
+concurrency:
+  group: agent-evals-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @portrait/web test
+      - run: pnpm --filter @portrait/web eval:dry --set all
+
+  smoke:
+    if: github.event_name == 'pull_request'
+    needs: checks
+    runs-on: ubuntu-latest
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      EVAL_PRICES: ${{ vars.EVAL_PRICES }}
+    steps:
+      - name: Skip without a key
+        id: key
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "No OPENAI_API_KEY secret: skipping the smoke evals." >> "$GITHUB_STEP_SUMMARY"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.key.outputs.skip != 'true'
+        uses: actions/checkout@v4
+      - if: steps.key.outputs.skip != 'true'
+        uses: pnpm/action-setup@v4
+      - if: steps.key.outputs.skip != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - if: steps.key.outputs.skip != 'true'
+        run: pnpm install --frozen-lockfile
+      # The same interviews on the base branch's agent first, so the summary shows before and after.
+      - if: steps.key.outputs.skip != 'true'
+        name: Smoke evals on the base branch's agent
+        run: |
+          git fetch --depth=1 origin "${{ github.base_ref }}"
+          git checkout FETCH_HEAD -- apps/web/lib/agent apps/web/lib/portrait
+          pnpm --filter @portrait/web eval --set smoke --turns 8 --out evals/out/before --label "before (${{ github.base_ref }})" || true
+          git checkout HEAD -- apps/web/lib/agent apps/web/lib/portrait
+      - if: steps.key.outputs.skip != 'true'
+        name: Smoke evals on this pull request's agent
+        run: pnpm --filter @portrait/web eval --set smoke --turns 8 --out evals/out/after --label "after (this pull request)"
+      - if: steps.key.outputs.skip != 'true' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-evals-smoke
+          path: apps/web/evals/out/
+
+  full:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      EVAL_PRICES: ${{ vars.EVAL_PRICES }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: >-
+          pnpm --filter @portrait/web eval
+          --models "${{ inputs.models }}" --set "${{ inputs.set }}"
+          --turns "${{ inputs.turns }}" --effort "${{ inputs.effort }}"
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-evals
+          path: apps/web/evals/out/

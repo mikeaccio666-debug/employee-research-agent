@@ -30,7 +30,7 @@ export function openaiAdapter(env: AgentEnv): Adapter {
   const client = new OpenAI({ apiKey: env.apiKey, baseURL: env.baseURL });
   const reasoning = reasoningModel(env.model);
   return {
-    async step(history, onText, signal) {
+    async step(history, onText, signal, cacheKey) {
       let response: OpenAI.Responses.Response | null = null;
       let failure: string | null = null;
       try {
@@ -43,6 +43,8 @@ export function openaiAdapter(env: AgentEnv): Adapter {
             tool_choice: 'auto',
             parallel_tool_calls: true,
             store: false,
+            // Requests with the same key go to the same cache, so a conversation's prefix stays warm.
+            ...(cacheKey ? { prompt_cache_key: cacheKey } : {}),
             ...(reasoning ? { include: ['reasoning.encrypted_content' as const], reasoning: { effort: env.effort } } : {}),
             stream: true,
           },

@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "next typegen && tsc --noEmit -p tsconfig.json"
+    "typecheck": "next typegen && tsc --noEmit -p tsconfig.json",
+    "test": "tsx --test evals/*.test.ts",
+    "eval": "tsx evals/run.ts",
+    "eval:dry": "tsx evals/dry-run.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.136.0",
@@ -32,6 +35,7 @@
     "@types/react": "19.3.0",
     "@types/react-dom": "19.2.3",
     "tailwindcss": "4.3.3",
+    "tsx": "4.20.6",
     "typescript": "5.9.3"
   },
   "browserslist": [
