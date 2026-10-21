@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { emptySpec, publishedSpec, readSpec, type Claim, type Spec } from '@/lib/portrait/spec';
+import { emptySpec, headlineWithout, publishedSpec, readSpec, type Claim, type Spec } from '@/lib/portrait/spec';
 import { numbersIn, unquotedNumbers } from '@/lib/agent/guards';
 import { plan } from '@/lib/agent/planner';
 import { parseSkill, SKILLS } from '@/lib/agent/skills';
@@ -125,7 +125,7 @@ describe('upsert_claim', () => {
 
 describe('remove_claim and set_headline', () => {
   it('removes only drafts, and the headline that rested on them', async () => {
-    const spec = { ...withClaims(claim()), headline: { text: 'Builds for campus', claims: ['clm_aaaaaaaaaa'], status: 'draft' as const } };
+    const spec = { ...withClaims(claim()), headline: { text: 'Builds for campus', claims: ['clm_aaaaaaaaaa'], status: 'draft' as const, alternatives: [] } };
     const r = await runTool('remove_claim', JSON.stringify({ id: 'clm_aaaaaaaaaa' }), spec, grounds('x'));
     assert.equal(r.spec.claims.length, 0);
     assert.equal(r.spec.headline, null);
@@ -134,7 +134,7 @@ describe('remove_claim and set_headline', () => {
   });
 
   it('needs the headline’s lines to be on the portrait', async () => {
-    const r = await runTool('set_headline', JSON.stringify({ text: 'Builds for campus', claim_ids: ['clm_missing000'] }), withClaims(claim()), grounds('x'));
+    const r = await runTool('set_headline', JSON.stringify({ options: [{ text: 'Builds for campus', claim_ids: ['clm_missing000'] }] }), withClaims(claim()), grounds('x'));
     assert.match(r.output, /aren’t on the portrait/);
   });
 });
@@ -180,7 +180,7 @@ describe('guards on what a line says', () => {
   });
 
   it('keeps headline numbers to the lines it rests on', async () => {
-    const r = await runTool('set_headline', JSON.stringify({ text: 'Builds tools 900 classmates use', claim_ids: ['clm_aaaaaaaaaa'] }), withClaims(claim()), grounds('x'));
+    const r = await runTool('set_headline', JSON.stringify({ options: [{ text: 'Builds tools 900 classmates use', claim_ids: ['clm_aaaaaaaaaa'] }] }), withClaims(claim()), grounds('x'));
     assert.match(r.output, /900 isn’t in the lines/);
   });
 });
@@ -279,5 +279,50 @@ describe('note', () => {
   it('reads a stored spec from before notes existed', () => {
     const { notes, ...old } = emptySpec();
     assert.deepEqual(readSpec(old).notes, []);
+  });
+});
+
+describe('headline options', () => {
+  const opts = (...texts: string[]) => JSON.stringify({ options: texts.map((text) => ({ text, claim_ids: ['clm_aaaaaaaaaa'] })) });
+  const critic = (verdicts: { n: number; ok: boolean; why?: string }[]) => async () => JSON.stringify({ verdicts });
+
+  it('shows the first as the draft and offers the others', async () => {
+    const r = await runTool('set_headline', opts('Builds tools 300 students use', 'Turns campus chores into software', 'Ships for real users'), withClaims(claim()), grounds('x'));
+    assert.equal(r.spec.headline?.text, 'Builds tools 300 students use');
+    assert.deepEqual(r.spec.headline?.alternatives.map((a) => a.text), ['Turns campus chores into software', 'Ships for real users']);
+    assert.match(r.output, /2 other options/);
+  });
+
+  it('drops options that fail the checks or the critic, and says why', async () => {
+    const r = await runTool(
+      'set_headline',
+      opts('A passionate builder', 'Builds tools 300 students use', 'Engineer who loves code'),
+      withClaims(claim()),
+      grounds('x'),
+      undefined,
+      critic([{ n: 1, ok: true }, { n: 2, ok: false, why: 'could describe anyone' }]),
+    );
+    assert.equal(r.spec.headline?.text, 'Builds tools 300 students use');
+    assert.deepEqual(r.spec.headline?.alternatives, []);
+    assert.match(r.output, /passionate.*cliché/);
+    assert.match(r.output, /could describe anyone/);
+  });
+
+  it('refuses when nothing passes, and lets headlines through when the critic fails', async () => {
+    const none = await runTool('set_headline', opts('Builds tools'), withClaims(claim()), grounds('x'), undefined, critic([{ n: 1, ok: false, why: 'generic' }]));
+    assert.match(none.output, /^Not done: no headline passed/);
+    const broken = await runTool('set_headline', opts('Builds tools'), withClaims(claim()), grounds('x'), undefined, async () => 'not json');
+    assert.equal(broken.spec.headline?.text, 'Builds tools');
+  });
+
+  it('keeps alternatives off the published page and drops ones resting on a removed line', async () => {
+    const two = claim({ id: 'clm_bbbbbbbbbb', status: 'confirmed' });
+    const spec: Spec = {
+      ...withClaims(claim({ status: 'confirmed' }), two),
+      headline: { text: 'A', claims: ['clm_bbbbbbbbbb'], status: 'confirmed', alternatives: [{ text: 'B', claims: ['clm_aaaaaaaaaa'] }] },
+    };
+    assert.deepEqual(publishedSpec(spec).headline?.alternatives, []);
+    assert.deepEqual(headlineWithout(spec.headline, 'clm_aaaaaaaaaa')?.alternatives, []);
+    assert.equal(headlineWithout(spec.headline, 'clm_bbbbbbbbbb'), null);
   });
 });

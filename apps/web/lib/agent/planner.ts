@@ -36,7 +36,7 @@ export function plan(spec: Spec, sources: Source[]): string {
     !of('intent').length && 'what role they want next, and where',
     experiences.length >= 2 && !of('capability').length && 'the skills their stories show',
     experiences.length >= 2 && !of('trait').length && 'how they work or what drives them, through a story',
-    !spec.headline && live.length >= 4 && 'a headline resting on the strongest lines',
+    !spec.headline && live.length >= 4 && 'headlines to pick from, resting on the strongest lines',
   ].filter((g): g is string => !!g);
 
   const waiting = live.filter((c) => c.status === 'draft').length;

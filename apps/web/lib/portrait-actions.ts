@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { loadPortrait, saveSpec } from '@/lib/agent/store';
-import { publishedSpec, type Spec } from '@/lib/portrait/spec';
+import { headlineWithout, publishedSpec, type Spec } from '@/lib/portrait/spec';
 import { supabaseServer } from '@/lib/supabase/server';
 import type { Result } from '@/lib/account-actions';
 
@@ -34,8 +34,8 @@ async function edit(change: (spec: Spec) => Spec | string): Promise<Result<{ spe
 const setStatus = (id: string, status: 'confirmed' | 'rejected') => (spec: Spec) => {
   if (!spec.claims.some((c) => c.id === id)) return 'That line is gone. Refresh to see the latest.';
   const claims = spec.claims.map((c) => (c.id === id ? { ...c, status, updatedAt: new Date().toISOString() } : c));
-  // A headline resting on a rejected line comes down with it.
-  const headline = status === 'rejected' && spec.headline?.claims.includes(id) ? null : spec.headline;
+  // A headline (or an alternative) resting on a rejected line comes down with it.
+  const headline = status === 'rejected' ? headlineWithout(spec.headline, id) : spec.headline;
   return { ...spec, rev: spec.rev + 1, claims, headline };
 };
 
@@ -51,8 +51,19 @@ export async function rejectLine(id: string) {
 
 export async function confirmHeadline() {
   return edit((spec) =>
-    spec.headline ? { ...spec, rev: spec.rev + 1, headline: { ...spec.headline, status: 'confirmed' } } : 'There is no headline yet.',
+    spec.headline
+      ? { ...spec, rev: spec.rev + 1, headline: { ...spec.headline, status: 'confirmed', alternatives: [] } }
+      : 'There is no headline yet.',
   );
+}
+
+/** Picking one of the other headlines the agent offered: it becomes the confirmed headline. */
+export async function chooseHeadline(index: number) {
+  return edit((spec) => {
+    const pick = spec.headline?.alternatives[index];
+    if (!pick) return 'That headline is gone. Refresh to see the latest.';
+    return { ...spec, rev: spec.rev + 1, headline: { ...pick, status: 'confirmed', alternatives: [] } };
+  });
 }
 
 /** Send the confirmed lines to the published page (only for a portrait that is already published). */

@@ -18,7 +18,7 @@ import {
 } from '@portrait/ui';
 import { Workspace } from '@/components/workspace/Workspace';
 import { IdentityLines, SpecSections } from '@/components/portrait/SpecSections';
-import { confirmHeadline, confirmLine, rejectLine, updatePage } from '@/lib/portrait-actions';
+import { chooseHeadline, confirmHeadline, confirmLine, rejectLine, updatePage } from '@/lib/portrait-actions';
 import { toConfirm, type Claim, type Spec } from '@/lib/portrait/spec';
 import type { Effort, ModelChoice, Provider } from '@/lib/agent/env';
 import type { Attachment, Receipt as ReceiptData, ThreadMessage } from '@/lib/agent/store';
@@ -450,6 +450,21 @@ export function LiveStudio(props: LiveStudioProps) {
                   <Chip size="sm" tone="wall" disabled={saving} onClick={() => answer(confirmHeadline, 'Headline confirmed')}>
                     Right
                   </Chip>
+                </div>
+              ) : null}
+              {spec.headline.status === 'draft' && spec.headline.alternatives.length ? (
+                <div className="mt-4">
+                  <p className="t-xs c2">Or pick one of these</p>
+                  <ul className="mt-1.5 flex flex-col gap-2">
+                    {spec.headline.alternatives.map((a, i) => (
+                      <li key={a.text} className="flex items-baseline justify-between gap-3">
+                        <span className="t-body">{a.text}</span>
+                        <Chip size="sm" tone="wall" disabled={saving} onClick={() => answer(() => chooseHeadline(i), 'Headline chosen')}>
+                          Use this
+                        </Chip>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               ) : null}
             </div>
