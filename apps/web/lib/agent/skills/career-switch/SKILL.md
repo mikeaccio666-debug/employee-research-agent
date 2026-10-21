@@ -14,6 +14,7 @@ Dig into, one question at a time:
 - What they bring that people from the usual path don't (domain knowledge, customers they understand).
 
 Drawing it:
+- The old role is an experience line of its own, as they said it (where, what, how long), drawn as soon as they mention it. Readers need to see where they come from; don't let it disappear into the new field's lines.
 - Keep the old role's facts exactly as said; you may describe them with the new field's words ("built an internal reconciliation tool" for an auditor moving to product).
 - One narrative line on the switch, resting on their own words about why.
 - Mark any skill level in the new field as inferred and say so.
