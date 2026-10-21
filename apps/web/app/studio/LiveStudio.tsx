@@ -18,6 +18,7 @@ import {
 } from '@portrait/ui';
 import { Workspace } from '@/components/workspace/Workspace';
 import { IdentityLines, SpecSections } from '@/components/portrait/SpecSections';
+import { disconnectApp } from '@/lib/connector-actions';
 import { chooseHeadline, clearPreference, confirmHeadline, confirmLine, rejectLine, updatePage } from '@/lib/portrait-actions';
 import { PREFERENCE_FIELDS, prefSet, toConfirm, type Claim, type PreferenceField, type Preferences, type Spec } from '@/lib/portrait/spec';
 import type { Effort, ModelChoice, Provider } from '@/lib/agent/env';
@@ -43,7 +44,13 @@ export type LiveStudioProps = {
   agentReady: boolean;
   /** For people allowed to switch the agent's model: the choices and the defaults. */
   models: { choices: ModelChoice[]; current: Provider | null; effort: Effort } | null;
+  /** The apps the agent can read from, and whether each is connected; null where connectors aren't set up. */
+  apps: AppConnection[] | null;
+  /** How the last attempt to connect an app went, when the studio was opened from its sign-in. */
+  appNotice: { app: string; result: string } | null;
 };
+
+export type AppConnection = { id: string; name: string; holds: string; connected: boolean };
 
 /** Which provider, model and thinking level answer. */
 type ModelPick = { provider: Provider; model: string; effort: Effort };
@@ -72,7 +79,7 @@ const RESUME_TYPES: Record<string, string> = {
   pdf: 'application/pdf',
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 };
-const KIND_LABEL: Record<Attachment['kind'], string> = { resume: 'Résumé', website: 'Link', github: 'GitHub' };
+const KIND_LABEL: Record<Attachment['kind'], string> = { resume: 'Résumé', website: 'Link', github: 'GitHub', notion: 'Notion' };
 
 /** Reads server-sent events from a fetch body: `event: x` / `data: {...}` blocks. */
 async function readEvents(body: ReadableStream<Uint8Array>, on: (event: string, data: unknown) => void) {
@@ -125,6 +132,7 @@ export function LiveStudio(props: LiveStudioProps) {
   const [lit, setLit] = useState<string | null>(null);
   const [announce, setAnnounce] = useState('');
   const [saving, startSaving] = useTransition();
+  const [apps, setApps] = useState(props.apps);
   const end = useRef<HTMLDivElement>(null);
   const picker = useRef<HTMLInputElement>(null);
   const [host, setHost] = useState('');
@@ -479,6 +487,21 @@ export function LiveStudio(props: LiveStudioProps) {
         )}
       </div>
       <ResumeLinks spec={spec} />
+      {apps ? (
+        <ConnectedApps
+          apps={apps}
+          notice={props.appNotice}
+          disabled={saving}
+          onDisconnect={(app) =>
+            startSaving(async () => {
+              const r = await disconnectApp(app.id);
+              if (!r.ok) return setError(r.error);
+              setApps((all) => all?.map((a) => (a.id === app.id ? { ...a, connected: false } : a)) ?? null);
+              setAnnounce(`${app.name} disconnected`);
+            })
+          }
+        />
+      ) : null}
       <SearchPreferences
         preferences={spec.preferences}
         disabled={saving}
@@ -504,6 +527,62 @@ function ResumeLinks({ spec }: { spec: Spec }) {
           </a>
         ) : null}
       </div>
+    </section>
+  );
+}
+
+const APP_NOTICE: Record<string, string> = {
+  connected: 'is connected. Ask the agent to look for something there.',
+  declined: 'wasn’t connected: the sign-in was cancelled.',
+  failed: 'couldn’t be connected. Try again in a moment.',
+  unavailable: 'can’t be connected here yet.',
+};
+
+/**
+ * Apps the agent may read from (lib/connectors): connect one by signing in to it, disconnect to
+ * delete the tokens. The agent only ever reads.
+ */
+function ConnectedApps({
+  apps,
+  notice,
+  disabled,
+  onDisconnect,
+}: {
+  apps: AppConnection[];
+  notice: LiveStudioProps['appNotice'];
+  disabled: boolean;
+  onDisconnect: (app: AppConnection) => void;
+}) {
+  const noted = notice ? apps.find((a) => a.id === notice.app) : null;
+  return (
+    <section className="mt-6 max-w-[520px] px-1" aria-label="Connected apps">
+      <p className="t-xs c2">Connected apps · the agent can search and read them for evidence, never change anything</p>
+      {noted && APP_NOTICE[notice!.result] ? (
+        <p className="t-xs mt-1" role="status">
+          {noted.name} {APP_NOTICE[notice!.result]}
+        </p>
+      ) : null}
+      <ul className="mt-2 flex flex-col gap-2">
+        {apps.map((a) => (
+          <li key={a.id} className="flex items-baseline justify-between gap-3">
+            <div>
+              <p className="t-body">{a.name}</p>
+              <p className="t-xs c2">{a.connected ? 'Connected' : `Lets the agent read ${a.holds}`}</p>
+            </div>
+            {a.connected ? (
+              <Chip size="sm" tone="wall" disabled={disabled} onClick={() => onDisconnect(a)}>
+                Disconnect
+              </Chip>
+            ) : (
+              <form method="post" action={`/api/connectors/${a.id}/start`}>
+                <button type="submit" className={buttonClass()} disabled={disabled}>
+                  Connect
+                </button>
+              </form>
+            )}
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

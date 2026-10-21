@@ -16,7 +16,7 @@ export type Row = {
 /** What the thread shows for one message. */
 export type ThreadMessage = { id: number; role: 'user' | 'assistant'; body: string; receipts: Receipt[]; attachments?: Attachment[] };
 /** A résumé or link shared with a message. */
-export type Attachment = { kind: 'resume' | 'website' | 'github'; name: string };
+export type Attachment = { kind: 'resume' | 'website' | 'github' | 'notion'; name: string };
 export type Receipt = { note: string; dashed: boolean; claimId?: string };
 
 /** The person's studio conversation, started on their first message. */

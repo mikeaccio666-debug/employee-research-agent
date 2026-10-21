@@ -7,7 +7,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 // shown to the model as a <source> block. Lines the agent draws from it must quote it exactly,
 // checked in lib/agent/tools.ts. Everything read here is data, never instructions.
 
-export const SOURCE_KINDS = ['resume', 'website', 'github'] as const;
+export const SOURCE_KINDS = ['resume', 'website', 'github', 'notion'] as const;
 export type SourceKind = (typeof SOURCE_KINDS)[number];
 export type Page = { page: number | null; text: string };
 export type Source = { id: string; kind: SourceKind; name: string; url: string | null; pages: Page[] };
@@ -19,9 +19,9 @@ const MAX_PAGES = 10;
 const MAX_CHARS = 40_000;
 const MAX_LINKS = 3;
 
-type Read = { ok: true; kind: SourceKind; name: string; url: string | null; pages: Page[] } | { ok: false; error: string };
+export type Read = { ok: true; kind: SourceKind; name: string; url: string | null; pages: Page[] } | { ok: false; error: string };
 
-const tidy = (s: string) =>
+export const tidy = (s: string) =>
   s
     .replace(/\r/g, '')
     .replace(/[ \t\f\v]+/g, ' ')
@@ -30,7 +30,7 @@ const tidy = (s: string) =>
     .trim();
 
 /** Keeps the whole text under MAX_CHARS, cutting from the last pages first. */
-function cap(pages: Page[]): Page[] {
+export function cap(pages: Page[]): Page[] {
   let left = MAX_CHARS;
   return pages
     .map((p) => {

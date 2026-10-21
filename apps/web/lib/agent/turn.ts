@@ -4,6 +4,8 @@ import { CONTEXT_TOKENS, defaultModel, summarizerFor, type AgentEnv, type Provid
 import { anthropicAdapter } from './providers/anthropic';
 import { openaiAdapter } from './providers/openai';
 import { plan, PLAN_TAG } from './planner';
+import type { ConnectorId } from '@/lib/connectors/catalog';
+import type { Connectors } from './connectors';
 import type { Adapter, Item } from './providers/types';
 import { append, logCall, saveSpec, type Attachment, type Receipt, type Row } from './store';
 import type { Source, SourceKind } from './sources';
@@ -151,6 +153,7 @@ export function userItems(
   shared: { blocks: string[]; attachments: Attachment[] } = { blocks: [], attachments: [] },
   summary: Summary | null = null,
   sources: Source[] = [],
+  connected: ConnectorId[] = [],
 ): Item[] {
   const { env, adapter } = using(agent);
   // A new summary always brings the full state along: the message it was last in may be condensed.
@@ -162,7 +165,7 @@ export function userItems(
     ...(shared.attachments.length ? { attachments: shared.attachments } : {}),
     ...(summary ? { contextSummary: summary } : {}),
   };
-  const next = plan(spec, sources);
+  const next = plan(spec, sources, connected);
   if (seen === spec.rev) return stored(adapter.user(text, [...shared.blocks, next]), env, notes);
   const state = `${STATE_TAG}\n${snapshot(spec)}\n</portrait_state>`;
   return stored(adapter.user(text, [...shared.blocks, state, next]), env, { ...notes, snapshotRev: spec.rev });
@@ -245,6 +248,7 @@ export async function runTurn({
   rows,
   sources,
   spec: start,
+  connectors,
   emit,
   signal,
 }: {
@@ -257,6 +261,8 @@ export async function runTurn({
   /** The résumés and links the person shared, which lines may quote too. */
   sources: Source[];
   spec: Spec;
+  /** The apps the person connected, which read_connector reads from. */
+  connectors?: Connectors;
   emit: (e: TurnEvent) => void;
   signal?: AbortSignal;
 }) {
@@ -316,7 +322,7 @@ export async function runTurn({
     const receipts: Receipt[] = [];
     const refused: Notes['refused'] = [];
     for (const call of answer.calls) {
-      const result = await runTool(call.name, call.input, spec, { said, sources }, new Date(), ask);
+      const result = await runTool(call.name, call.input, spec, { said, sources, connectors }, new Date(), ask);
       spec = result.spec;
       if (result.change) {
         receipts.push(result.change);

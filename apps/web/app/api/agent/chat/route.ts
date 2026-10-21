@@ -11,6 +11,7 @@ import {
   sourceError,
   type Source,
 } from '@/lib/agent/sources';
+import { connectorsFor } from '@/lib/agent/connectors';
 import { append, conversationFor, history, loadPortrait, sentToday } from '@/lib/agent/store';
 import { compactIfLong, runTurn, unansweredToolCalls, userItems, type Attachment, type TurnEvent } from '@/lib/agent/turn';
 import { supabaseServer } from '@/lib/supabase/server';
@@ -119,14 +120,16 @@ export async function POST(req: Request) {
           loadPortrait(supabase, user.id),
           loadSources(supabase, user.id),
         ]);
+        // The apps they connected; a page the agent reads from one joins `sources`.
+        const connectors = await connectorsFor(supabase, user.id, new URL(req.url).origin, sources);
         const unanswered = unansweredToolCalls(before, agent);
         if (unanswered.length) await append(supabase, conversationId, 'tool', unanswered, null);
         // A long conversation's older part is condensed first, so the model reads less each turn.
         const summary = await compactIfLong({ agent, supabase, conversationId, rows: before });
-        const items = userItems(text, portrait.spec, before, agent, { blocks, attachments }, summary, sources);
+        const items = userItems(text, portrait.spec, before, agent, { blocks, attachments }, summary, sources, connectors.connected);
         messageId = await append(supabase, conversationId, 'user', items, text);
         const rows = await history(supabase, conversationId);
-        await runTurn({ agent, supabase, ownerId: user.id, conversationId, rows, sources, spec: portrait.spec, emit });
+        await runTurn({ agent, supabase, ownerId: user.id, conversationId, rows, sources, spec: portrait.spec, connectors, emit });
       } catch (e) {
         console.error('agent turn failed', { messageId, error: e instanceof Error ? e.message : e });
         emit({

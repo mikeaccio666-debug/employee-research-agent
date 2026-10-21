@@ -56,7 +56,7 @@ const Evidence = z.union([
   }),
   z.object({
     /** A résumé or link the person shared (lib/agent/sources.ts). */
-    source: z.enum(['resume', 'website', 'github']),
+    source: z.enum(['resume', 'website', 'github', 'notion']),
     sourceId: z.string().uuid(),
     /** The PDF page the quote is on; null for documents without pages. */
     page: z.number().int().nullable(),

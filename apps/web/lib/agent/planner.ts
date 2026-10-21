@@ -1,3 +1,4 @@
+import { CONNECTORS, type ConnectorId } from '@/lib/connectors/catalog';
 import { prefSet, type Claim, type Spec } from '@/lib/portrait/spec';
 import { describePreferences } from './tools';
 import type { Source } from './sources';
@@ -21,7 +22,7 @@ const hasNumber = (c: Claim) => /\d/.test(c.statement);
 const name = (c: Claim) => c.title ?? c.statement.slice(0, 40);
 
 /** What the interview should look for next, as the note the model reads. */
-export function plan(spec: Spec, sources: Source[]): string {
+export function plan(spec: Spec, sources: Source[], connected: ConnectorId[] = []): string {
   const live = spec.claims.filter((c) => c.status !== 'rejected');
   const of = (layer: Claim['layer']) => live.filter((c) => c.layer === layer);
   const experiences = of('experience');
@@ -57,6 +58,7 @@ export function plan(spec: Spec, sources: Source[]): string {
     sources.length
       ? `Documents they shared (read_source looks inside one):\n${sources.map((s) => `- ${s.id}: ${s.name} (${s.kind}${s.pages.length > 1 ? `, ${s.pages.length} pages` : ''})`).join('\n')}`
       : null,
+    connected.length ? `Apps they connected (read_connector searches and reads them): ${connected.map((id) => CONNECTORS[id].name).join(', ')}.` : null,
     '</interview_plan>',
   ]
     .filter(Boolean)

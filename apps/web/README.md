@@ -111,6 +111,14 @@ message is read too: a GitHub profile through GitHub's API (`GITHUB_TOKEN` optio
 limits), any other public page as plain text. LinkedIn can't be read; the agent asks for the
 profile's PDF export instead.
 
+**Connected apps** (Notion first) let the agent search and read someone's own pages over MCP,
+read-only. Below the page in the studio, **Connect** signs them in to the app with OAuth (we
+register with the app's MCP server on the fly, so there is no app to set up on its side); the
+agent's `read_connector` tool then calls only the allow-listed search and fetch tools
+(`lib/connectors/catalog.ts`). A page it reads becomes one of their sources, so lines quote it
+like a résumé. Tokens are sealed with `CONNECTOR_KEY` (`lib/connectors/seal.ts`) in the
+`connections` table; **Disconnect** deletes them. Without `CONNECTOR_KEY` the studio hides it.
+
 1. **Schema.** Run `supabase/migrations/20261023000000_sources.sql`. It adds `sources` (what was
    read, page by page; people read, add and remove their own, nobody edits) and a private
    `sources` storage bucket where each person can only touch their own folder.
