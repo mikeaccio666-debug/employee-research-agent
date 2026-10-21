@@ -15,6 +15,8 @@ export type Persona = {
   resume?: { name: string; pages: { page: number | null; text: string }[] };
   /** What this persona checks, for the report. */
   tests?: string;
+  /** Confirms every draft line on the page after each turn, as a person clicking Right would. */
+  confirms?: boolean;
 };
 
 export const PERSONAS: Persona[] = [
@@ -215,5 +217,20 @@ export const PERSONAS: Persona[] = [
       'Wants a business analyst or data analyst role in Toronto',
     ],
     opening: '我在 UofT 读 MMA，想找 Toronto 的 BA 或者 DA 工作',
+  },
+  {
+    id: 'en-resume-ask',
+    confirms: true,
+    tests: 'When asked for a résumé for a role, makes one with make_resume from confirmed lines and says where to download it; never claims anything the portrait lacks.',
+    who: 'Priya Natarajan, CS senior at Georgia Tech. Direct and busy. Answers briefly. After the third or fourth exchange, asks for a résumé for the Backend Engineering Intern role at Stripe she is applying to this week, and checks that it came out.',
+    facts: [
+      'Computer science senior at Georgia Tech, graduating May 2026',
+      'Software engineering intern at NCR, built a payment retry service in Java',
+      'The retry service cut failed card payments by about 15%',
+      'TA for the data structures course for three semesters',
+      'Knows Java, Python, PostgreSQL and Kafka',
+      'Applying for the Backend Engineering Intern role at Stripe',
+    ],
+    opening: 'Georgia Tech CS senior, interned at NCR on payments. I need a résumé for a Stripe backend internship soon.',
   },
 ];

@@ -5,6 +5,8 @@ import { numbersIn, unquotedNumbers } from '@/lib/agent/guards';
 import { plan } from '@/lib/agent/planner';
 import { parseSkill, SKILLS } from '@/lib/agent/skills';
 import { findQuote, runTool, TOOL_DEFS, type Grounds } from '@/lib/agent/tools';
+import { resumeFrom, resumeText } from '@/lib/resume/model';
+import { resumePdf } from '@/lib/resume/pdf';
 
 // The rules the studio agent's tools enforce (lib/agent/tools.ts), checked without a model.
 // Run with `pnpm --filter @portrait/web test`.
@@ -206,7 +208,7 @@ describe('read_source and load_skill', () => {
   it('gives both providers every tool, in a fixed order', () => {
     assert.deepEqual(
       TOOL_DEFS.map((t) => t.name),
-      ['upsert_claim', 'remove_claim', 'set_headline', 'move_section', 'read_source', 'load_skill', 'note', 'set_preferences'],
+      ['upsert_claim', 'remove_claim', 'set_headline', 'move_section', 'read_source', 'load_skill', 'note', 'set_preferences', 'make_resume'],
     );
   });
 });
@@ -376,5 +378,55 @@ describe('search preferences', () => {
     assert.deepEqual(old.preferences.roles, []);
     const r = await runTool('set_preferences', prefs({ roles: ['analog IC design'], quote: 'analog IC design jobs' }), old, g);
     assert.match(plan(r.spec, []), /roles: analog IC design/);
+  });
+});
+
+describe('résumé', () => {
+  const who = { name: 'Maya Chen', contact: ['maya@example.com', ''] };
+  const spec = (): Spec => ({
+    ...withClaims(
+      claim({ id: 'clm_exp1aaaaaa', status: 'confirmed', title: 'Backend intern', org: 'ByteDance', when: 'Summer 2025', kind: 'internship', statement: 'Cut P99 latency from 800ms to 200ms.' }),
+      claim({ id: 'clm_prj1aaaaaa', status: 'confirmed', kind: 'project', statement: 'Built Campus Marketplace, now used by 300 students.' }),
+      claim({ id: 'clm_drf1aaaaaa', status: 'draft', title: 'Hackathon', statement: 'Won a hackathon.' }),
+      claim({ id: 'clm_skl1aaaaaa', status: 'confirmed', layer: 'capability', kind: 'skill', title: null, statement: 'Go, Java, Redis' }),
+      claim({ id: 'clm_rej1aaaaaa', status: 'rejected', layer: 'capability', kind: 'skill', title: null, statement: 'Rust' }),
+    ),
+    headline: { text: 'Backend intern who cut latency fourfold', claims: ['clm_exp1aaaaaa'], status: 'confirmed', alternatives: [] },
+    preferences: { ...emptySpec().preferences, workAuth: 'F-1, will need sponsorship' },
+  });
+
+  it('holds only confirmed lines, in sections, and never work authorization', () => {
+    const text = resumeText(resumeFrom(spec(), who));
+    assert.match(text, /^Maya Chen\nmaya@example.com/);
+    assert.match(text, /Backend intern who cut latency fourfold/);
+    assert.match(text, /EXPERIENCE\nBackend intern, ByteDance — Summer 2025\n• Cut P99/);
+    assert.match(text, /PROJECTS\nCampus Marketplace/);
+    assert.match(text, /SKILLS\n• Go, Java, Redis/);
+    assert.doesNotMatch(text, /hackathon|Rust|F-1|sponsorship/i);
+  });
+
+  it('make_resume tailors with confirmed lines only, and leaves the full one alone', async () => {
+    const s = spec();
+    const draft = await runTool('make_resume', JSON.stringify({ target: 'Backend intern at Stripe', claim_ids: ['clm_drf1aaaaaa'] }), s, grounds());
+    assert.match(draft.output, /is a draft/);
+    const full = await runTool('make_resume', JSON.stringify({ target: null, claim_ids: null }), s, grounds());
+    assert.equal(full.spec.resume, null);
+    assert.ok(full.change);
+    const r = await runTool('make_resume', JSON.stringify({ target: 'Backend intern at Stripe', claim_ids: ['clm_skl1aaaaaa', 'clm_exp1aaaaaa'] }), s, grounds());
+    assert.match(r.output, /2 lines \(1 confirmed lines left out\)/);
+    const tailored = resumeFrom(r.spec, who, true);
+    assert.equal(tailored.target, 'Backend intern at Stripe');
+    assert.deepEqual(tailored.sections.map((x) => x.heading), ['Experience', 'Skills']);
+    assert.equal(publishedSpec(r.spec).resume, null);
+    const none = await runTool('make_resume', JSON.stringify({ target: null, claim_ids: null }), emptySpec(), grounds());
+    assert.match(none.output, /no experience on the portrait is confirmed/);
+  });
+
+  it('renders a PDF, Chinese included', async () => {
+    const r = resumeFrom(spec(), who);
+    r.sections[0]!.entries[0]!.org = '字节跳动 ByteDance';
+    const bytes = await resumePdf(r);
+    assert.equal(Buffer.from(bytes.slice(0, 5)).toString(), '%PDF-');
+    assert.ok(bytes.length < 200_000, `${bytes.length} bytes: fonts should be subset`);
   });
 });

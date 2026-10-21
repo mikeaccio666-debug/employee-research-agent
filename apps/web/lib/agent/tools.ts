@@ -592,7 +592,63 @@ const FIELD_LABEL: Record<(typeof PREFERENCE_FIELDS)[number], string> = {
   workAuth: 'work authorization',
 };
 
-const REGISTRY = [upsertClaim, removeClaim, setHeadline, moveSection, readSource, loadSkill, note, setPreferences];
+const makeResume = tool({
+  name: 'make_resume',
+  description: `Put together a résumé from the portrait's confirmed lines, for the person to download as a PDF from the studio. Without a target it uses every confirmed line; with one, you choose which confirmed lines go on and in what order, most relevant to that role first. It never rewrites a line: the résumé says exactly what the page says, and work authorization never appears on it.
+Use it when they ask for a résumé or CV, or are applying for a specific role. Drafts can't go on: if a line they want is still a draft, ask them to confirm it on the page first.`,
+  parameters: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['target', 'claim_ids'],
+    properties: {
+      target: nullableString(LIMITS.target, 'The role (and company, if they named one) it is for, as they said it, or null for a general résumé.'),
+      claim_ids: {
+        type: ['array', 'null'],
+        items: { type: 'string', maxLength: 24 },
+        maxItems: LIMITS.claims,
+        description: 'Confirmed lines to include, most relevant first, or null for all of them.',
+      },
+    },
+  },
+  args: z.object({
+    target: z.string().trim().max(LIMITS.target).nullable(),
+    claim_ids: z.array(z.string()).max(LIMITS.claims).nullable(),
+  }),
+  risk: 'draft',
+  run({ target, claim_ids }, { spec, at }) {
+    const confirmed = spec.claims.filter((c) => c.status === 'confirmed');
+    if (!confirmed.some((c) => c.layer === 'experience')) {
+      return refuse(spec, 'no experience on the portrait is confirmed yet. Ask them to confirm their lines on the page first.');
+    }
+    const ids = claim_ids ? [...new Set(claim_ids)] : confirmed.map((c) => c.id);
+    const unconfirmed = ids.filter((id) => !confirmed.some((c) => c.id === id));
+    if (unconfirmed.length) {
+      const drafts = unconfirmed.filter((id) => spec.claims.some((c) => c.id === id && c.status === 'draft'));
+      return refuse(
+        spec,
+        drafts.length
+          ? `${drafts.join(', ')} ${drafts.length > 1 ? 'are drafts' : 'is a draft'}. Only confirmed lines go on a résumé: ask them to confirm on the page, or leave ${drafts.length > 1 ? 'them' : 'it'} out.`
+          : `these aren't confirmed lines on the portrait: ${unconfirmed.join(', ')}.`,
+      );
+    }
+    if (!target && !claim_ids) {
+      // The full résumé is always every confirmed line, so it needs nothing saved.
+      return {
+        spec,
+        output: `The full résumé has all ${confirmed.length} confirmed lines. They download it from the studio; tell them, and that it only holds lines they confirmed.`,
+        change: { note: `Résumé — all ${confirmed.length} confirmed lines, ready to download`, dashed: false },
+      };
+    }
+    const left = confirmed.filter((c) => !ids.includes(c.id)).length;
+    return {
+      spec: { ...spec, resume: { target: target || null, claims: ids, at } },
+      output: `Résumé ready with ${ids.length} lines${left ? ` (${left} confirmed lines left out)` : ''}. They download it from the studio${target ? ` as the résumé for ${target}` : ''}; tell them, and that it only holds lines they confirmed.`,
+      change: { note: `Résumé${target ? ` for ${truncate(target, 40)}` : ''} — ${ids.length} lines, ready to download`, dashed: false },
+    };
+  },
+});
+
+const REGISTRY = [upsertClaim, removeClaim, setHeadline, moveSection, readSource, loadSkill, note, setPreferences, makeResume];
 
 /** The tools as the model reads them, in a fixed order so the providers can cache them. */
 export const TOOL_DEFS = REGISTRY.map(({ name, description, parameters }) => ({ name, description, parameters }));

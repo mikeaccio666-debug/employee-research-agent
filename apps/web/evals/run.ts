@@ -192,7 +192,7 @@ async function interview(persona: Persona, agent: AgentEnv, simulator: AgentEnv,
           else if (e.event === 'error') turnError = `${e.data.code}: ${e.data.message}`;
         },
       });
-      store.setSpec(spec);
+      store.setSpec(persona.confirms ? confirmAll(spec) : spec);
     } catch (e) {
       turnError = e instanceof Error ? e.message : String(e);
     }
@@ -237,6 +237,18 @@ function preferenceLines(spec: Spec): string[] {
     .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : String(v)}`);
 }
 
+/** The person clicking Right on every draft, headline included. */
+function confirmAll(spec: Spec): Spec {
+  const drafts = spec.claims.some((c) => c.status === 'draft') || spec.headline?.status === 'draft';
+  if (!drafts) return spec;
+  return {
+    ...spec,
+    rev: spec.rev + 1,
+    claims: spec.claims.map((c) => (c.status === 'draft' ? { ...c, status: 'confirmed' } : c)),
+    headline: spec.headline ? { ...spec.headline, status: 'confirmed', alternatives: [] } : null,
+  };
+}
+
 async function grade(result: Result, persona: Persona, judge: AgentEnv): Promise<void> {
   const lines = result.spec.claims.filter((c) => c.status !== 'rejected');
   if (!lines.length && !result.spec.headline && !persona.tests) {
@@ -257,6 +269,12 @@ async function grade(result: Result, persona: Persona, judge: AgentEnv): Promise
     '',
     'Search preferences (kept for matching, never shown on the page; they count toward facts but are not lines to grade):',
     ...preferenceLines(result.spec).map((l) => `- ${l}`),
+    ...(result.tools.make_resume
+      ? [
+          '',
+          `Résumés made with make_resume: ${result.tools.make_resume}${result.spec.resume ? `; the tailored one is for "${result.spec.resume.target}" with lines ${result.spec.resume.claims.join(', ')}` : ''}. A résumé holds only confirmed lines, word for word.`,
+        ]
+      : []),
     ...(persona.tests
       ? ['', `Check: ${persona.tests}`, '', 'The conversation:', ...result.turns.flatMap((t) => [`Person: ${t.user}`, `Agent: ${t.reply}`])]
       : []),
@@ -357,7 +375,7 @@ function summarize(results: Result[]) {
       const bad = g?.lines.filter((l) => l.verdict !== 'supported') ?? [];
       const facts = PERSONAS.find((p) => p.id === r.persona)?.facts ?? [];
       const missed = g?.facts.filter((f) => !f.covered).map((f) => facts[f.n - 1] ?? `#${f.n}`) ?? [];
-      return `| ${r.persona} | ${r.model} | ${g ? pct(g.facts.filter((f) => f.covered).length, g.facts.length) : '–'} | ${g ? `${g.lines.length} (${bad.filter((l) => l.verdict === 'unsupported').length} / ${bad.filter((l) => l.verdict === 'overstated').length})` : '–'} | ${r.refused.length}/${r.toolCalls} | ${r.tests ? `${g?.check ? (g.check.passed ? 'passed' : `FAILED: ${g.check.why}`) : '?'} (${r.tests})` : ''} | ${[r.skills.join(', ') || '–', `${r.tools.note ?? 0} notes`, r.spec.headline ? `${1 + r.spec.headline.alternatives.length} headlines` : 'no headline', preferenceLines(r.spec).map((l) => l.split(':')[0]).join(', ') || 'no preferences'].join(' / ')} | ${missed.join('; ').replace(/\|/g, '/')} | ${[r.error, r.judgeError && `judge: ${r.judgeError}`, ...bad.map((l) => `${l.verdict}: ${l.why}`)].filter(Boolean).join('; ').replace(/\|/g, '/').slice(0, 300)} |`;
+      return `| ${r.persona} | ${r.model} | ${g ? pct(g.facts.filter((f) => f.covered).length, g.facts.length) : '–'} | ${g ? `${g.lines.length} (${bad.filter((l) => l.verdict === 'unsupported').length} / ${bad.filter((l) => l.verdict === 'overstated').length})` : '–'} | ${r.refused.length}/${r.toolCalls} | ${r.tests ? `${g?.check ? (g.check.passed ? 'passed' : `FAILED: ${g.check.why}`) : '?'} (${r.tests})` : ''} | ${[r.skills.join(', ') || '–', `${r.tools.note ?? 0} notes`, ...(r.tools.make_resume ? [`${r.tools.make_resume} résumé`] : []), r.spec.headline ? `${1 + r.spec.headline.alternatives.length} headlines` : 'no headline', preferenceLines(r.spec).map((l) => l.split(':')[0]).join(', ') || 'no preferences'].join(' / ')} | ${missed.join('; ').replace(/\|/g, '/')} | ${[r.error, r.judgeError && `judge: ${r.judgeError}`, ...bad.map((l) => `${l.verdict}: ${l.why}`)].filter(Boolean).join('; ').replace(/\|/g, '/').slice(0, 300)} |`;
     }),
   ];
   return [`## Studio agent evals${args.label ? `: ${args.label}` : ''}`, '', ...table, '', '### By persona', '', ...detail].join('\n');

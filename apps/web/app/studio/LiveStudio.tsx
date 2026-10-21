@@ -478,12 +478,33 @@ export function LiveStudio(props: LiveStudioProps) {
           </p>
         )}
       </div>
+      <ResumeLinks spec={spec} />
       <SearchPreferences
         preferences={spec.preferences}
         disabled={saving}
         onClear={(f) => answer(() => clearPreference(f), `${PREFERENCE_LABEL[f]} cleared`)}
       />
     </Workspace>
+  );
+}
+
+/** The résumé PDFs (app/api/resume): every confirmed line, and the one tailored for a role. */
+function ResumeLinks({ spec }: { spec: Spec }) {
+  if (!spec.claims.some((c) => c.status === 'confirmed' && c.layer === 'experience')) return null;
+  return (
+    <section className="mt-6 max-w-[520px] px-1" aria-label="Résumé">
+      <p className="t-xs c2">Résumé · a PDF of the lines you confirmed, nothing else</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <a href="/api/resume" download className={buttonClass()}>
+          Download résumé
+        </a>
+        {spec.resume ? (
+          <a href="/api/resume?for=tailored" download className={buttonClass()}>
+            {spec.resume.target ? `Résumé for ${spec.resume.target}` : 'Tailored résumé'}
+          </a>
+        ) : null}
+      </div>
+    </section>
   );
 }
 
