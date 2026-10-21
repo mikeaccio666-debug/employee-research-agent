@@ -6,7 +6,9 @@
 create table public.connections (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null references public.profiles (id) on delete cascade,
-  provider text not null check (provider in ('notion')),
+  -- Which app: an id from apps/web/lib/connectors/catalog.ts. Checked by the app, not here, so a
+  -- new app is one catalog entry and no migration.
+  provider text not null check (provider ~ '^[a-z][a-z0-9_-]{0,39}$'),
   -- pending: they started signing in, or the app stopped accepting the sign-in. active: connected.
   status text not null default 'pending' check (status in ('pending', 'active')),
   -- The OAuth state nonce of a sign-in in progress.
@@ -32,6 +34,7 @@ create policy "connections: owner removes" on public.connections
 revoke all on public.connections from anon, authenticated;
 grant select, insert, update, delete on public.connections to authenticated;
 
--- A page the agent read from a connected app is one of the person's sources, like a link.
+-- A page the agent read from a connected app is one of the person's sources, like a link, with
+-- the app's id as its kind. Like `provider`, the app checks which kinds exist.
 alter table public.sources drop constraint sources_kind_check;
-alter table public.sources add constraint sources_kind_check check (kind in ('resume', 'website', 'github', 'notion'));
+alter table public.sources add constraint sources_kind_check check (kind ~ '^[a-z][a-z0-9_-]{0,39}$');
