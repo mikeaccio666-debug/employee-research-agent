@@ -7,7 +7,10 @@ const nextConfig: NextConfig = {
   devIndicators: false,
   // Read from disk at run time: the studio agent's skills (lib/agent/skills.ts) and the fonts
   // résumé PDFs embed (lib/resume/pdf.ts).
-  outputFileTracingIncludes: { '/api/agent/chat': ['./lib/agent/skills/**/*'], '/api/resume': ['./lib/resume/fonts/*.woff'] },
+  outputFileTracingIncludes: { '/api/agent/chat': ['./lib/agent/skills/**/*'], '/api/resume': ['./lib/resume/fonts/*.woff'],
+    // Share cards fall back to the résumé's Chinese font for names Atkinson can't draw.
+    '/u/[handle]/opengraph-image': ['./lib/resume/fonts/noto-sans-sc-400.woff'],
+  },
   async rewrites() {
     // Portraits live at {domain}/@handle. Folders starting with "@" are parallel
     // routes in the App Router, so the page itself sits at /u/[handle].

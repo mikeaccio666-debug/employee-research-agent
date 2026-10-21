@@ -6,6 +6,7 @@ import { WorkPortrait } from '@/components/portrait/WorkPortrait';
 import { handles, isHandle, portraitTitles, storyPortrait, workPortrait } from '@/lib/data/portraits';
 import { HANDLE_PATTERN } from '@/lib/account';
 import { getPublicPortrait } from '@/lib/supabase/public';
+import { shareLine } from '@/lib/portrait/share';
 
 // Public portraits. /@handle is rewritten here (next.config.ts). The canvas's examples keep their
 // handles (lin → S02, maya → S02-Maya); every other handle is read from the database's
@@ -32,7 +33,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return handle === 'lin' ? { title: { absolute: portraitTitles.lin } } : { title: portraitTitles.maya };
   }
   const portrait = await lookup(handle);
-  return portrait ? { title: portrait.display_name || `@${portrait.handle}` } : {};
+  if (!portrait) return {};
+  // The card itself comes from opengraph-image.tsx; these are the words beside it in a preview.
+  const { name, line } = shareLine(portrait);
+  const description = line ?? undefined;
+  return {
+    title: name,
+    description,
+    openGraph: { title: name, description, type: 'profile', url: `/@${portrait.handle}` },
+    twitter: { card: 'summary_large_image', title: name, description },
+  };
 }
 
 export default async function PortraitPage({ params }: Props) {
