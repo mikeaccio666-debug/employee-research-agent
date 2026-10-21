@@ -17,7 +17,8 @@ export type Row = {
 export type ThreadMessage = { id: number; role: 'user' | 'assistant'; body: string; receipts: Receipt[]; attachments?: Attachment[] };
 /** A résumé or link shared with a message. */
 export type Attachment = { kind: 'resume' | 'website' | 'github' | 'notion'; name: string };
-export type Receipt = { note: string; dashed: boolean; claimId?: string };
+/** `connect`: an app the agent offered to connect, shown as a Connect button under the reply. */
+export type Receipt = { note: string; dashed: boolean; claimId?: string; connect?: string };
 
 /** The person's studio conversation, started on their first message. */
 export async function conversationFor(supabase: SupabaseClient, ownerId: string, create: boolean): Promise<string | null> {

@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { after, before, describe, it } from 'node:test';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { connectorsFor } from '@/lib/agent/connectors';
+import { plan } from '@/lib/agent/planner';
 import { runTool } from '@/lib/agent/tools';
 import { seal, unseal } from '@/lib/connectors/seal';
 import { finishSignIn, startSignIn } from '@/lib/connectors/signin';
@@ -113,6 +114,24 @@ describe('read_connector', () => {
     connectors,
   });
   const call = (args: object, g: ReturnType<typeof grounds>) => runTool('read_connector', JSON.stringify(args), emptySpec(), g);
+
+  it('offers a Connect button for an app they mention but haven’t connected, and only then', async () => {
+    const { db } = fakeSupabase();
+    const g = grounds(await connectorsFor(db, OWNER, ORIGIN, []));
+    assert.deepEqual(g.connectors.available, ['notion']);
+    const offer = await runTool('offer_connect', JSON.stringify({ connector: 'notion' }), emptySpec(), g);
+    assert.equal(offer.change?.connect, 'notion');
+    await connect(db);
+    const again = await runTool('offer_connect', JSON.stringify({ connector: 'notion' }), emptySpec(), grounds(await connectorsFor(db, OWNER, ORIGIN, [])));
+    assert.match(again.output, /^Not done: Notion is already connected/);
+    assert.equal(again.change, undefined);
+  });
+
+  it('lists apps in the plan: connected ones to read, others to offer', () => {
+    assert.match(plan(emptySpec(), [], { connected: [], available: ['notion'] }), /Apps they could connect \(offer_connect.*Notion/);
+    assert.match(plan(emptySpec(), [], { connected: ['notion'], available: [] }), /Apps they connected \(read_connector.*Notion/);
+    assert.doesNotMatch(plan(emptySpec(), []), /Apps they/);
+  });
 
   it('refuses an app they haven’t connected', async () => {
     const { db } = fakeSupabase();

@@ -144,7 +144,8 @@ function fakeNotion(persona: Persona, sources: Source[]): Connectors | undefined
   const pages = persona.notion;
   if (!pages) return undefined;
   return {
-    connected: ['notion'],
+    connected: persona.notionConnected === false ? [] : ['notion'],
+    available: persona.notionConnected === false ? ['notion'] : [],
     async read(_id, action, input) {
       const q = input.toLowerCase();
       if (action === 'search') {
@@ -194,7 +195,7 @@ async function interview(persona: Persona, agent: AgentEnv, simulator: AgentEnv,
     const unanswered = unansweredToolCalls(before, agent);
     if (unanswered.length) await append(supabase, conversationId, 'tool', unanswered, null);
     const summary = await compactIfLong({ agent, supabase, conversationId, rows: [...store.rows] });
-    await append(supabase, conversationId, 'user', userItems(text, store.spec, [...store.rows], agent, shared, summary, sources, connectors?.connected ?? []), text);
+    await append(supabase, conversationId, 'user', userItems(text, store.spec, [...store.rows], agent, shared, summary, sources, connectors ?? { connected: [], available: [] }), text);
 
     const began = Date.now();
     let reply = '';
@@ -287,7 +288,9 @@ async function grade(result: Result, persona: Persona, judge: AgentEnv): Promise
     ...result.turns.map((t, i) => `${i + 1}. ${t.user}`),
     ...(persona.resume ? ['', 'Documents they shared:', ...persona.resume.pages.map((p) => p.text)] : []),
     ...(persona.notion
-      ? ['', `Pages in the Notion they connected (the agent read ${result.tools.read_connector ?? 0} times with read_connector; lines may quote a page it fetched):`, ...persona.notion.map((p) => p.text)]
+      ? persona.notionConnected === false
+        ? ['', `Their Notion is not connected, so the agent cannot read it; it offered a Connect button ${result.tools.offer_connect ?? 0} times (offer_connect). Pages there, for reference:`, ...persona.notion.map((p) => p.text)]
+        : ['', `Pages in the Notion they connected (the agent read ${result.tools.read_connector ?? 0} times with read_connector; lines may quote a page it fetched):`, ...persona.notion.map((p) => p.text)]
       : []),
     '',
     'True facts about them:',
@@ -405,7 +408,7 @@ function summarize(results: Result[]) {
       const bad = g?.lines.filter((l) => l.verdict !== 'supported') ?? [];
       const facts = PERSONAS.find((p) => p.id === r.persona)?.facts ?? [];
       const missed = g?.facts.filter((f) => !f.covered).map((f) => facts[f.n - 1] ?? `#${f.n}`) ?? [];
-      return `| ${r.persona} | ${r.model} | ${g ? pct(g.facts.filter((f) => f.covered).length, g.facts.length) : '–'} | ${g ? `${g.lines.length} (${bad.filter((l) => l.verdict === 'unsupported').length} / ${bad.filter((l) => l.verdict === 'overstated').length})` : '–'} | ${r.refused.length}/${r.toolCalls} | ${r.tests ? `${g?.check ? (g.check.passed ? 'passed' : `FAILED: ${g.check.why}`) : '?'} (${r.tests})` : ''} | ${[r.skills.join(', ') || '–', `${r.tools.note ?? 0} notes`, ...(r.tools.make_resume ? [`${r.tools.make_resume} résumé`] : []), ...(r.tools.read_connector ? [`${r.tools.read_connector} app reads`] : []), r.spec.headline ? `${1 + r.spec.headline.alternatives.length} headlines` : 'no headline', preferenceLines(r.spec).map((l) => l.split(':')[0]).join(', ') || 'no preferences'].join(' / ')} | ${missed.join('; ').replace(/\|/g, '/')} | ${[r.error, r.judgeError && `judge: ${r.judgeError}`, ...bad.map((l) => `${l.verdict}: ${l.why}`)].filter(Boolean).join('; ').replace(/\|/g, '/').slice(0, 300)} |`;
+      return `| ${r.persona} | ${r.model} | ${g ? pct(g.facts.filter((f) => f.covered).length, g.facts.length) : '–'} | ${g ? `${g.lines.length} (${bad.filter((l) => l.verdict === 'unsupported').length} / ${bad.filter((l) => l.verdict === 'overstated').length})` : '–'} | ${r.refused.length}/${r.toolCalls} | ${r.tests ? `${g?.check ? (g.check.passed ? 'passed' : `FAILED: ${g.check.why}`) : '?'} (${r.tests})` : ''} | ${[r.skills.join(', ') || '–', `${r.tools.note ?? 0} notes`, ...(r.tools.make_resume ? [`${r.tools.make_resume} résumé`] : []), ...(r.tools.read_connector ? [`${r.tools.read_connector} app reads`] : []), ...(r.tools.offer_connect ? [`${r.tools.offer_connect} connect offers`] : []), r.spec.headline ? `${1 + r.spec.headline.alternatives.length} headlines` : 'no headline', preferenceLines(r.spec).map((l) => l.split(':')[0]).join(', ') || 'no preferences'].join(' / ')} | ${missed.join('; ').replace(/\|/g, '/')} | ${[r.error, r.judgeError && `judge: ${r.judgeError}`, ...bad.map((l) => `${l.verdict}: ${l.why}`)].filter(Boolean).join('; ').replace(/\|/g, '/').slice(0, 300)} |`;
     }),
   ];
   return [`## Studio agent evals${args.label ? `: ${args.label}` : ''}`, '', ...table, '', '### By persona', '', ...detail].join('\n');

@@ -153,7 +153,7 @@ export function userItems(
   shared: { blocks: string[]; attachments: Attachment[] } = { blocks: [], attachments: [] },
   summary: Summary | null = null,
   sources: Source[] = [],
-  connected: ConnectorId[] = [],
+  apps: { connected: ConnectorId[]; available: ConnectorId[] } = { connected: [], available: [] },
 ): Item[] {
   const { env, adapter } = using(agent);
   // A new summary always brings the full state along: the message it was last in may be condensed.
@@ -165,7 +165,7 @@ export function userItems(
     ...(shared.attachments.length ? { attachments: shared.attachments } : {}),
     ...(summary ? { contextSummary: summary } : {}),
   };
-  const next = plan(spec, sources, connected);
+  const next = plan(spec, sources, apps);
   if (seen === spec.rev) return stored(adapter.user(text, [...shared.blocks, next]), env, notes);
   const state = `${STATE_TAG}\n${snapshot(spec)}\n</portrait_state>`;
   return stored(adapter.user(text, [...shared.blocks, state, next]), env, { ...notes, snapshotRev: spec.rev });

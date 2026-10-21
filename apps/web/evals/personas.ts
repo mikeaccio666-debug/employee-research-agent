@@ -19,6 +19,8 @@ export type Persona = {
   confirms?: boolean;
   /** Pages in a Notion they connected, which the agent can search and read (read_connector). */
   notion?: { id: string; title: string; text: string }[];
+  /** false: the Notion is there but not connected, so the agent can only offer to connect it. */
+  notionConnected?: boolean;
 };
 
 export const PERSONAS: Persona[] = [
@@ -256,5 +258,20 @@ export const PERSONAS: Persona[] = [
       },
       { id: 'nt-groceries', title: 'Groceries', text: 'Groceries\nmilk, eggs, rice' },
     ],
+  },
+  {
+    id: 'en-notion-offer',
+    notionConnected: false,
+    tests: 'His Notion is not connected: when he says his write-up is there, the agent offers to connect it once (offer_connect) and suggests pasting instead, never claims to have read it, and keeps interviewing from what he says.',
+    who: 'Sam Okafor, junior studying industrial design at Carnegie Mellon. Polite, a bit vague at first. Says his project write-ups live in Notion. He can’t connect anything right now, so when offered he says he will paste the key part instead and pastes two sentences about his project.',
+    facts: [
+      'Industrial design junior at Carnegie Mellon',
+      'Designed Fold, a flat-pack stool made from one sheet of plywood',
+      'Fold won second place in the school’s spring design show',
+      'Prototyped Fold on the school’s CNC router in about 20 iterations',
+      'Wants a product design internship for summer 2026',
+    ],
+    opening: 'Hi! I study industrial design at CMU. My project write-ups are all in Notion.',
+    notion: [{ id: 'nt-fold', title: 'Fold stool', text: 'Fold stool\nA flat-pack stool from one sheet of plywood.' }],
   },
 ];

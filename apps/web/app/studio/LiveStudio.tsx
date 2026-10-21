@@ -376,7 +376,7 @@ export function LiveStudio(props: LiveStudioProps) {
             <Shared attachments={m.attachments} />
           </UserMessage>
         ) : (
-          <Turn key={m.id} body={m.body} receipts={m.receipts} />
+          <Turn key={m.id} body={m.body} receipts={m.receipts} apps={apps} />
         ),
       )}
       {live ? (
@@ -385,7 +385,7 @@ export function LiveStudio(props: LiveStudioProps) {
             <Paras text={live.user} />
             <Shared attachments={live.attachments} />
           </UserMessage>
-          {live.reply || live.receipts.length ? <Turn body={live.reply} receipts={live.receipts} /> : null}
+          {live.reply || live.receipts.length ? <Turn body={live.reply} receipts={live.receipts} apps={apps} /> : null}
           <StatusLine>{live.receipts.length ? 'Drawing your portrait' : (live.status ?? 'Thinking')}</StatusLine>
         </>
       ) : null}
@@ -640,15 +640,29 @@ function Shared({ attachments }: { attachments?: Attachment[] }) {
   );
 }
 
-function Turn({ body, receipts }: { body: string; receipts: ReceiptData[] }) {
+function Turn({ body, receipts, apps }: { body: string; receipts: ReceiptData[]; apps: AppConnection[] | null }) {
   return (
     <AgentMessage>
       {body ? <Paras text={body} /> : null}
-      {receipts.map((r, i) => (
-        <Receipt key={i} dashed={r.dashed}>
-          {r.note}
-        </Receipt>
-      ))}
+      {receipts.map((r, i) => {
+        // The agent's offer to connect an app: a button while the app isn't connected yet.
+        if (r.connect) {
+          const app = apps?.find((a) => a.id === r.connect);
+          if (!app || app.connected) return null;
+          return (
+            <form key={i} method="post" action={`/api/connectors/${app.id}/start`} className="mt-2">
+              <button type="submit" className={buttonClass()}>
+                Connect {app.name}
+              </button>
+            </form>
+          );
+        }
+        return (
+          <Receipt key={i} dashed={r.dashed}>
+            {r.note}
+          </Receipt>
+        );
+      })}
     </AgentMessage>
   );
 }

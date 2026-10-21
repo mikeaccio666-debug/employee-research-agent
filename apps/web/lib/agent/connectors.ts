@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { CONNECTORS, type Action, type ConnectorId } from '@/lib/connectors/catalog';
+import { CONNECTOR_IDS, CONNECTORS, type Action, type ConnectorId } from '@/lib/connectors/catalog';
 import { callConnector } from '@/lib/connectors/client';
 import { canSeal } from '@/lib/connectors/seal';
 import { ConnectionAuth, connectionsOf, loadConnection, saveConnection } from '@/lib/connectors/store';
@@ -15,10 +15,12 @@ export type ConnectorRead = { ok: true; text: string; source: Source | null } | 
 export type Connectors = {
   /** The apps connected and signed in. */
   connected: ConnectorId[];
+  /** The apps they could connect here and haven't (offer_connect offers one). */
+  available: ConnectorId[];
   read(id: ConnectorId, action: Action, input: string): Promise<ConnectorRead>;
 };
 
-export const NO_CONNECTORS: Connectors = { connected: [], read: async () => ({ ok: false, error: 'no apps are connected' }) };
+export const NO_CONNECTORS: Connectors = { connected: [], available: [], read: async () => ({ ok: false, error: 'no apps are connected' }) };
 
 /** Where an app sends the person back after they sign in. */
 export const callbackUrl = (origin: string, id: ConnectorId) => `${origin}/api/connectors/${id}/callback`;
@@ -38,6 +40,7 @@ export async function connectorsFor(supabase: SupabaseClient, ownerId: string, o
   const connected = (await connectionsOf(supabase, ownerId)).filter((c) => c.status === 'active').map((c) => c.provider);
   return {
     connected,
+    available: CONNECTOR_IDS.filter((id) => !connected.includes(id)),
     async read(id, action, input) {
       const conn = await loadConnection(supabase, ownerId, id);
       if (!conn || conn.status !== 'active') return { ok: false, error: `${CONNECTORS[id].name} isn’t connected` };

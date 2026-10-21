@@ -45,7 +45,7 @@ export type ToolResult = {
   /** Sent back to the model. */
   output: string;
   /** For the thread's receipt and the canvas highlight; absent when nothing changed. */
-  change?: { claimId?: string; note: string; dashed: boolean };
+  change?: { claimId?: string; note: string; dashed: boolean; connect?: string };
 };
 
 /**
@@ -671,7 +671,7 @@ Use it when they point you at something in the app ("my project notes are in Not
   async run({ connector, action, query }, { spec, grounds }) {
     const app = CONNECTORS[connector].name;
     if (!grounds.connectors?.connected.includes(connector)) {
-      return refuse(spec, `they haven’t connected ${app}. If it would help, tell them they can connect it from the studio (Connected apps), then ask again.`);
+      return refuse(spec, `they haven’t connected ${app}. If it would help, offer it with offer_connect.`);
     }
     const read = await grounds.connectors.read(connector, action, query);
     if (!read.ok) return refuse(spec, `${read.error}.`);
@@ -689,7 +689,31 @@ Use it when they point you at something in the app ("my project notes are in Not
   },
 });
 
-const REGISTRY = [upsertClaim, removeClaim, setHeadline, moveSection, readSource, loadSkill, note, setPreferences, makeResume, readConnector];
+const offerConnect = tool({
+  name: 'offer_connect',
+  description: `Put a Connect button for an app under your reply, when the person says something they want you to see is there (their notes, write-ups, portfolio) and they haven't connected it. The apps they could connect are in <interview_plan>.
+Only when they bring the app up; never to promote it. Once per app in a conversation unless they ask again. Signing in is theirs to do: say what it lets you do (search and read, never change anything) and that they can paste the text instead. Don't read until <interview_plan> lists it as connected.`,
+  parameters: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['connector'],
+    properties: { connector: { type: 'string', enum: [...CONNECTOR_IDS] } },
+  },
+  args: z.object({ connector: z.enum(CONNECTOR_IDS) }),
+  risk: 'read',
+  run({ connector }, { spec, grounds }) {
+    const app = CONNECTORS[connector].name;
+    if (grounds.connectors?.connected.includes(connector)) return refuse(spec, `${app} is already connected; read it with read_connector.`);
+    if (!grounds.connectors?.available.includes(connector)) return refuse(spec, `${app} can't be connected here yet. Ask them to paste the text or share a link instead.`);
+    return {
+      spec,
+      output: `A Connect ${app} button is now under your reply. Tell them in a sentence what it does and that pasting the text works too; once they've connected, the plan lists it and read_connector can read it.`,
+      change: { note: `Connect ${app} so I can search and read it`, dashed: false, connect: connector },
+    };
+  },
+});
+
+const REGISTRY = [upsertClaim, removeClaim, setHeadline, moveSection, readSource, loadSkill, note, setPreferences, makeResume, readConnector, offerConnect];
 
 /** The tools as the model reads them, in a fixed order so the providers can cache them. */
 export const TOOL_DEFS = REGISTRY.map(({ name, description, parameters }) => ({ name, description, parameters }));

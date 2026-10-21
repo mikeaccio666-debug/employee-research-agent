@@ -126,7 +126,7 @@ export async function POST(req: Request) {
         if (unanswered.length) await append(supabase, conversationId, 'tool', unanswered, null);
         // A long conversation's older part is condensed first, so the model reads less each turn.
         const summary = await compactIfLong({ agent, supabase, conversationId, rows: before });
-        const items = userItems(text, portrait.spec, before, agent, { blocks, attachments }, summary, sources, connectors.connected);
+        const items = userItems(text, portrait.spec, before, agent, { blocks, attachments }, summary, sources, connectors);
         messageId = await append(supabase, conversationId, 'user', items, text);
         const rows = await history(supabase, conversationId);
         await runTurn({ agent, supabase, ownerId: user.id, conversationId, rows, sources, spec: portrait.spec, connectors, emit });
