@@ -41,11 +41,12 @@ const { values: args } = parseArgs({
 const SIMULATOR = process.env.EVAL_SIMULATOR || 'openai:gpt-6-luna';
 const JUDGE = process.env.EVAL_JUDGE || 'openai:gpt-6.1-sol';
 
-// Dollars per million tokens. OpenAI's sol rates aren't public to us yet: pass them, or any
-// correction, as EVAL_PRICES='{"gpt-6.1-sol":{"input":1,"cached":0.1,"output":8}}'. Cache reads
+// Dollars per million tokens. Sol's rates come from third-party price lists; correct any rate
+// with EVAL_PRICES='{"gpt-6.1-sol":{"input":1,"cached":0.1,"output":8}}'. Cache reads
 // for Luna and Haiku are guessed at a tenth of input; Claude's cache writes aren't logged, so
 // Claude costs read slightly low.
 const PRICES: Record<string, { input: number; cached: number; output: number }> = {
+  'gpt-6.1-sol': { input: 2, cached: 0.2, output: 10 },
   'gpt-6-luna': { input: 0.1, cached: 0.01, output: 0.5 },
   'claude-opus-5-5': { input: 4, cached: 0.2, output: 20 },
   'claude-sonnet-5-5': { input: 2, cached: 0.2, output: 10 },

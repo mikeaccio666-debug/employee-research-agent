@@ -35,7 +35,7 @@ The runner also counts refused tool calls, replies with more than one question, 
 portrait has three lines, cost per interview, and turn time. Each run writes `report.md` and
 `results.json` (every transcript and grade) under `--out`.
 
-Costs use the prices in `run.ts`; models without one show "no price". Add or correct prices with
+Costs use the prices in `run.ts` (Sol's from third-party price lists); models without one show "no price". Add or correct prices with
 `EVAL_PRICES='{"gpt-6.1-sol":{"input":1,"cached":0.1,"output":8}}'` (dollars per million tokens).
 
 ## In GitHub Actions
