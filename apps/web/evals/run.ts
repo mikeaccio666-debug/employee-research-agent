@@ -295,7 +295,7 @@ async function grade(result: Result, persona: Persona, judge: AgentEnv): Promise
     '',
     'The portrait:',
     `Headline: ${result.spec.headline?.text ?? 'none'}`,
-    ...lines.map((c) => `- ${c.id} [${c.layer}, ${c.basis}] ${[c.title, c.org, c.when].filter(Boolean).join(' · ')} ${c.statement}`),
+    ...lines.map((c) => `- ${c.id} [${c.layer}, ${c.basis}${persona.notion ? `, from ${[...new Set(c.evidence.map((e) => e.source))].join('+') || 'nothing'}` : ''}] ${[c.title, c.org, c.when].filter(Boolean).join(' · ')} ${c.statement}`),
     '',
     'Search preferences (kept for matching, never shown on the page; they count toward facts but are not lines to grade):',
     ...preferenceLines(result.spec).map((l) => `- ${l}`),
