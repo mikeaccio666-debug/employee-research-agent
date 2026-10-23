@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { appendFile, mkdir, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { agentFor, PROVIDERS, type AgentEnv, type Effort, type Provider } from '@/lib/agent/env';
@@ -124,6 +124,8 @@ type Grade = {
 
 type Result = {
   persona: string;
+  /** What the app read from the persona's image, for the judge. */
+  imageText: string[];
   model: string;
   tests?: string;
   turns: Turn[];
@@ -165,6 +167,18 @@ function fakeNotion(persona: Persona, sources: Source[]): Connectors | undefined
   };
 }
 
+/**
+ * An image the persona attaches, read into text by the model in use as the studio would. Loaded
+ * on demand, so the smoke run's "before" agent (which may predate images) still runs the rest.
+ */
+async function imageSource(image: NonNullable<Persona['image']>, agent: AgentEnv): Promise<Source> {
+  const { readImage, IMAGE_INSTRUCTIONS } = await import('@/lib/agent/images');
+  const bytes = new Uint8Array(await readFile(path.join(process.cwd(), 'evals/fixtures', image.file)));
+  const read = await readImage((img) => plain(agent).see(IMAGE_INSTRUCTIONS, img).then((r) => r.text), bytes, image.name);
+  if (!read.ok) throw new Error(`image ${image.file}: ${read.error}`);
+  return { id: randomUUID(), kind: read.kind, name: read.name, url: null, pages: read.pages };
+}
+
 async function interview(persona: Persona, agent: AgentEnv, simulator: AgentEnv, turns: number): Promise<Result> {
   const store = memoryStore(emptySpec());
   const { supabase } = store;
@@ -172,6 +186,7 @@ async function interview(persona: Persona, agent: AgentEnv, simulator: AgentEnv,
   const sources: Source[] = persona.resume
     ? [{ id: randomUUID(), kind: 'resume', name: persona.resume.name, url: null, pages: persona.resume.pages }]
     : [];
+  if (persona.image) sources.push(await imageSource(persona.image, agent));
   const connectors = fakeNotion(persona, sources);
   const log: Turn[] = [];
   let error: string | null = null;
@@ -236,6 +251,7 @@ async function interview(persona: Persona, agent: AgentEnv, simulator: AgentEnv,
   const made = store.rows.filter((r) => r.role === 'assistant').flatMap((r) => adapter.calls(r.items as never));
   return {
     persona: persona.id,
+    imageText: sources.filter((s) => s.kind === 'image').flatMap((s) => s.pages.map((p) => p.text)),
     model: `${agent.provider}:${agent.model}:${agent.effort}`,
     tests: persona.tests,
     turns: log,
@@ -288,6 +304,7 @@ async function grade(result: Result, persona: Persona, judge: AgentEnv): Promise
     'What the person said, message by message:',
     ...result.turns.map((t, i) => `${i + 1}. ${t.user}`),
     ...(persona.resume ? ['', 'Documents they shared:', ...persona.resume.pages.map((p) => p.text)] : []),
+    ...(persona.image ? ['', `They attached an image (${persona.image.name}); the app read it into this text, which lines from it quote:`, ...result.imageText] : []),
     ...(persona.notion
       ? persona.notionConnected === false
         ? ['', `Their Notion is not connected, so the agent cannot read it; it offered a Connect button ${result.tools.offer_connect ?? 0} times (offer_connect). Pages there, for reference:`, ...persona.notion.map((p) => p.text)]

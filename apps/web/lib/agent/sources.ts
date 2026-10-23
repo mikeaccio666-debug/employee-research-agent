@@ -8,8 +8,8 @@ import { CONNECTOR_IDS } from '@/lib/connectors/ids';
 // shown to the model as a <source> block. Lines the agent draws from it must quote it exactly,
 // checked in lib/agent/tools.ts. Everything read here is data, never instructions.
 
-/** Résumés and links they share, and pages read from an app they connected (its id). */
-export const SOURCE_KINDS = ['resume', 'website', ...CONNECTOR_IDS] as const;
+/** Résumés, images and links they share, and pages read from an app they connected (its id). */
+export const SOURCE_KINDS = ['resume', 'image', 'website', ...CONNECTOR_IDS] as const;
 export type SourceKind = (typeof SOURCE_KINDS)[number];
 export type Page = { page: number | null; text: string };
 export type Source = { id: string; kind: SourceKind; name: string; url: string | null; pages: Page[] };

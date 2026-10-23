@@ -79,7 +79,11 @@ const RESUME_TYPES: Record<string, string> = {
   pdf: 'application/pdf',
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 };
-const KIND_LABEL: Partial<Record<Attachment['kind'], string>> = { resume: 'Résumé', website: 'Link', github: 'GitHub', notion: 'Notion' };
+/** Images they can attach: a portfolio slide, a certificate, a screenshot (lib/agent/images.ts). */
+const IMAGE_TYPES: Record<string, string> = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp' };
+const MAX_IMAGE_MB = 5;
+const extOf = (name: string) => name.split('.').pop()?.toLowerCase() ?? '';
+const KIND_LABEL: Partial<Record<Attachment['kind'], string>> = { resume: 'Résumé', image: 'Image', website: 'Link', github: 'GitHub', notion: 'Notion' };
 
 /** Reads server-sent events from a fetch body: `event: x` / `data: {...}` blocks. */
 async function readEvents(body: ReadableStream<Uint8Array>, on: (event: string, data: unknown) => void) {
@@ -187,16 +191,18 @@ export function LiveStudio(props: LiveStudioProps) {
 
   const busy = live !== null;
 
-  /** Sends a message (and a résumé, once uploaded) and plays the agent's answer in as it streams. */
+  /** Sends a message (and a résumé or an image, once uploaded) and plays the agent's answer in as it streams. */
   const send = (text: string, file?: File) => {
     if (busy || !agentReady) return false;
     setError(null);
+    const image = !!file && !!IMAGE_TYPES[extOf(file.name)];
+    const what = image ? 'image' : 'résumé';
     const turn: Live = {
       user: text,
       reply: '',
       receipts: [],
-      attachments: file ? [{ kind: 'resume', name: file.name }] : [],
-      status: file ? 'Uploading your résumé' : null,
+      attachments: file ? [{ kind: image ? 'image' : 'resume', name: file.name }] : [],
+      status: file ? `Uploading your ${what}` : null,
     };
     setLive(turn);
     void (async () => {
@@ -205,7 +211,7 @@ export function LiveStudio(props: LiveStudioProps) {
         let resume: Resume | undefined;
         if (file) {
           resume = await upload(file);
-          turn.status = 'Reading your résumé';
+          turn.status = `Reading your ${what}`;
           setLive({ ...turn });
         }
         const res = await fetch('/api/agent/chat', {
@@ -220,8 +226,9 @@ export function LiveStudio(props: LiveStudioProps) {
         await readEvents(res.body, (event, data) => {
           if (event === 'source.read') {
             const read = data as Attachment;
-            if (read.kind !== 'resume') turn.attachments = [...turn.attachments, read];
-            turn.status = read.kind === 'resume' ? 'Drawing from your résumé' : `Read ${read.name}`;
+            const own = read.kind === 'resume' || read.kind === 'image';
+            if (!own) turn.attachments = [...turn.attachments, read];
+            turn.status = own ? `Drawing from your ${what}` : `Read ${read.name}`;
           } else if (event === 'message.delta') {
             turn.reply += (data as { text: string }).text;
           } else if (event === 'portrait.patch') {
@@ -256,17 +263,21 @@ export function LiveStudio(props: LiveStudioProps) {
   const upload = async (file: File): Promise<Resume> => {
     const supabase = supabaseBrowser();
     if (!supabase) throw new Error('Uploads aren’t set up here.');
-    const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+    const ext = extOf(file.name);
     const path = `${props.ownerId}/${crypto.randomUUID()}.${ext}`;
-    const { error: failed } = await supabase.storage.from('sources').upload(path, file, { contentType: RESUME_TYPES[ext] });
+    const { error: failed } = await supabase.storage.from('sources').upload(path, file, { contentType: RESUME_TYPES[ext] ?? IMAGE_TYPES[ext] });
     if (failed) throw new Error('The upload didn’t go through. Try again.');
     return { path, name: file.name };
   };
 
   const attach = (file: File | undefined) => {
     if (!file) return;
-    const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
-    if (!RESUME_TYPES[ext]) return setError('Attach a PDF or Word (.docx) résumé.');
+    const ext = extOf(file.name);
+    if (IMAGE_TYPES[ext]) {
+      if (file.size > MAX_IMAGE_MB * 1024 * 1024) return setError(`That image is over ${MAX_IMAGE_MB} MB.`);
+      return send('', file);
+    }
+    if (!RESUME_TYPES[ext]) return setError('Attach a PDF or Word (.docx) résumé, or a PNG, JPEG or WebP image.');
     if (file.size > 10 * 1024 * 1024) return setError('That file is over 10 MB.');
     send('', file);
   };
@@ -409,7 +420,7 @@ export function LiveStudio(props: LiveStudioProps) {
             defaultText={landingDraft}
             id="msg"
             context={modelPicker}
-            placeholder="Tell me what you’ve done, attach your résumé, or paste a link — in any language"
+            placeholder="Tell me what you’ve done, attach your résumé or a picture of your work, or paste a link — in any language"
             onSend={(text) => send(text)}
             onAttach={() => picker.current?.click()}
             disabled={busy || !agentReady}
@@ -418,7 +429,7 @@ export function LiveStudio(props: LiveStudioProps) {
           <input
             ref={picker}
             type="file"
-            accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            accept=".pdf,.docx,.png,.jpg,.jpeg,.webp,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg,image/webp"
             className="sr"
             tabIndex={-1}
             aria-hidden

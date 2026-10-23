@@ -35,4 +35,9 @@ export type Adapter = {
   calls(items: Item[]): Call[];
   /** One plain call without tools or history (used to summarize older conversation). Throws on failure. */
   summarize(instructions: string, text: string, signal?: AbortSignal): Promise<{ text: string; log: Step['log'] }>;
+  /** One plain call about one image (used to read an image they shared into text). Throws on failure. */
+  see(instructions: string, image: Image, signal?: AbortSignal): Promise<{ text: string; log: Step['log'] }>;
 };
+
+/** An image as the APIs take it: base64 bytes and their type. */
+export type Image = { mime: 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif'; data: string };

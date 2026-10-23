@@ -1,6 +1,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { UnauthorizedError } from '@modelcontextprotocol/sdk/client/auth.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import type { Image } from '@/lib/agent/providers/types';
 import type { Reached } from './adapters/types';
 import { connectorUrl, type Action, type Connector, type McpReader } from './catalog';
 import type { ConnectionAuth } from './store';
@@ -14,6 +15,7 @@ import type { ConnectionAuth } from './store';
 export type { Reached };
 
 const TIMEOUT_MS = 20_000;
+const IMAGE_MIMES: Image['mime'][] = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
 
 export async function callConnector(c: Connector, auth: ConnectionAuth, action: Action, input: string, signal?: AbortSignal): Promise<Reached> {
   if (!c.reader) return { ok: false, error: `${c.name} can’t be read yet` };
@@ -32,13 +34,17 @@ async function callMcp(c: Connector & { reader: McpReader }, auth: ConnectionAut
     await client.connect(transport, { signal, timeout: TIMEOUT_MS });
     const { tool, args } = c.reader.tools[action];
     const res = await client.callTool({ name: tool, arguments: args(input) }, undefined, { signal, timeout: TIMEOUT_MS });
-    const text = (Array.isArray(res.content) ? res.content : [])
-      .map((b: { type?: string; text?: unknown }) => (b.type === 'text' && typeof b.text === 'string' ? b.text : ''))
+    const blocks = (Array.isArray(res.content) ? res.content : []) as { type?: string; text?: unknown; data?: unknown; mimeType?: unknown }[];
+    const text = blocks
+      .map((b) => (b.type === 'text' && typeof b.text === 'string' ? b.text : ''))
       .filter(Boolean)
       .join('\n\n')
       .trim();
     if (res.isError) return { ok: false, error: `${c.name} said: ${text.slice(0, 300) || 'that didn’t work'}` };
-    return { ok: true, text };
+    const images = blocks
+      .filter((b) => b.type === 'image' && typeof b.data === 'string' && IMAGE_MIMES.includes(b.mimeType as Image['mime']))
+      .map((b) => ({ mime: b.mimeType as Image['mime'], data: b.data as string }));
+    return { ok: true, text, ...(images.length ? { images } : {}) };
   } catch (e) {
     if (e instanceof UnauthorizedError || auth.authorizationUrl) {
       return { ok: false, reconnect: true, error: `${c.name} no longer accepts the sign-in; they need to connect it again in the studio` };

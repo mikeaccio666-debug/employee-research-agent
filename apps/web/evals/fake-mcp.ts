@@ -25,7 +25,10 @@ export type FakeApp = {
 
 const PAGES: Record<string, string> = {
   'page-1': '# Campus Marketplace write-up\nI rebuilt the listings search in March 2025. Search time went from 4 seconds to under 1 second.',
+  'page-2': '# Fold case study\nThe final boards are below.',
 };
+/** A picture in page-2: a PNG's signature is enough for the app to take it as one. */
+export const PAGE_PICTURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]).toString('base64');
 
 export async function fakeApp(): Promise<FakeApp> {
   const clients = new Map<string, { redirect_uris: string[] }>();
@@ -62,7 +65,13 @@ export async function fakeApp(): Promise<FakeApp> {
     server.registerTool('notion-fetch', { inputSchema: { id: z.string() }, annotations: { readOnlyHint: true } }, async ({ id }) => {
       calls.push({ tool: 'notion-fetch', args: { id } });
       const page = PAGES[id];
-      return page ? { content: [{ type: 'text', text: page }] } : { isError: true, content: [{ type: 'text', text: `No page ${id}` }] };
+      if (!page) return { isError: true, content: [{ type: 'text', text: `No page ${id}` }] };
+      return {
+        content: [
+          { type: 'text', text: page },
+          ...(id === 'page-2' ? [{ type: 'image' as const, data: PAGE_PICTURE, mimeType: 'image/png' }] : []),
+        ],
+      };
     });
     server.registerTool('notion-create-pages', { inputSchema: { title: z.string() } }, async ({ title }) => {
       calls.push({ tool: 'notion-create-pages', args: { title } });

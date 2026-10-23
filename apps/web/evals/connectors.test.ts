@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { after, before, describe, it } from 'node:test';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { connectorsFor } from '@/lib/agent/connectors';
+import { imageType, readImage } from '@/lib/agent/images';
 import { plan } from '@/lib/agent/planner';
 import { runTool } from '@/lib/agent/tools';
 import { canConnect } from '@/lib/connectors/catalog';
@@ -13,7 +14,7 @@ import { loadConnection } from '@/lib/connectors/store';
 import type { Source } from '@/lib/agent/sources';
 import { emptySpec } from '@/lib/portrait/spec';
 import { fakeGithub, GITHUB_CLIENT, type FakeGithub } from './fake-github';
-import { fakeApp, type FakeApp } from './fake-mcp';
+import { fakeApp, PAGE_PICTURE, type FakeApp } from './fake-mcp';
 
 // Connected apps (lib/connectors, read_connector): signing in to a stand-in for Notion's MCP
 // server with OAuth, reading through it, refreshing and losing the sign-in, and what the agent's
@@ -317,5 +318,58 @@ describe('disconnecting an MCP app', () => {
     const conn = (await loadConnection(db, OWNER, 'notion'))!;
     await revokeTokens('notion', conn.secret);
     assert.deepEqual(app.revoked.slice(-2), ['refresh_token', 'access_token']);
+  });
+});
+
+describe('images', () => {
+  const PNG = new Uint8Array(Buffer.from(PAGE_PICTURE, 'base64'));
+  const see = async () => 'Text in the image:\nFold · 2nd place, Spring Design Show 2025\n\nWhat it shows:\nA poster with a folding stool.';
+
+  it('reads an image into text once, by its bytes rather than its name', async () => {
+    assert.equal(imageType(PNG), 'image/png');
+    assert.equal(imageType(new Uint8Array(Buffer.from('%PDF-1.7'))), null);
+    const read = await readImage(see, PNG, 'fold.png');
+    assert.ok(read.ok);
+    assert.equal(read.kind, 'image');
+    assert.match(read.pages[0]!.text, /^\[Read from an image by the app/);
+    assert.match(read.pages[0]!.text, /2nd place, Spring Design Show 2025/);
+    const notImage = await readImage(see, new Uint8Array(Buffer.from('hello there, not a picture')), 'notes.png');
+    assert.equal(notImage.ok, false);
+    const failing = await readImage(async () => Promise.reject(new Error('down')), PNG, 'fold.png');
+    assert.equal(failing.ok, false);
+  });
+
+  it('a picture in an app’s page joins the page’s text, and lines can quote it', async () => {
+    const { db } = fakeSupabase();
+    await connect(db);
+    const g = { said: [], sources: [] as Source[], connectors: await connectorsFor(db, OWNER, ORIGIN, [], see) };
+    const read = await runTool('read_connector', JSON.stringify({ connector: 'notion', action: 'fetch', query: 'page-2' }), emptySpec(), g);
+    assert.match(read.output, /\[Picture 1 in the page\]/);
+    const line = await runTool(
+      'upsert_claim',
+      JSON.stringify({
+        id: null,
+        layer: 'experience',
+        kind: 'project',
+        title: 'Fold',
+        org: null,
+        when: '2025',
+        statement: 'Fold won second place at the Spring Design Show',
+        basis: 'stated',
+        quote: 'Fold · 2nd place, Spring Design Show 2025',
+      }),
+      emptySpec(),
+      g,
+    );
+    assert.equal(line.spec.claims[0]?.evidence[0]?.source, 'notion');
+    // Without a model to read pictures, the page is its text alone.
+    const { db: db2 } = fakeSupabase();
+    await connect(db2);
+    const plain = await runTool('read_connector', JSON.stringify({ connector: 'notion', action: 'fetch', query: 'page-2' }), emptySpec(), {
+      said: [],
+      sources: [],
+      connectors: await connectorsFor(db2, OWNER, ORIGIN, []),
+    });
+    assert.doesNotMatch(plain.output, /Picture 1/);
   });
 });

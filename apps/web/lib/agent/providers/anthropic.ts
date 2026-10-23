@@ -39,6 +39,37 @@ const TOOLS: Anthropic.Beta.BetaTool[] = TOOL_DEFS.map((t) => ({
 
 export function anthropicAdapter(env: AgentEnv): Adapter {
   const client = new Anthropic({ apiKey: env.apiKey, baseURL: env.baseURL });
+
+  /** One call without tools or history. */
+  async function once(instructions: string, content: Message['content'], signal?: AbortSignal) {
+    const message = await client.beta.messages.create(
+      {
+        model: env.model,
+        max_tokens: 8000,
+        system: instructions,
+        messages: [{ role: 'user', content }],
+        output_config: { effort: env.effort },
+      },
+      { signal },
+    );
+    const out = message.content
+      .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === 'text')
+      .map((b) => b.text)
+      .join('')
+      .trim();
+    if (!out || message.stop_reason === 'refusal') throw new Error('The answer came back empty');
+    return {
+      text: out,
+      log: {
+        model: message.model,
+        input_tokens: message.usage.input_tokens,
+        output_tokens: message.usage.output_tokens,
+        cached_tokens: message.usage.cache_read_input_tokens ?? null,
+        stop_reason: message.stop_reason ?? 'unknown',
+      },
+    };
+  }
+
   return {
     async step(history, onText, signal) {
       let message: Anthropic.Beta.BetaMessage;
@@ -107,33 +138,9 @@ export function anthropicAdapter(env: AgentEnv): Adapter {
           : [],
       ),
 
-    async summarize(instructions, text, signal) {
-      const message = await client.beta.messages.create(
-        {
-          model: env.model,
-          max_tokens: 8000,
-          system: instructions,
-          messages: [{ role: 'user', content: text }],
-          output_config: { effort: env.effort },
-        },
-        { signal },
-      );
-      const out = message.content
-        .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === 'text')
-        .map((b) => b.text)
-        .join('')
-        .trim();
-      if (!out || message.stop_reason === 'refusal') throw new Error('The summary came back empty');
-      return {
-        text: out,
-        log: {
-          model: message.model,
-          input_tokens: message.usage.input_tokens,
-          output_tokens: message.usage.output_tokens,
-          cached_tokens: message.usage.cache_read_input_tokens ?? null,
-          stop_reason: message.stop_reason ?? 'unknown',
-        },
-      };
-    },
+    summarize: (instructions, text, signal) => once(instructions, text, signal),
+
+    see: (instructions, image, signal) =>
+      once(instructions, [{ type: 'image', source: { type: 'base64', media_type: image.mime, data: image.data } }], signal),
   };
 }

@@ -61,3 +61,15 @@ create policy "app_requests: owner removes" on public.app_requests
 
 revoke all on public.app_requests from anon, authenticated;
 grant select, insert, delete on public.app_requests to authenticated;
+
+-- Images they attach in the studio (a portfolio slide, a certificate, a screenshot) go in the same
+-- private bucket as résumés; the agent reads each one into text once (apps/web/lib/agent/images.ts).
+update storage.buckets
+set allowed_mime_types = array[
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'image/png',
+  'image/jpeg',
+  'image/webp'
+]
+where id = 'sources';

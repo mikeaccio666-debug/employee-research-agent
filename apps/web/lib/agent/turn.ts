@@ -6,6 +6,7 @@ import { openaiAdapter } from './providers/openai';
 import { plan, PLAN_TAG } from './planner';
 import type { ConnectorId } from '@/lib/connectors/catalog';
 import type { Connectors } from './connectors';
+import { IMAGE_INSTRUCTIONS, type See } from './images';
 import type { Adapter, Item } from './providers/types';
 import { append, logCall, saveSpec, type Attachment, type Receipt, type Row } from './store';
 import type { Source, SourceKind } from './sources';
@@ -239,6 +240,23 @@ export async function compactIfLong({
 }
 
 export type { Attachment };
+
+/** Reads images into text with the model in use, logging each call like a turn's (lib/agent/images.ts). */
+export function seer(agent: AgentEnv, supabase: SupabaseClient, conversationId: string): See {
+  const { env, adapter } = using(agent);
+  return async (image) => {
+    const began = Date.now();
+    try {
+      const { text, log } = await adapter.see(IMAGE_INSTRUCTIONS, image);
+      await logCall(supabase, conversationId, { provider: env.provider, ...log, latency_ms: Date.now() - began, error: null });
+      return text;
+    } catch (e) {
+      const error = e instanceof Error ? e.message : String(e);
+      await logCall(supabase, conversationId, { provider: env.provider, model: env.model, latency_ms: Date.now() - began, stop_reason: 'failed', error });
+      throw e;
+    }
+  };
+}
 
 export async function runTurn({
   agent,

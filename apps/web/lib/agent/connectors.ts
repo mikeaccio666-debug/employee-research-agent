@@ -4,6 +4,7 @@ import { callConnector } from '@/lib/connectors/client';
 import { requestApp } from '@/lib/connectors/requests';
 import { canSeal } from '@/lib/connectors/seal';
 import { ConnectionAuth, connectionsOf, loadConnection, saveConnection } from '@/lib/connectors/store';
+import { MAX_IMAGE_BYTES, readImage, type See } from './images';
 import { cap, saveSource, tidy, type Source } from './sources';
 
 // The apps the person connected, as one turn's tools see them (read_connector in tools.ts). A
@@ -43,7 +44,10 @@ const titleOf = (text: string) =>
     .find((l) => l.length >= 2)
     ?.slice(0, 80) ?? null;
 
-export async function connectorsFor(supabase: SupabaseClient, ownerId: string, origin: string, sources: Source[]): Promise<Connectors> {
+/** Pictures in one page read into text, at most this many. */
+const PAGE_IMAGES = 3;
+
+export async function connectorsFor(supabase: SupabaseClient, ownerId: string, origin: string, sources: Source[], see?: See): Promise<Connectors> {
   const request = (name: string) => requestApp(supabase, ownerId, name, 'chat').catch(() => {});
   if (!canSeal()) return { ...NO_CONNECTORS, request };
   const connected = (await connectionsOf(supabase, ownerId)).filter((c) => c.status === 'active' && canConnect(c.provider)).map((c) => c.provider);
@@ -62,8 +66,16 @@ export async function connectorsFor(supabase: SupabaseClient, ownerId: string, o
         if (reached.reconnect) await saveConnection(supabase, ownerId, { provider: id, status: 'pending', state: null, secret: {} }).catch(() => {});
         return reached;
       }
-      const text = tidy(reached.text);
-      if (action === 'search') return { ok: true, text: text.slice(0, SEARCH_CHARS), source: null };
+      if (action === 'search') return { ok: true, text: tidy(reached.text).slice(0, SEARCH_CHARS), source: null };
+      // A page's pictures (a design, a chart) join its text, read once like an image they shared.
+      const pictures: string[] = [];
+      for (const [i, image] of (see ? (reached.images ?? []) : []).slice(0, PAGE_IMAGES).entries()) {
+        const bytes = Buffer.from(image.data, 'base64');
+        if (bytes.length > MAX_IMAGE_BYTES) continue;
+        const read = await readImage(see!, bytes, `picture ${i + 1}`);
+        if (read.ok) pictures.push(`[Picture ${i + 1} in the page]\n${read.pages[0]!.text}`);
+      }
+      const text = tidy([reached.text, ...pictures].join('\n\n'));
       if (text.length < 20) return { ok: false, error: 'that page has no text to read' };
       const url = reached.url ?? (/^https?:\/\//.test(input.trim()) ? input.trim() : null);
       const name = `${CONNECTORS[id].name} · ${titleOf(text) ?? input.slice(0, 60)}`;
