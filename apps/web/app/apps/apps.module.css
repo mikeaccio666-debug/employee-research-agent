@@ -1,0 +1,30 @@
+/* The app store: a card per app, grouped by kind. The left nav comes from AppShell; the grid
+   answers to the page column's width, so it also folds when the agent panel opens. */
+@layer theme, base, components, utilities;
+
+@layer components {
+  .main {
+    container: page / inline-size;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px;
+    margin-top: 10px;
+  }
+  .card {
+    border: 1px solid var(--edge);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .input {
+    flex: 1;
+    min-width: 0;
+    border: 1px solid var(--edge);
+    border-radius: 8px;
+    padding: 6px 10px;
+    background: var(--trim);
+    color: var(--ink);
+    font: inherit;
+  }
+}

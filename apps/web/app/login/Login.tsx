@@ -1,8 +1,10 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useRef, useState, type FormEvent } from 'react';
 import { Button, Grow, LinkButton, TextInput } from '@portrait/ui';
+import { routes } from '@/lib/routes';
 import { supabaseBrowser } from '@/lib/supabase/client';
 
 type Step = 'choose' | 'email' | 'code';
@@ -204,6 +206,17 @@ export function Login({ next, linkFailed, configured }: { next: string; linkFail
       ) : null}
 
       <p className="t-xs c3 mt-1">New here? The same steps make your account. Nothing is public until you publish.</p>
+      <p className="t-xs c3">
+        By continuing you agree to the{' '}
+        <Link href={routes.terms} className="linklike">
+          terms
+        </Link>{' '}
+        and the{' '}
+        <Link href={routes.privacyPolicy} className="linklike">
+          privacy policy
+        </Link>
+        .
+      </p>
     </div>
   );
 }

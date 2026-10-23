@@ -18,6 +18,7 @@ import {
 } from '@portrait/ui';
 import { Workspace } from '@/components/workspace/Workspace';
 import { IdentityLines, SpecSections } from '@/components/portrait/SpecSections';
+import { disconnectApp } from '@/lib/connector-actions';
 import {
   chooseHeadline,
   clearPreference,
@@ -56,7 +57,13 @@ export type LiveStudioProps = {
   agentReady: boolean;
   /** For people allowed to switch the agent's model: the choices and the defaults. */
   models: { choices: ModelChoice[]; current: Provider | null; effort: Effort } | null;
+  /** The apps the agent can read from, and whether each is connected; null where connectors aren't set up. */
+  apps: AppConnection[] | null;
+  /** How the last attempt to connect an app went, when the studio was opened from its sign-in. */
+  appNotice: { app: string; result: string } | null;
 };
+
+export type AppConnection = { id: string; name: string; holds: string; connected: boolean };
 
 /** Which provider, model and thinking level answer. */
 type ModelPick = { provider: Provider; model: string; effort: Effort };
@@ -85,7 +92,11 @@ const RESUME_TYPES: Record<string, string> = {
   pdf: 'application/pdf',
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 };
-const KIND_LABEL: Record<Attachment['kind'], string> = { resume: 'Résumé', website: 'Link', github: 'GitHub' };
+/** Images they can attach: a portfolio slide, a certificate, a screenshot (lib/agent/images.ts). */
+const IMAGE_TYPES: Record<string, string> = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp' };
+const MAX_IMAGE_MB = 5;
+const extOf = (name: string) => name.split('.').pop()?.toLowerCase() ?? '';
+const KIND_LABEL: Partial<Record<Attachment['kind'], string>> = { resume: 'Résumé', image: 'Image', website: 'Link', github: 'GitHub', notion: 'Notion' };
 
 /** Reads server-sent events from a fetch body: `event: x` / `data: {...}` blocks. */
 async function readEvents(body: ReadableStream<Uint8Array>, on: (event: string, data: unknown) => void) {
@@ -138,6 +149,7 @@ export function LiveStudio(props: LiveStudioProps) {
   const [lit, setLit] = useState<string | null>(null);
   const [announce, setAnnounce] = useState('');
   const [saving, startSaving] = useTransition();
+  const [apps, setApps] = useState(props.apps);
   // The line being rewritten in place, and what the box holds.
   const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
   // The version history, loaded when opened and again after each change while it is open.
@@ -196,16 +208,18 @@ export function LiveStudio(props: LiveStudioProps) {
 
   const busy = live !== null;
 
-  /** Sends a message (and a résumé, once uploaded) and plays the agent's answer in as it streams. */
+  /** Sends a message (and a résumé or an image, once uploaded) and plays the agent's answer in as it streams. */
   const send = (text: string, file?: File) => {
     if (busy || !agentReady) return false;
     setError(null);
+    const image = !!file && !!IMAGE_TYPES[extOf(file.name)];
+    const what = image ? 'image' : 'résumé';
     const turn: Live = {
       user: text,
       reply: '',
       receipts: [],
-      attachments: file ? [{ kind: 'resume', name: file.name }] : [],
-      status: file ? 'Uploading your résumé' : null,
+      attachments: file ? [{ kind: image ? 'image' : 'resume', name: file.name }] : [],
+      status: file ? `Uploading your ${what}` : null,
     };
     setLive(turn);
     void (async () => {
@@ -214,7 +228,7 @@ export function LiveStudio(props: LiveStudioProps) {
         let resume: Resume | undefined;
         if (file) {
           resume = await upload(file);
-          turn.status = 'Reading your résumé';
+          turn.status = `Reading your ${what}`;
           setLive({ ...turn });
         }
         const res = await fetch('/api/agent/chat', {
@@ -229,8 +243,9 @@ export function LiveStudio(props: LiveStudioProps) {
         await readEvents(res.body, (event, data) => {
           if (event === 'source.read') {
             const read = data as Attachment;
-            if (read.kind !== 'resume') turn.attachments = [...turn.attachments, read];
-            turn.status = read.kind === 'resume' ? 'Drawing from your résumé' : `Read ${read.name}`;
+            const own = read.kind === 'resume' || read.kind === 'image';
+            if (!own) turn.attachments = [...turn.attachments, read];
+            turn.status = own ? `Drawing from your ${what}` : `Read ${read.name}`;
           } else if (event === 'message.delta') {
             turn.reply += (data as { text: string }).text;
           } else if (event === 'portrait.patch') {
@@ -265,17 +280,21 @@ export function LiveStudio(props: LiveStudioProps) {
   const upload = async (file: File): Promise<Resume> => {
     const supabase = supabaseBrowser();
     if (!supabase) throw new Error('Uploads aren’t set up here.');
-    const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+    const ext = extOf(file.name);
     const path = `${props.ownerId}/${crypto.randomUUID()}.${ext}`;
-    const { error: failed } = await supabase.storage.from('sources').upload(path, file, { contentType: RESUME_TYPES[ext] });
+    const { error: failed } = await supabase.storage.from('sources').upload(path, file, { contentType: RESUME_TYPES[ext] ?? IMAGE_TYPES[ext] });
     if (failed) throw new Error('The upload didn’t go through. Try again.');
     return { path, name: file.name };
   };
 
   const attach = (file: File | undefined) => {
     if (!file) return;
-    const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
-    if (!RESUME_TYPES[ext]) return setError('Attach a PDF or Word (.docx) résumé.');
+    const ext = extOf(file.name);
+    if (IMAGE_TYPES[ext]) {
+      if (file.size > MAX_IMAGE_MB * 1024 * 1024) return setError(`That image is over ${MAX_IMAGE_MB} MB.`);
+      return send('', file);
+    }
+    if (!RESUME_TYPES[ext]) return setError('Attach a PDF or Word (.docx) résumé, or a PNG, JPEG or WebP image.');
     if (file.size > 10 * 1024 * 1024) return setError('That file is over 10 MB.');
     send('', file);
   };
@@ -451,7 +470,7 @@ export function LiveStudio(props: LiveStudioProps) {
             <Shared attachments={m.attachments} />
           </UserMessage>
         ) : (
-          <Turn key={m.id} body={m.body} receipts={m.receipts} />
+          <Turn key={m.id} body={m.body} receipts={m.receipts} apps={apps} />
         ),
       )}
       {live ? (
@@ -460,7 +479,7 @@ export function LiveStudio(props: LiveStudioProps) {
             <Paras text={live.user} />
             <Shared attachments={live.attachments} />
           </UserMessage>
-          {live.reply || live.receipts.length ? <Turn body={live.reply} receipts={live.receipts} /> : null}
+          {live.reply || live.receipts.length ? <Turn body={live.reply} receipts={live.receipts} apps={apps} /> : null}
           <StatusLine>{live.receipts.length ? 'Drawing your portrait' : (live.status ?? 'Thinking')}</StatusLine>
         </>
       ) : null}
@@ -484,7 +503,7 @@ export function LiveStudio(props: LiveStudioProps) {
             defaultText={landingDraft}
             id="msg"
             context={modelPicker}
-            placeholder="Tell me what you’ve done, attach your résumé, or paste a link — in any language"
+            placeholder="Tell me what you’ve done, attach your résumé or a picture of your work, or paste a link — in any language"
             onSend={(text) => send(text)}
             onAttach={() => picker.current?.click()}
             disabled={busy || !agentReady}
@@ -493,7 +512,7 @@ export function LiveStudio(props: LiveStudioProps) {
           <input
             ref={picker}
             type="file"
-            accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            accept=".pdf,.docx,.png,.jpg,.jpeg,.webp,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg,image/webp"
             className="sr"
             tabIndex={-1}
             aria-hidden
@@ -576,6 +595,21 @@ export function LiveStudio(props: LiveStudioProps) {
         onRestore={(id) => answer(() => restoreTo(id), 'Portrait brought back to that version')}
       />
       <ResumeLinks spec={spec} />
+      {apps ? (
+        <ConnectedApps
+          apps={apps}
+          notice={props.appNotice}
+          disabled={saving}
+          onDisconnect={(app) =>
+            startSaving(async () => {
+              const r = await disconnectApp(app.id);
+              if (!r.ok) return setError(r.error);
+              setApps((all) => all?.map((a) => (a.id === app.id ? { ...a, connected: false } : a)) ?? null);
+              setAnnounce(`${app.name} disconnected`);
+            })
+          }
+        />
+      ) : null}
       <SearchPreferences
         preferences={spec.preferences}
         disabled={saving}
@@ -670,6 +704,67 @@ function ResumeLinks({ spec }: { spec: Spec }) {
   );
 }
 
+const APP_NOTICE: Record<string, string> = {
+  connected: 'is connected. Ask the agent to look for something there.',
+  declined: 'wasn’t connected: the sign-in was cancelled.',
+  failed: 'couldn’t be connected. Try again in a moment.',
+  unavailable: 'can’t be connected here yet.',
+};
+
+/**
+ * Apps the agent may read from (lib/connectors): connect one by signing in to it, disconnect to
+ * delete the tokens. The agent only ever reads.
+ */
+function ConnectedApps({
+  apps,
+  notice,
+  disabled,
+  onDisconnect,
+}: {
+  apps: AppConnection[];
+  notice: LiveStudioProps['appNotice'];
+  disabled: boolean;
+  onDisconnect: (app: AppConnection) => void;
+}) {
+  const noted = notice ? apps.find((a) => a.id === notice.app) : null;
+  return (
+    <section className="mt-6 max-w-[520px] px-1" aria-label="Connected apps">
+      <p className="t-xs c2">
+        Connected apps · the agent can search and read them for evidence, never change anything ·{' '}
+        <Link href={routes.apps} className="linklike">
+          All apps
+        </Link>
+      </p>
+      {noted && APP_NOTICE[notice!.result] ? (
+        <p className="t-xs mt-1" role="status">
+          {noted.name} {APP_NOTICE[notice!.result]}
+        </p>
+      ) : null}
+      <ul className="mt-2 flex flex-col gap-2">
+        {apps.map((a) => (
+          <li key={a.id} className="flex items-baseline justify-between gap-3">
+            <div>
+              <p className="t-body">{a.name}</p>
+              <p className="t-xs c2">{a.connected ? 'Connected' : `Lets the agent read ${a.holds}`}</p>
+            </div>
+            {a.connected ? (
+              <Chip size="sm" tone="wall" disabled={disabled} onClick={() => onDisconnect(a)}>
+                Disconnect
+              </Chip>
+            ) : (
+              <form method="post" action={`/api/connectors/${a.id}/start`}>
+                <button type="submit" className={buttonClass()} disabled={disabled}>
+                  Connect
+                </button>
+              </form>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 const PREFERENCE_LABEL: Record<PreferenceField, string> = {
   roles: 'Roles',
   jobTypes: 'Job type',
@@ -716,22 +811,36 @@ function Shared({ attachments }: { attachments?: Attachment[] }) {
     <ul className="mt-1 flex flex-col gap-0.5">
       {attachments.map((a, i) => (
         <li key={i} className="t-xs c2">
-          {KIND_LABEL[a.kind]} · {a.name}
+          {KIND_LABEL[a.kind] ?? a.kind} · {a.name}
         </li>
       ))}
     </ul>
   );
 }
 
-function Turn({ body, receipts }: { body: string; receipts: ReceiptData[] }) {
+function Turn({ body, receipts, apps }: { body: string; receipts: ReceiptData[]; apps: AppConnection[] | null }) {
   return (
     <AgentMessage>
       {body ? <Paras text={body} /> : null}
-      {receipts.map((r, i) => (
-        <Receipt key={i} dashed={r.dashed}>
-          {r.note}
-        </Receipt>
-      ))}
+      {receipts.map((r, i) => {
+        // The agent's offer to connect an app: a button while the app isn't connected yet.
+        if (r.connect) {
+          const app = apps?.find((a) => a.id === r.connect);
+          if (!app || app.connected) return null;
+          return (
+            <form key={i} method="post" action={`/api/connectors/${app.id}/start`} className="mt-2">
+              <button type="submit" className={buttonClass()}>
+                Connect {app.name}
+              </button>
+            </form>
+          );
+        }
+        return (
+          <Receipt key={i} dashed={r.dashed}>
+            {r.note}
+          </Receipt>
+        );
+      })}
     </AgentMessage>
   );
 }

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { appendFile, mkdir, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { agentFor, PROVIDERS, type AgentEnv, type Effort, type Provider } from '@/lib/agent/env';
@@ -7,6 +7,7 @@ import { anthropicAdapter } from '@/lib/agent/providers/anthropic';
 import { openaiAdapter } from '@/lib/agent/providers/openai';
 import type { Adapter } from '@/lib/agent/providers/types';
 import { sourceBlock, type Source } from '@/lib/agent/sources';
+import type { Connectors } from '@/lib/agent/connectors';
 import { append, type Row } from '@/lib/agent/store';
 import { compactIfLong, runTurn, unansweredToolCalls, userItems } from '@/lib/agent/turn';
 import { emptySpec, type Spec } from '@/lib/portrait/spec';
@@ -123,6 +124,8 @@ type Grade = {
 
 type Result = {
   persona: string;
+  /** What the app read from the persona's image, for the judge. */
+  imageText: string[];
   model: string;
   tests?: string;
   turns: Turn[];
@@ -138,6 +141,44 @@ type Result = {
   error: string | null;
 };
 
+/** The persona's connected Notion, served from memory: search matches words in titles and text. */
+function fakeNotion(persona: Persona, sources: Source[]): Connectors | undefined {
+  const pages = persona.notion;
+  if (!pages) return undefined;
+  return {
+    connected: persona.notionConnected === false ? [] : ['notion'],
+    available: persona.notionConnected === false ? ['notion'] : [],
+    request: async () => {},
+    async read(_id, action, input) {
+      const q = input.toLowerCase();
+      if (action === 'search') {
+        const words = q.split(/\W+/).filter((w) => w.length >= 3);
+        const hits = pages.filter((p) => words.some((w) => `${p.title} ${p.text}`.toLowerCase().includes(w)));
+        return { ok: true, text: hits.length ? hits.map((p) => `- ${p.id}: ${p.title}`).join('\n') : 'No results.', source: null };
+      }
+      const page = pages.find((p) => p.id === input || p.title.toLowerCase() === q);
+      if (!page) return { ok: false, error: `Notion said: no page ${input}` };
+      const known = sources.find((s) => s.name === `Notion · ${page.title}`);
+      if (known) return { ok: true, text: page.text, source: known };
+      const source: Source = { id: randomUUID(), kind: 'notion', name: `Notion · ${page.title}`, url: null, pages: [{ page: null, text: page.text }] };
+      sources.push(source);
+      return { ok: true, text: page.text, source };
+    },
+  };
+}
+
+/**
+ * An image the persona attaches, read into text by the model in use as the studio would. Loaded
+ * on demand, so the smoke run's "before" agent (which may predate images) still runs the rest.
+ */
+async function imageSource(image: NonNullable<Persona['image']>, agent: AgentEnv): Promise<Source> {
+  const { readImage, IMAGE_INSTRUCTIONS } = await import('@/lib/agent/images');
+  const bytes = new Uint8Array(await readFile(path.join(process.cwd(), 'evals/fixtures', image.file)));
+  const read = await readImage((img) => plain(agent).see(IMAGE_INSTRUCTIONS, img).then((r) => r.text), bytes, image.name);
+  if (!read.ok) throw new Error(`image ${image.file}: ${read.error}`);
+  return { id: randomUUID(), kind: read.kind, name: read.name, url: null, pages: read.pages };
+}
+
 async function interview(persona: Persona, agent: AgentEnv, simulator: AgentEnv, turns: number): Promise<Result> {
   const store = memoryStore(emptySpec());
   const { supabase } = store;
@@ -145,6 +186,8 @@ async function interview(persona: Persona, agent: AgentEnv, simulator: AgentEnv,
   const sources: Source[] = persona.resume
     ? [{ id: randomUUID(), kind: 'resume', name: persona.resume.name, url: null, pages: persona.resume.pages }]
     : [];
+  if (persona.image) sources.push(await imageSource(persona.image, agent));
+  const connectors = fakeNotion(persona, sources);
   const log: Turn[] = [];
   let error: string | null = null;
 
@@ -168,7 +211,7 @@ async function interview(persona: Persona, agent: AgentEnv, simulator: AgentEnv,
     const unanswered = unansweredToolCalls(before, agent);
     if (unanswered.length) await append(supabase, conversationId, 'tool', unanswered, null);
     const summary = await compactIfLong({ agent, supabase, conversationId, rows: [...store.rows] });
-    await append(supabase, conversationId, 'user', userItems(text, store.spec, [...store.rows], agent, shared, summary, sources), text);
+    await append(supabase, conversationId, 'user', userItems(text, store.spec, [...store.rows], agent, shared, summary, sources, connectors ?? { connected: [], available: [] }), text);
 
     const began = Date.now();
     let reply = '';
@@ -184,6 +227,7 @@ async function interview(persona: Persona, agent: AgentEnv, simulator: AgentEnv,
         rows: [...store.rows],
         sources,
         spec: store.spec,
+        connectors,
         emit: (e) => {
           if (e.event === 'message.delta') {
             firstTextMs ??= Date.now() - began;
@@ -207,6 +251,7 @@ async function interview(persona: Persona, agent: AgentEnv, simulator: AgentEnv,
   const made = store.rows.filter((r) => r.role === 'assistant').flatMap((r) => adapter.calls(r.items as never));
   return {
     persona: persona.id,
+    imageText: sources.filter((s) => s.kind === 'image').flatMap((s) => s.pages.map((p) => p.text)),
     model: `${agent.provider}:${agent.model}:${agent.effort}`,
     tests: persona.tests,
     turns: log,
@@ -259,13 +304,19 @@ async function grade(result: Result, persona: Persona, judge: AgentEnv): Promise
     'What the person said, message by message:',
     ...result.turns.map((t, i) => `${i + 1}. ${t.user}`),
     ...(persona.resume ? ['', 'Documents they shared:', ...persona.resume.pages.map((p) => p.text)] : []),
+    ...(persona.image ? ['', `They attached an image (${persona.image.name}); the app read it into this text, which lines from it quote:`, ...result.imageText] : []),
+    ...(persona.notion
+      ? persona.notionConnected === false
+        ? ['', `Their Notion is not connected, so the agent cannot read it; it offered a Connect button ${result.tools.offer_connect ?? 0} times (offer_connect). Pages there, for reference:`, ...persona.notion.map((p) => p.text)]
+        : ['', `Pages in the Notion they connected (the agent read ${result.tools.read_connector ?? 0} times with read_connector; lines may quote a page it fetched):`, ...persona.notion.map((p) => p.text)]
+      : []),
     '',
     'True facts about them:',
     ...persona.facts.map((f, i) => `${i + 1}. ${f}`),
     '',
     'The portrait:',
     `Headline: ${result.spec.headline?.text ?? 'none'}`,
-    ...lines.map((c) => `- ${c.id} [${c.layer}, ${c.basis}] ${[c.title, c.org, c.when].filter(Boolean).join(' · ')} ${c.statement}`),
+    ...lines.map((c) => `- ${c.id} [${c.layer}, ${c.basis}${persona.notion ? `, from ${[...new Set(c.evidence.map((e) => e.source))].join('+') || 'nothing'}` : ''}] ${[c.title, c.org, c.when].filter(Boolean).join(' · ')} ${c.statement}`),
     '',
     'Search preferences (kept for matching, never shown on the page; they count toward facts but are not lines to grade):',
     ...preferenceLines(result.spec).map((l) => `- ${l}`),
@@ -375,7 +426,7 @@ function summarize(results: Result[]) {
       const bad = g?.lines.filter((l) => l.verdict !== 'supported') ?? [];
       const facts = PERSONAS.find((p) => p.id === r.persona)?.facts ?? [];
       const missed = g?.facts.filter((f) => !f.covered).map((f) => facts[f.n - 1] ?? `#${f.n}`) ?? [];
-      return `| ${r.persona} | ${r.model} | ${g ? pct(g.facts.filter((f) => f.covered).length, g.facts.length) : '–'} | ${g ? `${g.lines.length} (${bad.filter((l) => l.verdict === 'unsupported').length} / ${bad.filter((l) => l.verdict === 'overstated').length})` : '–'} | ${r.refused.length}/${r.toolCalls} | ${r.tests ? `${g?.check ? (g.check.passed ? 'passed' : `FAILED: ${g.check.why}`) : '?'} (${r.tests})` : ''} | ${[r.skills.join(', ') || '–', `${r.tools.note ?? 0} notes`, ...(r.tools.make_resume ? [`${r.tools.make_resume} résumé`] : []), r.spec.headline ? `${1 + r.spec.headline.alternatives.length} headlines` : 'no headline', preferenceLines(r.spec).map((l) => l.split(':')[0]).join(', ') || 'no preferences'].join(' / ')} | ${missed.join('; ').replace(/\|/g, '/')} | ${[r.error, r.judgeError && `judge: ${r.judgeError}`, ...bad.map((l) => `${l.verdict}: ${l.why}`)].filter(Boolean).join('; ').replace(/\|/g, '/').slice(0, 300)} |`;
+      return `| ${r.persona} | ${r.model} | ${g ? pct(g.facts.filter((f) => f.covered).length, g.facts.length) : '–'} | ${g ? `${g.lines.length} (${bad.filter((l) => l.verdict === 'unsupported').length} / ${bad.filter((l) => l.verdict === 'overstated').length})` : '–'} | ${r.refused.length}/${r.toolCalls} | ${r.tests ? `${g?.check ? (g.check.passed ? 'passed' : `FAILED: ${g.check.why}`) : '?'} (${r.tests})` : ''} | ${[r.skills.join(', ') || '–', `${r.tools.note ?? 0} notes`, ...(r.tools.make_resume ? [`${r.tools.make_resume} résumé`] : []), ...(r.tools.read_connector ? [`${r.tools.read_connector} app reads`] : []), ...(r.tools.offer_connect ? [`${r.tools.offer_connect} connect offers`] : []), r.spec.headline ? `${1 + r.spec.headline.alternatives.length} headlines` : 'no headline', preferenceLines(r.spec).map((l) => l.split(':')[0]).join(', ') || 'no preferences'].join(' / ')} | ${missed.join('; ').replace(/\|/g, '/')} | ${[r.error, r.judgeError && `judge: ${r.judgeError}`, ...bad.map((l) => `${l.verdict}: ${l.why}`)].filter(Boolean).join('; ').replace(/\|/g, '/').slice(0, 300)} |`;
     }),
   ];
   return [`## Studio agent evals${args.label ? `: ${args.label}` : ''}`, '', ...table, '', '### By persona', '', ...detail].join('\n');
