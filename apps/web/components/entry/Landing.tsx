@@ -6,7 +6,9 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { BasisMark, DateNote, Ruler, SectionMark, buttonClass, chipClass, cx, withViewTransition } from '@portrait/ui';
 import { AccountLink } from '@/components/account/Account';
 import { PublicHeader } from '@/components/chrome';
+import { anonymousTrial } from '@/lib/auth-options';
 import { landingCopy, landingEvents, landingShots, type Who } from '@/lib/data/entry';
+import { supabaseBrowser } from '@/lib/supabase/client';
 import { routes } from '@/lib/routes';
 import s from '@/app/landing.module.css';
 
@@ -52,6 +54,20 @@ export function Landing() {
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
+    void go();
+  };
+  const go = async () => {
+    // Job seekers can start before making an account: an anonymous sign-in holds their draft until
+    // they save it (lib/auth-options.ts). If that isn't on, the studio asks them to sign in first.
+    const supabase = work && anonymousTrial ? supabaseBrowser() : null;
+    if (supabase) {
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!data.session) await supabase.auth.signInAnonymously();
+      } catch {
+        // Falls through to sign-in as before.
+      }
+    }
     router.push(start);
   };
 
@@ -110,7 +126,15 @@ export function Landing() {
             </button>
           </form>
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <Link href={start} className={chipClass({ size: 'sm', tone: 'wall', className: 'no-underline' })}>
+            <Link
+              href={start}
+              className={chipClass({ size: 'sm', tone: 'wall', className: 'no-underline' })}
+              onClick={(e) => {
+                if (!work || !anonymousTrial) return;
+                e.preventDefault();
+                void go();
+              }}
+            >
               {c.chip}
             </Link>
             <span className="t-xs c2">{c.askHelp}</span>
