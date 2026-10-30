@@ -3,35 +3,57 @@
 import { useRouter } from 'next/navigation';
 import { useRef, useState, type FormEvent } from 'react';
 import { Button, Grow, LinkButton, TextInput } from '@portrait/ui';
+import { authProviders, PROVIDER_LABEL, type Provider } from '@/lib/auth-options';
 import { supabaseBrowser } from '@/lib/supabase/client';
 
 type Step = 'choose' | 'email' | 'code';
 
-/** S04 F5, at full size: Google, or a one-time sign-in link by email. The draft comes along either way. */
-export function Login({ next, linkFailed, configured }: { next: string; linkFailed: boolean; configured: boolean }) {
+type Props = {
+  next: string;
+  linkFailed: boolean;
+  configured: boolean;
+  /** They are on an anonymous sign-in: signing up links to it, so the chat and draft stay. */
+  claiming: boolean;
+  /** The account they picked already exists: signing in to it leaves the anonymous draft behind. */
+  taken: boolean;
+};
+
+const TAKEN = 'That account already has a portrait. You can sign in to it, but this new draft stays behind.';
+
+/**
+ * S04 F5, at full size: Google, GitHub or LinkedIn, or a one-time sign-in link by email. Someone
+ * who started without an account links one to it instead, so their chat and draft carry over.
+ */
+export function Login({ next, linkFailed, configured, claiming: anonymous, taken: takenAtStart }: Props) {
   const router = useRouter();
+  const [taken, setTaken] = useState(takenAtStart);
+  // Linking only makes sense while the account they'd link to is free.
+  const claiming = anonymous && !taken;
   const [step, setStep] = useState<Step>('choose');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [showCode, setShowCode] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(linkFailed ? 'That sign-in link didn’t work or has expired. Try again.' : '');
+  const [error, setError] = useState(
+    takenAtStart ? TAKEN : linkFailed ? 'That sign-in link didn’t work or has expired. Try again.' : '',
+  );
   const emailInput = useRef<HTMLInputElement>(null);
   const codeInput = useRef<HTMLInputElement>(null);
   const sentNote = useRef<HTMLParagraphElement>(null);
 
   const callback = () => `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
 
-  const google = async () => {
+  const oauth = async (provider: Provider) => {
     const supabase = supabaseBrowser();
     if (!supabase) return;
     setBusy(true);
     setError('');
-    const { error: e } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: callback() } });
-    // On success the browser is already on its way to Google.
+    const options = { provider, options: { redirectTo: callback() } };
+    const { error: e } = claiming ? await supabase.auth.linkIdentity(options) : await supabase.auth.signInWithOAuth(options);
+    // On success the browser is already on its way to the provider.
     if (e) {
       setBusy(false);
-      setError('Google sign-in didn’t start. Try again, or use a code by email.');
+      setError(`${PROVIDER_LABEL[provider]} sign-in didn’t start. Try again, or use a link by email.`);
     }
   };
 
@@ -47,11 +69,16 @@ export function Login({ next, linkFailed, configured }: { next: string; linkFail
     }
     setBusy(true);
     setError('');
-    const { error: e } = await supabase.auth.signInWithOtp({
-      email: address,
-      options: { shouldCreateUser: true, emailRedirectTo: callback() },
-    });
+    // Claiming adds the email to the account they're already in; Supabase confirms it by email.
+    const { error: e } = claiming
+      ? await supabase.auth.updateUser({ email: address }, { emailRedirectTo: callback() })
+      : await supabase.auth.signInWithOtp({ email: address, options: { shouldCreateUser: true, emailRedirectTo: callback() } });
     setBusy(false);
+    if (e && claiming && e.code === 'email_exists') {
+      setTaken(true);
+      setError(TAKEN);
+      return;
+    }
     if (e) {
       setError(e.status === 429 ? 'Too many sign-in emails asked for. Wait a minute, then try again.' : 'The email didn’t send. Try again.');
       return;
@@ -72,7 +99,7 @@ export function Login({ next, linkFailed, configured }: { next: string; linkFail
     }
     setBusy(true);
     setError('');
-    const { error: e } = await supabase.auth.verifyOtp({ email: email.trim(), token, type: 'email' });
+    const { error: e } = await supabase.auth.verifyOtp({ email: email.trim(), token, type: claiming ? 'email_change' : 'email' });
     if (e) {
       setBusy(false);
       setError('That code didn’t match, or it has expired. Check it, or send a new one.');
@@ -84,8 +111,10 @@ export function Login({ next, linkFailed, configured }: { next: string; linkFail
 
   return (
     <div className="panel flex flex-col gap-3 px-6 pt-6 pb-5">
-      <h1 className="t-h3">Claim your portrait</h1>
-      <p className="t-s c2">Your chat and draft come with you.</p>
+      <h1 className="t-h3">{anonymous ? 'Save your portrait' : 'Claim your portrait'}</h1>
+      <p className="t-s c2">
+        {claiming ? 'Make an account and keep everything: your chat, draft and résumés stay as they are.' : 'Your chat and draft come with you.'}
+      </p>
 
       {!configured ? (
         <p className="help" role="status">
@@ -95,9 +124,11 @@ export function Login({ next, linkFailed, configured }: { next: string; linkFail
 
       {step !== 'code' ? (
         <>
-          <Button variant="wall" onClick={google} disabled={!configured || busy}>
-            Continue with Google
-          </Button>
+          {authProviders.map((p) => (
+            <Button key={p} variant="wall" onClick={() => oauth(p)} disabled={!configured || busy}>
+              Continue with {PROVIDER_LABEL[p]}
+            </Button>
+          ))}
           {step === 'choose' ? (
             <Button
               variant="quiet"

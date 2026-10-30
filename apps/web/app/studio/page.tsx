@@ -25,7 +25,9 @@ export default async function StudioPage() {
     conversationId ? history(supabase, conversationId) : Promise.resolve([]),
     loadPortrait(supabase, id),
   ]);
-  const visibility = privacyVisibility.find((v) => v.value === account.visibility)?.title ?? 'Hidden';
+  const anonymous = viewer.user.is_anonymous === true;
+  // Nothing of someone who hasn't signed up is visible to anyone, whatever the default says.
+  const visibility = anonymous ? 'Not saved yet' : (privacyVisibility.find((v) => v.value === account.visibility)?.title ?? 'Hidden');
 
   return (
     <LiveStudio
@@ -39,6 +41,7 @@ export default async function StudioPage() {
       published={portrait.published}
       publishedRev={portrait.publishedRev}
       agentReady={agentEnv !== null}
+      anonymous={anonymous}
       models={canSwitchModel(viewer.user.email) ? { choices: modelChoices(), current: agentEnv?.provider ?? null, effort: defaultEffort() } : null}
     />
   );
