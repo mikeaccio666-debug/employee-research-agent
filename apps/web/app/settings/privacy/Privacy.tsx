@@ -7,7 +7,7 @@ import { ShellMain, useShell } from '@/components/shell/AppShell';
 import { HandleField } from '@/components/account/HandleField';
 import { VisibilityOptions } from '@/components/entry/VisibilityOptions';
 import type { Account } from '@/lib/account';
-import { saveVisibility } from '@/lib/account-actions';
+import { deleteAccount, renewAlias, saveFieldLevels, saveVisibility, type FieldLevels } from '@/lib/account-actions';
 import {
   fieldLevelLabels,
   initialFieldLevels,
@@ -68,15 +68,23 @@ function useSectionSpy(initial: SectionId) {
  * visibility saves as it changes and the alias is the person's own; without an account (Supabase
  * not set up) the screen shows the canvas's example.
  */
-export function Privacy({ account }: { account: Account | null }) {
+/** A real account's sensitive fields: what each holds now, and who they chose may see it. */
+export type PrivateFields = { levels: FieldLevels | null; values: Record<keyof FieldLevels, string> };
+
+export function Privacy({ account, fields }: { account: Account | null; fields?: PrivateFields | null }) {
   const { openAgent } = useShell();
   const [vis, setVis] = useState<Visibility>(account?.visibility ?? 'anon');
   const [saveNote, setSaveNote] = useState<{ error: boolean; text: string } | null>(null);
   const [saving, startSaving] = useTransition();
-  const alias = account?.alias ?? 'quiet-otter';
-  const [levels, setLevels] = useState(initialFieldLevels);
+  const [alias, setAlias] = useState(account?.alias ?? 'quiet-otter');
+  const [levels, setLevels] = useState<FieldLevels>(fields?.levels ?? initialFieldLevels);
+  const [fieldNote, setFieldNote] = useState<{ error: boolean; text: string } | null>(null);
+  const [aliasNote, setAliasNote] = useState<{ error: boolean; text: string } | null>(null);
   const [newAlias, setNewAlias] = useState(false);
   const [del, setDel] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
+  const [delNote, setDelNote] = useState<string | null>(null);
+  const rows = account && fields ? sensitiveFields.map((f) => ({ ...f, value: fields.values[f.id] })) : sensitiveFields;
   const [active, pick] = useSectionSpy('vis');
   const newToggle = useRef<HTMLButtonElement>(null);
   const delToggle = useRef<HTMLButtonElement>(null);
@@ -115,6 +123,41 @@ export function Privacy({ account }: { account: Account | null }) {
   const everyone = sensitiveFields.filter((f) => levels[f.id] === 2).map((f) => f.name.toLowerCase());
   const note =
     vis === 'anon' ? privacyPreview.note.anon : vis === 'public' ? privacyPreview.note.public : privacyPreview.note.other;
+
+  const changeLevel = (id: keyof FieldLevels, level: FieldLevel) => {
+    const before = levels;
+    const next = { ...levels, [id]: level };
+    withViewTransition(() => setLevels(next));
+    if (!account) return;
+    setFieldNote(null);
+    startSaving(async () => {
+      const r = await saveFieldLevels(next);
+      if (r.ok) setFieldNote({ error: false, text: 'Saved' });
+      else {
+        setLevels(before);
+        setFieldNote({ error: true, text: r.error });
+      }
+    });
+  };
+
+  const newAliasNow = () => {
+    if (!account) return;
+    setAliasNote(null);
+    startSaving(async () => {
+      const r = await renewAlias();
+      if (r.ok) {
+        setAlias(r.alias);
+        setAliasNote({ error: false, text: `You’re ${r.alias} now.` });
+      } else setAliasNote({ error: true, text: r.error });
+    });
+  };
+
+  const deleteNow = () =>
+    startSaving(async () => {
+      const r = await deleteAccount(confirmText);
+      if (r.ok) window.location.assign('/');
+      else setDelNote(r.error);
+    });
 
   // The alias context is edited by talking to Portrait: open the agent with the cursor in its box.
   const editContext = () => openAgent({ focus: true });
@@ -197,7 +240,7 @@ export function Privacy({ account }: { account: Account | null }) {
           </h2>
           <p className="t-s c2 mt-1.5">“Matching only” means we use it to find fits, and never show it.</p>
           <div className="mt-2.5">
-            {sensitiveFields.map((f) => (
+            {rows.map((f) => (
               <div key={f.id} className={s.frow}>
                 <div>
                   <p className="t-s b">{f.name}</p>
@@ -208,13 +251,16 @@ export function Privacy({ account }: { account: Account | null }) {
                   label={f.name}
                   options={LEVELS}
                   value={String(levels[f.id])}
-                  onChange={(v) =>
-                    withViewTransition(() => setLevels((prev) => ({ ...prev, [f.id]: Number(v) as FieldLevel })))
-                  }
+                  onChange={(v) => changeLevel(f.id, Number(v) as FieldLevel)}
                 />
               </div>
             ))}
           </div>
+          {account ? (
+            <p className={cx('t-xs mt-2', fieldNote?.error ? 'err' : 'c2')} role="status">
+              {fieldNote?.text}
+            </p>
+          ) : null}
         </section>
 
         <section className={cx(s.sec, s.next)} id="alias" aria-labelledby="alias-h">
@@ -251,13 +297,18 @@ export function Privacy({ account }: { account: Account | null }) {
                 the old name.
               </p>
               <div className="ln mt-2.5 flex gap-2">
-                <Button variant="secondary" size="sm">
+                <Button variant="secondary" size="sm" disabled={saving} onClick={newAliasNow}>
                   Get a new alias
                 </Button>
                 <Button variant="quiet" size="sm" onClick={closeNewAlias}>
                   Keep {alias}
                 </Button>
               </div>
+              {aliasNote ? (
+                <p className={cx('ln t-xs mt-2', aliasNote.error ? 'err' : 'c2')} role="status">
+                  {aliasNote.text}
+                </p>
+              ) : null}
             </div>
           </Grow>
         </section>
@@ -269,16 +320,31 @@ export function Privacy({ account }: { account: Account | null }) {
           <div className={s.frow}>
             <div>
               <p className="t-s b">Download everything</p>
-              <p className="t-xs c2">Portrait, chats, sources and history · JSON and PDF</p>
+              <p className="t-xs c2">Portrait, chats, sources and history as JSON · your confirmed lines as a PDF</p>
             </div>
-            <Button variant="secondary" size="sm">
-              Request export
-            </Button>
+            {account ? (
+              <div className="flex flex-wrap gap-2">
+                <a href="/api/export" download className={buttonClass({ variant: 'secondary', size: 'sm' })}>
+                  JSON
+                </a>
+                <a href="/api/resume" download className={buttonClass({ variant: 'secondary', size: 'sm' })}>
+                  PDF
+                </a>
+              </div>
+            ) : (
+              <Button variant="secondary" size="sm">
+                Request export
+              </Button>
+            )}
           </div>
           <div className={s.frow}>
             <div>
               <p className="t-s b">Delete account</p>
-              <p className="t-xs c2">Removes your portrait, alias, chats and search index within 30 days.</p>
+              <p className="t-xs c2">
+                {account
+                  ? 'Removes your portrait, alias, chats, résumés and history right away.'
+                  : 'Removes your portrait, alias, chats and search index within 30 days.'}
+              </p>
             </div>
             <button
               ref={delToggle}
@@ -293,12 +359,40 @@ export function Privacy({ account }: { account: Account | null }) {
           </div>
           <Grow open={del} id="delete-account">
             <div className={s.danger}>
-              <p className="t-s">
-                This can’t be undone after 30 days. Startups you’ve talked to keep the messages you sent them, but not
-                your portrait.
-              </p>
+              {account ? (
+                <>
+                  <p className="t-s">
+                    This deletes everything now and can’t be undone. Download your data first if you want a copy.
+                  </p>
+                  <label className="t-xs c2 mt-2.5 block" htmlFor="confirm-delete">
+                    Type <b>delete</b> to confirm
+                  </label>
+                  <input
+                    id="confirm-delete"
+                    className="inp mt-1 max-w-[240px]"
+                    value={confirmText}
+                    autoComplete="off"
+                    onChange={(e) => setConfirmText(e.target.value)}
+                  />
+                  {delNote ? (
+                    <p className="t-xs err mt-1.5" role="alert">
+                      {delNote}
+                    </p>
+                  ) : null}
+                </>
+              ) : (
+                <p className="t-s">
+                  This can’t be undone after 30 days. Startups you’ve talked to keep the messages you sent them, but not
+                  your portrait.
+                </p>
+              )}
               <div className="mt-2.5 flex gap-2">
-                <Button variant="secondary" size="sm">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={saving || (!!account && confirmText.trim().toLowerCase() !== 'delete')}
+                  onClick={account ? deleteNow : undefined}
+                >
                   Delete my account
                 </Button>
                 <Button variant="quiet" size="sm" onClick={closeDelete}>

@@ -397,12 +397,29 @@ export function LiveStudio(props: LiveStudioProps) {
       </div>
     );
 
+  const [copied, setCopied] = useState(false);
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/@${handle}`);
+      setCopied(true);
+      setAnnounce('Link copied');
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setError('Couldn’t copy. Select the link and copy it instead.');
+    }
+  };
+
   const top = (
     <>
       <span className={s.cap}>
         <span className="t-s">{handle ? `${host}/@${handle}` : 'No link yet'}</span>
         <span className={s.pill}>{visibilityLabel}</span>
       </span>
+      {published && handle ? (
+        <Button variant="quiet" onClick={copyLink}>
+          {copied ? 'Copied' : 'Copy link'}
+        </Button>
+      ) : null}
       <span className="flex-1" />
       <Button variant="quiet" onClick={showHistory}>
         History
