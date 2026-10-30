@@ -38,6 +38,7 @@ import type { Attachment, Receipt as ReceiptData, ThreadMessage } from '@/lib/ag
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { OPENER } from '@/lib/agent/opener';
 import { routes } from '@/lib/routes';
+import { TRIAL_MESSAGES } from '@/lib/auth-options';
 import s from './studio.module.css';
 
 export type LiveStudioProps = {
@@ -54,6 +55,8 @@ export type LiveStudioProps = {
   publishedRev: number | null;
   /** False when the deployment has no model key: the studio says so instead of pretending. */
   agentReady: boolean;
+  /** Started without an account (an anonymous sign-in): they can talk, but saving means signing up. */
+  anonymous?: boolean;
   /** For people allowed to switch the agent's model: the choices and the defaults. */
   models: { choices: ModelChoice[]; current: Provider | null; effort: Effort } | null;
 };
@@ -129,7 +132,7 @@ function Paras({ text, className }: { text: string; className?: string }) {
 
 /** S01 for a real account: the conversation with the agent beside the portrait it draws. */
 export function LiveStudio(props: LiveStudioProps) {
-  const { name, handle, visibilityLabel, published, agentReady } = props;
+  const { name, handle, visibilityLabel, published, agentReady, anonymous = false } = props;
   const [spec, setSpec] = useState(props.spec);
   const [thread, setThread] = useState(props.thread);
   const [publishedRev, setPublishedRev] = useState(props.publishedRev);
@@ -195,10 +198,14 @@ export function LiveStudio(props: LiveStudioProps) {
   }, [thread.length, live?.reply, live?.receipts.length]);
 
   const busy = live !== null;
+  // Before they sign up, the database stops taking their messages after TRIAL_MESSAGES.
+  const sent = thread.filter((m) => m.role === 'user').length;
+  const trialOver = anonymous && sent >= TRIAL_MESSAGES;
+  const saveHref = `${routes.login}?next=${encodeURIComponent(routes.studio)}`;
 
   /** Sends a message (and a résumé, once uploaded) and plays the agent's answer in as it streams. */
   const send = (text: string, file?: File) => {
-    if (busy || !agentReady) return false;
+    if (busy || !agentReady || trialOver) return false;
     setError(null);
     const turn: Live = {
       user: text,
@@ -408,7 +415,11 @@ export function LiveStudio(props: LiveStudioProps) {
       <span className="t-xs c2 whitespace-nowrap">
         {pendingCount ? `${pendingCount} ${pendingCount === 1 ? 'thing' : 'things'} to confirm` : 'All confirmed'}
       </span>
-      {published ? (
+      {anonymous ? (
+        <Link href={saveHref} className={buttonClass()}>
+          Save your portrait
+        </Link>
+      ) : published ? (
         <Button onClick={publishUpdate} disabled={!behind || saving}>
           {behind ? 'Update page' : 'Page is up to date'}
         </Button>
@@ -481,6 +492,17 @@ export function LiveStudio(props: LiveStudioProps) {
           <StatusLine>{live.receipts.length ? 'Drawing your portrait' : (live.status ?? 'Thinking')}</StatusLine>
         </>
       ) : null}
+      {anonymous && sent >= 3 ? (
+        <AgentMessage>
+          <p className="t-s c2">
+            {trialOver
+              ? 'That’s as far as we can go without an account. Save your portrait to keep talking; everything here comes with you.'
+              : 'You haven’t made an account yet, so this only lives in this browser. '}
+            {trialOver ? null : <Link href={saveHref}>Save your portrait</Link>}
+            {trialOver ? null : ' to keep it.'}
+          </p>
+        </AgentMessage>
+      ) : null}
       {!agentReady ? (
         <AgentMessage>
           <p className="t-s c2">The agent isn’t connected on this deployment yet, so I can’t answer here.</p>
@@ -504,7 +526,7 @@ export function LiveStudio(props: LiveStudioProps) {
             placeholder="Tell me what you’ve done, attach your résumé, or paste a link — in any language"
             onSend={(text) => send(text)}
             onAttach={() => picker.current?.click()}
-            disabled={busy || !agentReady}
+            disabled={busy || !agentReady || trialOver}
             error={error}
           />
           <input
