@@ -208,7 +208,7 @@ describe('read_source and load_skill', () => {
   it('gives both providers every tool, in a fixed order', () => {
     assert.deepEqual(
       TOOL_DEFS.map((t) => t.name),
-      ['upsert_claim', 'remove_claim', 'set_headline', 'move_section', 'read_source', 'load_skill', 'note', 'set_preferences', 'make_resume'],
+      ['upsert_claim', 'remove_claim', 'set_headline', 'move_section', 'read_source', 'load_skill', 'note', 'set_preferences', 'make_resume', 'read_connector', 'offer_connect'],
     );
   });
 });

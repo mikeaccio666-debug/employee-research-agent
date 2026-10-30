@@ -29,6 +29,33 @@ const TOOLS = TOOL_DEFS.map((t) => ({
 export function openaiAdapter(env: AgentEnv): Adapter {
   const client = new OpenAI({ apiKey: env.apiKey, baseURL: env.baseURL });
   const reasoning = reasoningModel(env.model);
+
+  /** One call without tools or history. */
+  async function once(instructions: string, input: string | OpenAI.Responses.ResponseInput, signal?: AbortSignal) {
+    const response = await client.responses.create(
+      {
+        model: env.model,
+        instructions,
+        input,
+        store: false,
+        ...(reasoning ? { reasoning: { effort: env.effort } } : {}),
+      },
+      { signal },
+    );
+    const out = response.output_text.trim();
+    if (!out) throw new Error('The answer came back empty');
+    return {
+      text: out,
+      log: {
+        model: response.model ?? env.model,
+        input_tokens: response.usage?.input_tokens ?? null,
+        output_tokens: response.usage?.output_tokens ?? null,
+        cached_tokens: response.usage?.input_tokens_details?.cached_tokens ?? null,
+        stop_reason: response.incomplete_details?.reason ?? response.status ?? 'unknown',
+      },
+    };
+  }
+
   return {
     async step(history, onText, signal, cacheKey) {
       let response: OpenAI.Responses.Response | null = null;
@@ -96,29 +123,13 @@ export function openaiAdapter(env: AgentEnv): Adapter {
         .filter((i) => i.type === 'function_call')
         .map((i) => ({ id: String(i.call_id), name: String(i.name), input: String(i.arguments) })),
 
-    async summarize(instructions, text, signal) {
-      const response = await client.responses.create(
-        {
-          model: env.model,
-          instructions,
-          input: text,
-          store: false,
-          ...(reasoning ? { reasoning: { effort: env.effort } } : {}),
-        },
-        { signal },
-      );
-      const out = response.output_text.trim();
-      if (!out) throw new Error('The summary came back empty');
-      return {
-        text: out,
-        log: {
-          model: response.model ?? env.model,
-          input_tokens: response.usage?.input_tokens ?? null,
-          output_tokens: response.usage?.output_tokens ?? null,
-          cached_tokens: response.usage?.input_tokens_details?.cached_tokens ?? null,
-          stop_reason: response.incomplete_details?.reason ?? response.status ?? 'unknown',
-        },
-      };
-    },
+    summarize: (instructions, text, signal) => once(instructions, text, signal),
+
+    see: (instructions, image, signal) =>
+      once(
+        instructions,
+        [{ role: 'user', content: [{ type: 'input_image', image_url: `data:${image.mime};base64,${image.data}`, detail: 'high' }] }],
+        signal,
+      ),
   };
 }

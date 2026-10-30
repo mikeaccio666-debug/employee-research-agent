@@ -11,13 +11,15 @@ import {
   sourceError,
   type Source,
 } from '@/lib/agent/sources';
+import { connectorsFor } from '@/lib/agent/connectors';
+import { imageType, readImage } from '@/lib/agent/images';
 import { append, conversationFor, history, loadPortrait, sentToday } from '@/lib/agent/store';
-import { compactIfLong, runTurn, unansweredToolCalls, userItems, type Attachment, type TurnEvent } from '@/lib/agent/turn';
+import { compactIfLong, runTurn, seer, unansweredToolCalls, userItems, type Attachment, type TurnEvent } from '@/lib/agent/turn';
 import { supabaseServer } from '@/lib/supabase/server';
 
 // POST /api/agent/chat — one message to the studio agent, answered as a stream of server-sent
 // events (docs/architecture.md §7.2): source.read, source.failed, message.delta, portrait.patch,
-// message.done, error. A message may come with a résumé the browser already uploaded to storage,
+// message.done, error. A message may come with a résumé or an image the browser already uploaded to storage,
 // and any links in it are read too; both reach the model as <source> blocks.
 
 export const dynamic = 'force-dynamic';
@@ -27,7 +29,7 @@ export const maxDuration = 120;
 const Body = z
   .object({
     message: z.string().trim().max(4000).default(''),
-    /** A résumé in the `sources` bucket, under the person's own folder. */
+    /** A résumé or an image in the `sources` bucket, under the person's own folder. */
     resume: z.object({ path: z.string().max(400), name: z.string().trim().min(1).max(200) }).optional(),
     /** A provider, model and thinking level other than the defaults, for people allowed to switch (AGENT_MODEL_SWITCHER). */
     provider: z.enum(PROVIDERS).optional(),
@@ -89,6 +91,7 @@ export async function POST(req: Request) {
         }
       };
       let messageId: number | null = null;
+      const see = seer(agent, supabase, conversationId);
       try {
         // Read what the person shared first, so the model gets it with their message.
         const blocks: string[] = [];
@@ -104,7 +107,9 @@ export async function POST(req: Request) {
         };
         if (resume) {
           const { data: file } = await supabase.storage.from(RESUME_BUCKET).download(resume.path);
-          const read = file ? await readResume(new Uint8Array(await file.arrayBuffer()), resume.name) : null;
+          const bytes = file ? new Uint8Array(await file.arrayBuffer()) : null;
+          // An image is read into text by the model in use; a document by its own reader.
+          const read = !bytes ? null : imageType(bytes) ? await readImage(see, bytes, resume.name) : await readResume(bytes, resume.name);
           if (read?.ok) took(await saveSource(supabase, user.id, read, resume.path));
           else failed(resume.name, read ? read.error.replace(/\.$/, '') : 'the upload didn’t arrive');
         }
@@ -119,14 +124,16 @@ export async function POST(req: Request) {
           loadPortrait(supabase, user.id),
           loadSources(supabase, user.id),
         ]);
+        // The apps they connected; a page the agent reads from one joins `sources`.
+        const connectors = await connectorsFor(supabase, user.id, new URL(req.url).origin, sources, see);
         const unanswered = unansweredToolCalls(before, agent);
         if (unanswered.length) await append(supabase, conversationId, 'tool', unanswered, null);
         // A long conversation's older part is condensed first, so the model reads less each turn.
         const summary = await compactIfLong({ agent, supabase, conversationId, rows: before });
-        const items = userItems(text, portrait.spec, before, agent, { blocks, attachments }, summary, sources);
+        const items = userItems(text, portrait.spec, before, agent, { blocks, attachments }, summary, sources, connectors);
         messageId = await append(supabase, conversationId, 'user', items, text);
         const rows = await history(supabase, conversationId);
-        await runTurn({ agent, supabase, ownerId: user.id, conversationId, rows, sources, spec: portrait.spec, emit });
+        await runTurn({ agent, supabase, ownerId: user.id, conversationId, rows, sources, spec: portrait.spec, connectors, emit });
       } catch (e) {
         console.error('agent turn failed', { messageId, error: e instanceof Error ? e.message : e });
         emit({

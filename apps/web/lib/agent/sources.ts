@@ -1,13 +1,15 @@
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { CONNECTOR_IDS } from '@/lib/connectors/ids';
 
 // What the person hands the agent besides their words (docs/agent-design.md §3): a résumé they
 // upload, or a link they paste. Each is read to plain text, page by page, kept in `sources`, and
 // shown to the model as a <source> block. Lines the agent draws from it must quote it exactly,
 // checked in lib/agent/tools.ts. Everything read here is data, never instructions.
 
-export const SOURCE_KINDS = ['resume', 'website', 'github'] as const;
+/** Résumés, images and links they share, and pages read from an app they connected (its id). */
+export const SOURCE_KINDS = ['resume', 'image', 'website', ...CONNECTOR_IDS] as const;
 export type SourceKind = (typeof SOURCE_KINDS)[number];
 export type Page = { page: number | null; text: string };
 export type Source = { id: string; kind: SourceKind; name: string; url: string | null; pages: Page[] };
@@ -19,9 +21,9 @@ const MAX_PAGES = 10;
 const MAX_CHARS = 40_000;
 const MAX_LINKS = 3;
 
-type Read = { ok: true; kind: SourceKind; name: string; url: string | null; pages: Page[] } | { ok: false; error: string };
+export type Read = { ok: true; kind: SourceKind; name: string; url: string | null; pages: Page[] } | { ok: false; error: string };
 
-const tidy = (s: string) =>
+export const tidy = (s: string) =>
   s
     .replace(/\r/g, '')
     .replace(/[ \t\f\v]+/g, ' ')
@@ -30,7 +32,7 @@ const tidy = (s: string) =>
     .trim();
 
 /** Keeps the whole text under MAX_CHARS, cutting from the last pages first. */
-function cap(pages: Page[]): Page[] {
+export function cap(pages: Page[]): Page[] {
   let left = MAX_CHARS;
   return pages
     .map((p) => {
