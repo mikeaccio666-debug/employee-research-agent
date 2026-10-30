@@ -88,3 +88,50 @@ export async function setPublished(published: boolean, visibility?: Visibility):
   refreshPortraits();
   return { ok: true };
 }
+
+export type FieldLevels = Record<'wa' | 'pay' | 'ct', 0 | 1 | 2>;
+const FIELDS = ['wa', 'pay', 'ct'] as const;
+
+/** Who may see each sensitive field (PRIV-02). Read by matching and connections, never by the page. */
+export async function saveFieldLevels(levels: FieldLevels): Promise<Result> {
+  const clean = Object.fromEntries(FIELDS.map((f) => [f, levels[f]]));
+  if (!FIELDS.every((f) => [0, 1, 2].includes(levels[f]))) return { ok: false, error: FAILED };
+  const session = await signedIn();
+  if (!session) return { ok: false, error: NOT_SIGNED_IN };
+  const { error } = await session.supabase.from('profiles').update({ field_levels: clean }).eq('id', session.user.id);
+  return error ? { ok: false, error: FAILED } : { ok: true };
+}
+
+/** A fresh random alias (PRIV-05). The database draws it, so it can't come from the person's name. */
+export async function renewAlias(): Promise<Result<{ alias: string }>> {
+  const session = await signedIn();
+  if (!session) return { ok: false, error: NOT_SIGNED_IN };
+  const { data, error } = await session.supabase.rpc('renew_alias');
+  if (error || typeof data !== 'string') return { ok: false, error: FAILED };
+  return { ok: true, alias: data };
+}
+
+/**
+ * Deletes the account now (PRIV-06): their résumé files first, through Storage, then the sign-in,
+ * which takes the profile, portrait, history, chats and sources with it. They are signed out after.
+ */
+export async function deleteAccount(confirm: string): Promise<Result> {
+  if (confirm.trim().toLowerCase() !== 'delete') return { ok: false, error: 'Type delete to confirm.' };
+  const session = await signedIn();
+  if (!session) return { ok: false, error: NOT_SIGNED_IN };
+  const { supabase, user } = session;
+  const folder = user.id;
+  for (;;) {
+    const { data: files, error } = await supabase.storage.from('sources').list(folder, { limit: 100 });
+    if (error) return { ok: false, error: FAILED };
+    if (!files?.length) break;
+    const { error: removeError } = await supabase.storage.from('sources').remove(files.map((f) => `${folder}/${f.name}`));
+    if (removeError) return { ok: false, error: FAILED };
+    if (files.length < 100) break;
+  }
+  const { error } = await supabase.rpc('delete_my_account');
+  if (error) return { ok: false, error: FAILED };
+  await supabase.auth.signOut();
+  refreshPortraits();
+  return { ok: true };
+}

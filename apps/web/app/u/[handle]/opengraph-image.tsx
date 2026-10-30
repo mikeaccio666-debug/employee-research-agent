@@ -2,6 +2,9 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ImageResponse } from 'next/og';
 import { shareCards } from '@/lib/data/portraits';
+import { HANDLE_PATTERN } from '@/lib/account';
+import { shareLine } from '@/lib/portrait/share';
+import { getPublicPortrait, type PublicPortrait } from '@/lib/supabase/public';
 
 // The named share card (V2-S02-Share-Cards, card 1) as the portrait's Open Graph image.
 // The renderer knows neither oklch nor CSS variables, so the 晨 light tokens are written in hex,
@@ -21,11 +24,22 @@ const C = {
   photo: '#98c1c4', // color-mix(in oklch, --me 30%, --wall-2)
 };
 
-export function generateImageMetadata({ params }: { params: { handle: string } }) {
-  // Only the named card is drawn for a portrait; other handles get no image.
-  if (params.handle !== 'lin') return [];
-  const { name, line } = shareCards.named;
-  return [{ id: 'card', alt: `${name} — ${line}`, size, contentType }];
+async function lookup(raw: string) {
+  const handle = decodeURIComponent(raw).toLowerCase();
+  return HANDLE_PATTERN.test(handle) ? getPublicPortrait(handle) : null;
+}
+
+export async function generateImageMetadata({ params }: { params: { handle: string } | Promise<{ handle: string }> }) {
+  const { handle } = await params;
+  if (handle === 'lin') {
+    const { name, line } = shareCards.named;
+    return [{ id: 'card', alt: `${name} — ${line}`, size, contentType }];
+  }
+  // A real portrait gets a card once it is published and public; anything else gets none.
+  const portrait = await lookup(handle);
+  if (!portrait) return [];
+  const { name, line } = shareLine(portrait);
+  return [{ id: 'card', alt: line ? `${name} — ${line}` : name, size, contentType }];
 }
 
 const fontFile = (pkg: string, file: string) => readFile(join(process.cwd(), 'node_modules', '@fontsource', pkg, 'files', file));
@@ -87,7 +101,11 @@ function TallyMark({ n }: { n: 2 | 3 }) {
 }
 
 export default async function Image({ params }: { params: Promise<{ handle: string }>; id: Promise<string> }) {
-  await params;
+  const { handle } = await params;
+  if (handle !== 'lin') {
+    const portrait = await lookup(handle);
+    return portrait ? namedCard(portrait) : new Response('Not found', { status: 404 });
+  }
   const card = shareCards.named;
   const [regular, medium, bold, heavy, hand] = await Promise.all([
     fontFile('atkinson-hyperlegible-next', 'atkinson-hyperlegible-next-latin-400-normal.woff'),
@@ -239,6 +257,69 @@ export default async function Image({ params }: { params: Promise<{ handle: stri
         { name: 'Atkinson Hyperlegible Next', data: bold, weight: 700, style: 'normal' },
         { name: 'Atkinson Hyperlegible Next', data: heavy, weight: 800, style: 'normal' },
         { name: 'Shantell Sans', data: hand, weight: 500, style: 'normal' },
+      ],
+    },
+  );
+}
+
+/**
+ * A real person's card (PRD 7.3: name and one line, set in type, nothing else). Chinese and other
+ * scripts Atkinson lacks fall back to Noto Sans SC, the same file résumé PDFs embed.
+ */
+async function namedCard(portrait: PublicPortrait) {
+  const { name, line } = shareLine(portrait);
+  const [bold, heavy, cjk] = await Promise.all([
+    fontFile('atkinson-hyperlegible-next', 'atkinson-hyperlegible-next-latin-700-normal.woff'),
+    fontFile('atkinson-hyperlegible-next', 'atkinson-hyperlegible-next-latin-800-normal.woff'),
+    readFile(join(process.cwd(), 'lib', 'resume', 'fonts', 'noto-sans-sc-400.woff')),
+  ]);
+  // Long names step down so they stay on one or two lines.
+  const nameSize = name.length > 22 ? 84 : name.length > 14 ? 112 : 150;
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          width: 1200,
+          height: 630,
+          display: 'flex',
+          position: 'relative',
+          background: C.wall,
+          color: C.ink,
+          fontFamily: 'Atkinson Hyperlegible Next, Noto Sans SC',
+        }}
+      >
+        <Ruler />
+        <div style={{ position: 'absolute', left: 112, top: 48, fontSize: 24, lineHeight: 1.6, fontWeight: 800, letterSpacing: -0.48 }}>
+          Portrait
+        </div>
+        <div style={{ position: 'absolute', right: 64, top: 55, fontSize: 18, lineHeight: 1.6, fontWeight: 700, color: C.ink2 }}>
+          {`@${portrait.handle}`}
+        </div>
+        <div
+          style={{
+            position: 'absolute',
+            left: 112,
+            top: 150,
+            width: 1020,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 40,
+          }}
+        >
+          <div style={{ fontSize: nameSize, lineHeight: 0.95, fontWeight: 800, letterSpacing: -nameSize * 0.045 }}>{name}</div>
+          {line ? <div style={{ width: 900, fontSize: 40, lineHeight: 1.2, fontWeight: 700, color: C.ink }}>{line}</div> : null}
+        </div>
+        <div style={{ position: 'absolute', left: 112, bottom: 48, fontSize: 19, fontWeight: 700, color: C.ink3 }}>
+          Drawn with Portrait
+        </div>
+      </div>
+    ),
+    {
+      ...size,
+      fonts: [
+        { name: 'Atkinson Hyperlegible Next', data: bold, weight: 700, style: 'normal' },
+        { name: 'Atkinson Hyperlegible Next', data: heavy, weight: 800, style: 'normal' },
+        { name: 'Noto Sans SC', data: cjk, weight: 400, style: 'normal' },
       ],
     },
   );
