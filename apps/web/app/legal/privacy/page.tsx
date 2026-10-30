@@ -67,15 +67,15 @@ export default function PrivacyPolicyPage() {
 
       <Section title="Keeping and removing it">
         <p>
-          We keep your information while you have an account. You can unpublish your page, remove lines and disconnect apps at any time.
+          We keep your information while you have an account. You can unpublish your page, remove lines and disconnect apps at any time,
+          download everything we hold about you, and delete your account in Settings, which removes your portrait, conversation, documents and
+          connected apps for good.
           {email ? (
             <>
               {' '}
-              To delete your account and everything in it, write to <a href={`mailto:${email}`}>{email}</a>.
+              Questions: <a href={`mailto:${email}`}>{email}</a>.
             </>
-          ) : (
-            ' To delete your account and everything in it, ask us and we will do it.'
-          )}
+          ) : null}
         </p>
       </Section>
 
