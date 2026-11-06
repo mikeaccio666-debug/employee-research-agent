@@ -28,7 +28,7 @@ updates:
       minor-and-patch:
         update-types: [minor, patch]
     ignore:
-      # Types for the Node.js we run on (22, see ci.yml and Vercel): move with the runtime.
+      # Types for the Node.js we run on (`engines` in package.json): move with the runtime.
       - dependency-name: '@types/node'
         update-types: ['version-update:semver-major']
 
