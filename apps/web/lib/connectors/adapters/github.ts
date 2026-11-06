@@ -1,4 +1,5 @@
 import type { Adapter, Reached } from './types';
+import { reportError } from '@/lib/observability/report';
 
 // GitHub through its REST API, signed in with our OAuth app (CONNECTOR_CLIENT_ID_GITHUB and
 // CONNECTOR_CLIENT_SECRET_GITHUB). No scopes are asked for, so the token reads only what anyone
@@ -130,7 +131,7 @@ export const github: Adapter = {
     } catch (e) {
       if (e instanceof Status && e.status === 401) return { ok: false, reconnect: true, error: 'GitHub no longer accepts the sign-in; they need to connect it again in the studio' };
       if (e instanceof Status && e.status === 404) return { ok: false, error: 'GitHub said: no such repository, or it isn’t public' };
-      console.error('github read failed', { action, error: e instanceof Error ? e.message : e });
+      reportError('github read failed', e, { action });
       return { ok: false, error: 'GitHub didn’t answer' };
     }
   },

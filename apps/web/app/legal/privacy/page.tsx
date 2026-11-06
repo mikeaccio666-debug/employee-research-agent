@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: 'Privacy policy' };
 export default function PrivacyPolicyPage() {
   const email = contact();
   return (
-    <LegalPage title="Privacy policy" updated="October 21, 2026">
+    <LegalPage title="Privacy policy" updated="November 6, 2026">
       <p>
         Portrait helps you build a page about your work from what you have actually done, and lets you choose who sees it. This page says what we
         keep, why, who else handles it, and how to remove it.
@@ -56,8 +56,9 @@ export default function PrivacyPolicyPage() {
 
       <Section title="Who else handles it">
         <p>
-          Supabase (our database, sign-in and file storage), Vercel (hosting), and the AI providers above, each only to run the service. Startups and
-          other people see what your page’s visibility allows, nothing more.
+          Supabase (our database, sign-in and file storage), Vercel (hosting), Sentry (error reports: what broke and where, never what you
+          wrote or uploaded), and the AI providers above, each only to run the service. Startups and other people see what your page’s
+          visibility allows, nothing more.
         </p>
       </Section>
 

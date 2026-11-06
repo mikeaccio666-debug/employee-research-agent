@@ -5,6 +5,7 @@ import type { Image } from '@/lib/agent/providers/types';
 import type { Reached } from './adapters/types';
 import { connectorUrl, type Action, type Connector, type McpReader } from './catalog';
 import type { ConnectionAuth } from './store';
+import { reportError } from '@/lib/observability/report';
 
 // One read from a connected app. Over MCP: connect with the person's tokens (refreshed by the SDK
 // when they have expired), call the one allow-listed tool for the action, and hand back its text.
@@ -49,7 +50,7 @@ async function callMcp(c: Connector & { reader: McpReader }, auth: ConnectionAut
     if (e instanceof UnauthorizedError || auth.authorizationUrl) {
       return { ok: false, reconnect: true, error: `${c.name} no longer accepts the sign-in; they need to connect it again in the studio` };
     }
-    console.error('connector call failed', { connector: c.id, action, error: e instanceof Error ? e.message : e });
+    reportError('connector call failed', e, { connector: c.id, action });
     return { ok: false, error: `${c.name} didn’t answer` };
   } finally {
     await client.close().catch(() => {});

@@ -21,6 +21,7 @@ import type { Connectors } from './connectors';
 import { fillerIn, unclaimedLevel, unquotedNumbers, workAuthIn } from './guards';
 import { SKILLS, skillNamed } from './skills';
 import { sourceBlock, type Source } from './sources';
+import { reportError } from '@/lib/observability/report';
 
 // The studio agent's tools (docs/agent-design.md §11.2, §11.6), in one registry: each tool has its
 // definition as the model reads it, how risky it is, a schema its arguments are checked against,
@@ -301,7 +302,7 @@ async function critique(options: HeadlineOption[], spec: Spec, ask: Ask): Promis
     for (const v of json.verdicts ?? []) if (v.ok === false && options[v.n - 1]) failed.set(v.n - 1, v.why || 'too generic or unsupported');
   } catch (e) {
     // A critic that fails or answers badly lets the checked headlines through rather than blocking them.
-    console.error('headline critic failed', { error: e instanceof Error ? e.message : e });
+    reportError('headline critic failed', e);
   }
   return failed;
 }
@@ -746,7 +747,7 @@ export async function runTool(name: string, rawArgs: string, spec: Spec, grounds
     return await t.run(parsed.data, { spec, grounds, at: now.toISOString(), ask });
   } catch (e) {
     // A tool that fails (a network lookup, a bug) costs the turn nothing but that call.
-    console.error('agent tool failed', { tool: name, error: e instanceof Error ? e.message : e });
+    reportError('agent tool failed', e, { tool: name });
     return refuse(spec, 'the tool failed on our side. Carry on without it.');
   }
 }

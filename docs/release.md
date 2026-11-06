@@ -19,6 +19,13 @@
 
 拿不准就往高里算。
 
+## 出错时去哪看
+
+- **Sentry**（填了 `NEXT_PUBLIC_SENTRY_DSN` 之后才工作）：服务器上没接住的错误、浏览器里把页面弄坏的错误，以及我们接住了但需要知道的错误（agent 回合失败、工具失败、连接的应用出错，都走 `lib/observability/report.ts` 的 `reportError`）。新问题会发邮件。只记录哪里坏了，不记录用户写的内容、上传的文件、cookie、网址参数和请求内容，设置在 `lib/observability/sentry-options.ts`。
+- **错误页上的 Reference 号码**就是服务器日志和 Sentry 里的 digest。用户报问题时，请他们把这个号码发过来。
+- **Vercel Logs**：每个请求的日志，按路径筛，比如 `/api/agent/chat`。
+- **`model_calls` 表**：每次 AI 调用的模型、token、耗时和错误。
+
 ## 出问题怎么退回去
 
 先止血，再找原因。按生效速度从快到慢：

@@ -3,6 +3,7 @@ import { canSeal } from '@/lib/connectors/seal';
 import { startSignIn } from '@/lib/connectors/signin';
 import { routes } from '@/lib/routes';
 import { supabaseServer } from '@/lib/supabase/server';
+import { reportError } from '@/lib/observability/report';
 
 // POST /api/connectors/<id>/start — from a "Connect" button (the studio, the chat, the app store)
 // to the app's sign-in page. A POST, so another site can't start one in the person's name (session
@@ -31,7 +32,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ provide
       headers: { Location: to.toString(), 'Set-Cookie': `${BACK_COOKIE}=${from}; Path=/api/connectors; Max-Age=900; HttpOnly; SameSite=Lax${secure}` },
     });
   } catch (e) {
-    console.error('connector sign-in failed to start', { provider, error: e instanceof Error ? e.message : e });
+    reportError('connector sign-in failed to start', e, { provider });
     return back('failed');
   }
 }

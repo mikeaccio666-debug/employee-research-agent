@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import { withSentryConfig } from '@sentry/nextjs/config';
 
 const nextConfig: NextConfig = {
   // The design system ships as TypeScript source.
@@ -18,4 +19,15 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Error reports (see lib/observability/sentry-options.ts). With SENTRY_AUTH_TOKEN, SENTRY_ORG and
+// SENTRY_PROJECT set, the build uploads source maps so stack traces in Sentry point at our code, then
+// deletes the browser ones so they aren't served. Without them, nothing is uploaded.
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  sourcemaps: { disable: !process.env.SENTRY_AUTH_TOKEN },
+  widenClientFileUpload: true,
+  silent: !process.env.CI,
+  telemetry: false,
+});
