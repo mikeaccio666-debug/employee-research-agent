@@ -8,7 +8,7 @@ agent 随时能聊，陪求职者持续更新简历、规划成长。找到工�
 
 ## 运行
 
-需要 Node 22 和 pnpm 10。
+需要 Node 24 和 pnpm 10（版本以根目录 `package.json` 的 `engines` 为准，Vercel 和 CI 都按它来）。
 
 ```bash
 pnpm install
