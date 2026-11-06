@@ -40,9 +40,9 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -66,11 +66,11 @@ jobs:
             echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
       - if: steps.key.outputs.skip != 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - if: steps.key.outputs.skip != 'true'
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v5
       - if: steps.key.outputs.skip != 'true'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -88,7 +88,7 @@ jobs:
         name: Smoke evals on this pull request's agent
         run: pnpm --filter @portrait/web eval --set smoke --turns 8 --out evals/out/after --label "after (this pull request)"
       - if: steps.key.outputs.skip != 'true' && always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: agent-evals-smoke
           path: apps/web/evals/out/
@@ -102,9 +102,9 @@ jobs:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       EVAL_PRICES: ${{ vars.EVAL_PRICES }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -114,7 +114,7 @@ jobs:
           --models "${{ inputs.models }}" --set "${{ inputs.set }}"
           --turns "${{ inputs.turns }}" --effort "${{ inputs.effort }}"
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: agent-evals
           path: apps/web/evals/out/
