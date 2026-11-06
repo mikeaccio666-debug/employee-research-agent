@@ -320,7 +320,7 @@ export function Privacy({ account, fields }: { account: Account | null; fields?:
           <div className={s.frow}>
             <div>
               <p className="t-s b">Download everything</p>
-              <p className="t-xs c2">Portrait, chats, sources and history as JSON · your confirmed lines as a PDF</p>
+              <p className="t-xs c2">Portrait, chats, sources, history and connected apps as JSON · your confirmed lines as a PDF</p>
             </div>
             {account ? (
               <div className="flex flex-wrap gap-2">
@@ -342,7 +342,7 @@ export function Privacy({ account, fields }: { account: Account | null; fields?:
               <p className="t-s b">Delete account</p>
               <p className="t-xs c2">
                 {account
-                  ? 'Removes your portrait, alias, chats, résumés and history right away.'
+                  ? 'Removes your portrait, alias, chats, résumés, history and connected apps right away.'
                   : 'Removes your portrait, alias, chats and search index within 30 days.'}
               </p>
             </div>
