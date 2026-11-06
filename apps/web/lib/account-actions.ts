@@ -3,6 +3,9 @@
 import { revalidatePath } from 'next/cache';
 import type { Visibility } from '@/lib/data/entry';
 import { handleProblem, normalizeHandle, toDbVisibility } from '@/lib/account';
+import { isConnectorId } from '@/lib/connectors/catalog';
+import { revokeTokens } from '@/lib/connectors/revoke';
+import { connectionsOf, loadConnection } from '@/lib/connectors/store';
 import { supabaseServer } from '@/lib/supabase/server';
 import { loadPortrait } from '@/lib/agent/store';
 import { publishedSpec } from '@/lib/portrait/spec';
@@ -112,14 +115,21 @@ export async function renewAlias(): Promise<Result<{ alias: string }>> {
 }
 
 /**
- * Deletes the account now (PRIV-06): their résumé files first, through Storage, then the sign-in,
- * which takes the profile, portrait, history, chats and sources with it. They are signed out after.
+ * Deletes the account now (PRIV-06): connected apps are asked to forget their tokens, résumé
+ * files go through Storage, then the sign-in, which takes the profile, portrait, history, chats,
+ * sources and connections with it. They are signed out after.
  */
 export async function deleteAccount(confirm: string): Promise<Result> {
   if (confirm.trim().toLowerCase() !== 'delete') return { ok: false, error: 'Type delete to confirm.' };
   const session = await signedIn();
   if (!session) return { ok: false, error: NOT_SIGNED_IN };
   const { supabase, user } = session;
+  // Like disconnecting each app (lib/connector-actions.ts): best effort, the rows go regardless.
+  for (const { provider } of await connectionsOf(supabase, user.id)) {
+    if (!isConnectorId(provider)) continue;
+    const conn = await loadConnection(supabase, user.id, provider).catch(() => null);
+    if (conn) await revokeTokens(provider, conn.secret);
+  }
   const folder = user.id;
   for (;;) {
     const { data: files, error } = await supabase.storage.from('sources').list(folder, { limit: 100 });

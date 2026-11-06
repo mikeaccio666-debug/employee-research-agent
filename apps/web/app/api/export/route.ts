@@ -14,13 +14,15 @@ export async function GET() {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: { message: 'Sign in first.' } }, { status: 401 });
 
-  const [profile, portrait, versions, conversations, sources] = await Promise.all([
+  const [profile, portrait, versions, conversations, sources, connections] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
     supabase.from('portraits').select('spec, published_spec, status, published_at, created_at, updated_at').eq('owner_id', user.id).maybeSingle(),
     // Missing before the version-history migration runs; the export goes on without it.
     supabase.from('portrait_versions').select('rev, made_by, spec, created_at').order('id'),
     supabase.from('conversations').select('id, purpose, created_at').eq('owner_id', user.id),
     supabase.from('sources').select('kind, name, url, pages, created_at').eq('owner_id', user.id).order('created_at'),
+    // Which apps are connected; never the sealed tokens.
+    supabase.from('connections').select('provider, status, created_at').eq('owner_id', user.id).order('created_at'),
   ]);
   const ids = (conversations.data ?? []).map((c) => c.id as string);
   const messages = ids.length
@@ -39,6 +41,7 @@ export async function GET() {
       messages: (messages.data ?? []).filter((m) => m.conversation_id === c.id).map(({ conversation_id: _, ...m }) => m),
     })),
     sources: sources.data ?? [],
+    connected_apps: connections.data ?? [],
   };
   const day = body.exported_at.slice(0, 10);
   return new NextResponse(JSON.stringify(body, null, 2), {
