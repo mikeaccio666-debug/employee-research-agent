@@ -6,6 +6,7 @@
     "dev": "pnpm --filter @portrait/web dev",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
+    "test": "pnpm --filter @portrait/web test",
     "start": "pnpm --filter @portrait/web start"
   },
   "devDependencies": {

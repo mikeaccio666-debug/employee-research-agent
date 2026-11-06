@@ -15,6 +15,7 @@ pnpm install
 pnpm dev        # http://localhost:3000，打开 /design 看所有页面的目录
 pnpm build
 pnpm typecheck
+pnpm test       # 单元测试；每个 PR 的 CI 都会跑类型检查、测试和构建
 ```
 
 | 目录 | 内容 |
@@ -32,6 +33,7 @@ pnpm typecheck
 | [docs/agent-design.md](docs/agent-design.md) | Agent 如何理解一个求职者：画像模型、证据机制、访谈策略、独特性合成、Page Spec、匿名化、企业端 agent、匹配引擎、求职陪伴、内推网络（核验、包装、评价）、评测 | 产品、AI 工程 |
 | [docs/design-brief.md](docs/design-brief.md) | 交给 Claude Design 的设计简报（视觉方向、屏幕清单、组件、提示词）和 Impeccable 设计把关流程 | 设计、前端 |
 | [docs/architecture.md](docs/architecture.md) | MVP 技术栈（Vercel + Supabase + Claude）、数据模型、接口协议、规模化演进路线、成本模型 | 工程 |
+| [docs/release.md](docs/release.md) | 发布与回退：PR 检查、风险等级、出问题时怎么回滚、数据库迁移规则 | 工程 |
 
 ## 设计把关
 

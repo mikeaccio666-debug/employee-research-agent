@@ -1,0 +1,35 @@
+# Dependency update pull requests. Minor and patch updates come grouped into one pull
+# request a month per ecosystem; major updates come one per pull request, because they
+# are the ones that break things. Security fixes are separate: once "Dependabot security
+# updates" is on in the repository settings, they open right away, whatever this says.
+# Every one of these pull requests runs CI and gets a Vercel preview like any other.
+
+version: 2
+updates:
+  - package-ecosystem: npm
+    directories:
+      - /
+      - /apps/web
+      - /packages/ui
+    schedule:
+      interval: monthly
+      time: '06:00'
+      timezone: America/Los_Angeles
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: deps
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+      time: '06:00'
+      timezone: America/Los_Angeles
+    commit-message:
+      prefix: ci
+    groups:
+      actions:
+        patterns: ['*']
