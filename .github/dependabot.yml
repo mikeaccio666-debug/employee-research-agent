@@ -3,24 +3,34 @@
 # are the ones that break things. Security fixes are separate: once "Dependabot security
 # updates" is on in the repository settings, they open right away, whatever this says.
 # Every one of these pull requests runs CI and gets a Vercel preview like any other.
+#
+# A new release waits before Dependabot offers it (the cooldown), so a bad or hijacked
+# release has time to be caught and pulled first. Security updates don't wait.
 
 version: 2
 updates:
+  # The pnpm workspace root covers every package in it (apps/web, packages/ui). Listing
+  # those folders as well opens the same update once per folder.
   - package-ecosystem: npm
-    directories:
-      - /
-      - /apps/web
-      - /packages/ui
+    directory: /
     schedule:
       interval: monthly
       time: '06:00'
       timezone: America/Los_Angeles
     open-pull-requests-limit: 5
+    cooldown:
+      semver-major-days: 14
+      semver-minor-days: 7
+      semver-patch-days: 3
     commit-message:
       prefix: deps
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+    ignore:
+      # Types for the Node.js we run on (22, see ci.yml and Vercel): move with the runtime.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: github-actions
     directory: /
@@ -28,6 +38,8 @@ updates:
       interval: monthly
       time: '06:00'
       timezone: America/Los_Angeles
+    cooldown:
+      default-days: 7
     commit-message:
       prefix: ci
     groups:
