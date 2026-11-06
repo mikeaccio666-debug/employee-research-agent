@@ -12,7 +12,7 @@
     "eval:dry": "tsx evals/dry-run.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "0.136.0",
+    "@anthropic-ai/sdk": "1.1.0",
     "@fontsource/atkinson-hyperlegible-next": "5.3.0",
     "@fontsource/noto-sans-sc": "5.3.1",
     "@fontsource/shantell-sans": "5.3.0",
