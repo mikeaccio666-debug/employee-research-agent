@@ -39,7 +39,9 @@ export default async function StudioPage({ searchParams }: { searchParams: Promi
       }))
     : null;
   const appNotice = typeof query.connector === 'string' && typeof query.result === 'string' ? { app: query.connector, result: query.result } : null;
-  const visibility = privacyVisibility.find((v) => v.value === account.visibility)?.title ?? 'Hidden';
+  const anonymous = viewer.user.is_anonymous === true;
+  // Nothing of someone who hasn't signed up is visible to anyone, whatever the default says.
+  const visibility = anonymous ? 'Not saved yet' : (privacyVisibility.find((v) => v.value === account.visibility)?.title ?? 'Hidden');
 
   return (
     <LiveStudio
@@ -55,6 +57,7 @@ export default async function StudioPage({ searchParams }: { searchParams: Promi
       agentReady={agentEnv !== null}
       apps={apps}
       appNotice={appNotice}
+      anonymous={anonymous}
       models={canSwitchModel(viewer.user.email) ? { choices: modelChoices(), current: agentEnv?.provider ?? null, effort: defaultEffort() } : null}
     />
   );
