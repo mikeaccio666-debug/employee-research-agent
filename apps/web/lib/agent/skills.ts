@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { reportError } from '@/lib/observability/report';
 
 // Skills: playbooks the studio agent loads only when a conversation calls for one (docs/
 // agent-design.md §11.6). The instructions list each skill by name and one line; the agent calls
@@ -52,7 +53,7 @@ function load(): Skill[] {
       });
   } catch (e) {
     // A broken or missing skill folder shouldn't take the studio down; the agent works without.
-    console.error('agent skills failed to load', { dir: SKILLS_DIR, error: e instanceof Error ? e.message : e });
+    reportError('agent skills failed to load', e, { dir: SKILLS_DIR });
     return [];
   }
 }

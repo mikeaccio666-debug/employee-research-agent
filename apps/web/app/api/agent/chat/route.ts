@@ -16,6 +16,7 @@ import { imageType, readImage } from '@/lib/agent/images';
 import { append, conversationFor, history, loadPortrait, sentToday } from '@/lib/agent/store';
 import { compactIfLong, runTurn, seer, unansweredToolCalls, userItems, type Attachment, type TurnEvent } from '@/lib/agent/turn';
 import { supabaseServer } from '@/lib/supabase/server';
+import { reportError } from '@/lib/observability/report';
 
 // POST /api/agent/chat — one message to the studio agent, answered as a stream of server-sent
 // events (docs/architecture.md §7.2): source.read, source.failed, message.delta, portrait.patch,
@@ -135,7 +136,7 @@ export async function POST(req: Request) {
         const rows = await history(supabase, conversationId);
         await runTurn({ agent, supabase, ownerId: user.id, conversationId, rows, sources, spec: portrait.spec, connectors, emit });
       } catch (e) {
-        console.error('agent turn failed', { messageId, error: e instanceof Error ? e.message : e });
+        reportError('agent turn failed', e, { messageId });
         emit({
           event: 'error',
           data: {

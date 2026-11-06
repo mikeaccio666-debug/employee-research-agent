@@ -3,6 +3,7 @@ import { canSeal } from '@/lib/connectors/seal';
 import { finishSignIn } from '@/lib/connectors/signin';
 import { routes } from '@/lib/routes';
 import { supabaseServer } from '@/lib/supabase/server';
+import { reportError } from '@/lib/observability/report';
 
 // GET /api/connectors/<id>/callback — where the app sends the person back after they sign in
 // (or decline), and on to the page they connected from.
@@ -24,7 +25,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ provider
   try {
     return back((await finishSignIn(supabase, user.id, provider, url.origin, { code, state })) ? 'connected' : 'failed');
   } catch (e) {
-    console.error('connector sign-in failed to finish', { provider, error: e instanceof Error ? e.message : e });
+    reportError('connector sign-in failed to finish', e, { provider });
     return back('failed');
   }
 }

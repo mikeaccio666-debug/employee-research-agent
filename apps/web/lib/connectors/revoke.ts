@@ -1,6 +1,7 @@
 import { discoverAuthorizationServerMetadata, discoverOAuthProtectedResourceMetadata } from '@modelcontextprotocol/sdk/client/auth.js';
 import { CONNECTORS, connectorUrl, registeredClient, type ConnectorId } from './catalog';
 import type { Secret } from './store';
+import { reportError } from '@/lib/observability/report';
 
 // When they disconnect an app, the app is told to forget the tokens too (RFC 7009 token
 // revocation for an MCP app that offers it, the adapter's own call for an API app), so a copy of
@@ -39,6 +40,6 @@ export async function revokeTokens(id: ConnectorId, secret: Secret): Promise<voi
       await timed(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
     }
   } catch (e) {
-    console.error('connector token revocation failed', { connector: id, error: e instanceof Error ? e.message : e });
+    reportError('connector token revocation failed', e, { connector: id });
   }
 }
