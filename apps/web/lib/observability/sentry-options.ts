@@ -9,6 +9,12 @@
 // sent: no request or response bodies, cookies, query strings (OAuth callbacks carry codes there),
 // AI or MCP inputs and outputs, database query values, or local variables in stack frames.
 // Sentry v11 collects most of these by default, so each one is turned off here explicitly.
+//
+// Error messages and breadcrumbs can carry text too, so before anything is sent: quoted text in
+// error messages is replaced (JSON.parse, for one, quotes the input it failed on), console output
+// isn't kept as breadcrumbs, and query strings come off breadcrumb URLs. Errors we catch ourselves
+// go through lib/observability/report.ts, which doesn't send their message at all.
+import type { Breadcrumb, ErrorEvent } from '@sentry/nextjs';
 
 const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN || undefined;
 const traces = Number(process.env.NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE);
@@ -30,4 +36,27 @@ export const sentryOptions = {
     queues: false,
     stackFrameVariables: false,
   },
+  beforeSend(event: ErrorEvent) {
+    if (event.message) event.message = scrubText(event.message);
+    for (const ex of event.exception?.values ?? []) if (ex.value) ex.value = scrubText(ex.value);
+    return event;
+  },
+  beforeBreadcrumb(crumb: Breadcrumb) {
+    if (crumb.category === 'console') return null;
+    if (crumb.message) crumb.message = stripQuery(crumb.message);
+    if (crumb.data && typeof crumb.data.url === 'string') crumb.data = { ...crumb.data, url: stripQuery(crumb.data.url) };
+    return crumb;
+  },
 };
+
+/** Quoted text in a message ("...", '...', `...`, “...”) may be someone's words; the rest is ours. */
+export function scrubText(text: string) {
+  return text
+    .replace(/(["'`])(?:(?!\1)[^\n])+\1/g, '[Filtered]')
+    .replace(/[“‘][^”’\n]+[”’]/g, '[Filtered]')
+    .slice(0, 500);
+}
+
+function stripQuery(text: string) {
+  return text.replace(/\?[^\s#]*/g, '');
+}
