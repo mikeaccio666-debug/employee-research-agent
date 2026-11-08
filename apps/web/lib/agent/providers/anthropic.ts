@@ -41,7 +41,7 @@ export function anthropicAdapter(env: AgentEnv): Adapter {
   const client = new Anthropic({ apiKey: env.apiKey, baseURL: env.baseURL });
 
   /** One call without tools or history. */
-  async function once(instructions: string, content: Message['content'], signal?: AbortSignal) {
+  async function once(instructions: string, content: Anthropic.Beta.BetaMessageContentParam, signal?: AbortSignal) {
     const message = await client.beta.messages.create(
       {
         model: env.model,
