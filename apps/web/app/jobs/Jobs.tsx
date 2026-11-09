@@ -145,10 +145,22 @@ export function Jobs({
   };
 
   const unsave = (jobId: string) => {
+    const savedBefore = saved;
+    const cardsBefore = cards;
     setSaved((all) => all.filter((x) => x.jobId !== jobId));
     mark(jobId, null);
+    setError('');
     setStatus('Removed from saved');
-    if (signedIn) start(async () => void (await undoJobAction(jobId)));
+    if (!signedIn) return;
+    start(async () => {
+      const r = await undoJobAction(jobId);
+      if (!r.ok) {
+        setSaved(savedBefore);
+        setCards(cardsBefore);
+        setStatus('');
+        setError(r.error);
+      }
+    });
   };
 
   return (

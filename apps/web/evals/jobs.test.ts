@@ -117,6 +117,11 @@ describe('job recommendations', () => {
     for (const i of r.items) assert.match(i.job.title, /manag/i, `${i.job.title} is a manager role`);
   });
 
+  it('meets "Engineering" in a title with an "engineer" role', () => {
+    const r = recommend(spec([], { roles: ['software engineer'], jobTypes: ['internship'] }), jobs, [], { now });
+    assert.ok(r.items.some((i) => /software engineering intern/i.test(i.job.title)), r.items.map((i) => i.job.title).join(' | '));
+  });
+
   it('warns when a posting says it will not sponsor', () => {
     const bill = jobs.filter((j) => /not eligible for visa sponsorship/i.test(j.description));
     assert.ok(bill.length > 0, 'the sample holds this wording');

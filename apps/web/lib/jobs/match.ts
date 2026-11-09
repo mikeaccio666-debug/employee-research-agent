@@ -56,7 +56,11 @@ const SHORT = new Set(['sql', 'aws', 'gcp', 'api', 'ios', 'go', 'ai', 'ml', 'ux'
 const words = (s: string) => s.toLowerCase().match(/[a-z0-9][a-z0-9+#.]*[a-z0-9+#]|[a-z0-9]/g) ?? [];
 const meaningful = (w: string) => !STOP.has(w) && !/^\d+$/.test(w) && (w.length >= 3 || SHORT.has(w));
 /** "engineers" and "engineering" meet "engineer"; "analytics" meets "analytic". Enough for titles. */
-const stem = (w: string) => w.replace(/(ing|ers|er|s)$/, '') || w;
+// Plural, then -ing, then -er, in turn, so all of engineer, engineers and engineering end at "engine".
+const stem = (w: string) => {
+  const x = w.replace(/s$/, '').replace(/ing$/, '').replace(/er$/, '');
+  return x.length >= 3 ? x : w;
+};
 
 /** Single words and two-word phrases, as found in a text. */
 function terms(text: string): Set<string> {
