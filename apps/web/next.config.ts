@@ -1,7 +1,20 @@
 import type { NextConfig } from 'next';
 import { withSentryConfig } from '@sentry/nextjs/config';
 
+// Preview deployments use a separate test Supabase project, or none (lib/supabase/env.ts).
+const deployment = process.env.VERCEL_ENV ?? '';
+if (deployment === 'preview') {
+  console.log(
+    process.env.NEXT_PUBLIC_SUPABASE_PREVIEW_URL && process.env.NEXT_PUBLIC_SUPABASE_PREVIEW_PUBLISHABLE_KEY
+      ? `Preview build: Supabase is the test project at ${process.env.NEXT_PUBLIC_SUPABASE_PREVIEW_URL}`
+      : 'Preview build: no NEXT_PUBLIC_SUPABASE_PREVIEW_URL / _PUBLISHABLE_KEY, so this preview runs on the example data, without sign-in',
+  );
+}
+
 const nextConfig: NextConfig = {
+  // Written into the server and browser code at build time: production, preview, development, or
+  // empty off Vercel. Vercel sets VERCEL_ENV during the build.
+  env: { DEPLOY_ENV: deployment },
   // The design system ships as TypeScript source.
   transpilePackages: ['@portrait/ui'],
   // The dev badge sits on top of bottom-left UI (composer Attach) in reviews.

@@ -14,6 +14,7 @@ import '@fontsource/noto-sans-sc/500.css';
 import '@fontsource/noto-sans-sc/700.css';
 import 'lxgw-wenkai-webfont/lxgwwenkai-regular.css';
 import './globals.css';
+import { PreviewBadge } from '@/components/preview-badge';
 
 export const metadata: Metadata = {
   title: { default: 'Portrait', template: '%s · Portrait' },
@@ -34,7 +35,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     // Light by default; system.css switches the tokens to 夜 when the system is in dark mode.
     <html lang="en">
       {/* .pv sits on <body>, not <html>, so rem stays 16px as on the canvas. */}
-      <body className="pv">{children}</body>
+      <body className="pv">
+        {children}
+        <PreviewBadge />
+      </body>
     </html>
   );
 }

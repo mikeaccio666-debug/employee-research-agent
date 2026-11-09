@@ -33,13 +33,40 @@ everything still runs and `/login` says sign-in is not set up. To switch it on:
    redirect URI `https://YOUR-PROJECT-REF.supabase.co/auth/v1/callback`; paste its client ID and
    secret into Authentication → Sign In / Providers → Google.
 4. **URLs.** Authentication → URL Configuration: Site URL = the production URL; Redirect URLs =
-   `https://YOUR-DOMAIN/auth/callback`, `https://*-YOUR-VERCEL-TEAM.vercel.app/auth/callback`
-   (previews) and `http://localhost:3000/auth/callback`.
+   `https://YOUR-DOMAIN/auth/callback` and `http://localhost:3000/auth/callback`.
 5. **Vercel.** Add the two `NEXT_PUBLIC_…` variables to the project and redeploy (they are read at
    build time).
 
 `proxy.ts` refreshes the session on each request; `/auth/callback` turns Google's or the email
 link's one-time code into the session; `/auth/signout` (POST) ends it.
+
+### Previews: a separate test project
+
+Vercel builds every pull request as a preview. Previews never use the production pair above, even
+when it is shared with every environment: they read `NEXT_PUBLIC_SUPABASE_PREVIEW_URL` and
+`NEXT_PUBLIC_SUPABASE_PREVIEW_PUBLISHABLE_KEY` instead (`lib/supabase/env.ts`), and without them
+run on the example data with sign-in off. If the production address ends up there by mistake,
+the preview refuses it, as long as previews can also see the production pair. A tag at the top
+of every preview page says which it is, and the build log says the same.
+
+To give previews their own database:
+
+1. **Project.** Create a second Supabase project for tests. Only test accounts go in it.
+2. **Schema.** Run the same `supabase/migrations/*.sql` in it, in order. From then on every new
+   migration runs here first, then on production (`docs/release.md`).
+3. **Sign-in.** Email code as in step 2 above. Google can reuse the production OAuth client: add
+   `https://TEST-PROJECT-REF.supabase.co/auth/v1/callback` to its redirect URIs, and paste the same
+   client ID and secret into the test project. Turn on here whatever else production uses: the
+   other buttons in `NEXT_PUBLIC_AUTH_PROVIDERS`, and for `NEXT_PUBLIC_ANONYMOUS_TRIAL`, "Allow
+   anonymous sign-ins" and "Allow manual linking".
+4. **URLs.** Site URL = `http://localhost:3000`; Redirect URLs =
+   `https://*-YOUR-VERCEL-TEAM.vercel.app/**` (every preview) and `http://localhost:3000/**`.
+5. **Vercel.** Settings → Environment Variables: add the two `NEXT_PUBLIC_SUPABASE_PREVIEW_…`
+   variables with the test project's URL and publishable key, for the Preview environment only.
+   Leave the production pair as it is. Previews built after that use the test project.
+
+Connecting GitHub (the /apps page) works only on the production address, since its OAuth app has
+one callback URL.
 
 ### Accounts in the screens
 
