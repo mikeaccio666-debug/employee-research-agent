@@ -120,7 +120,7 @@ export const boardGroups: BoardGroup[] = [
       { k: 'S17', t: '成长计划', d: '完成一项，证据行跟着变（中文对话）', href: routes.grow },
       { k: 'S18', t: '在职者主页', d: '请求原地展开 · 内推记录', href: routes.insider },
       { k: 'S18', t: '解锁在职者', d: '4 帧分镜', href: routes.insiderUnlock },
-      { k: 'S19', t: '内推订阅', d: '核验进度画成刻度', href: routes.referrals },
+      { k: 'S19', t: '内推（免费）', d: '核验进度画成刻度', href: routes.referrals },
       { k: 'S19', t: '内推包', d: '逐行确认后入池', href: routes.packet },
       { k: 'S20', t: '双向评价', d: '用计数线打分，不用星星', href: routes.review },
       { k: 'S20', t: '评分与争议', d: '被标记的行 · 申诉', href: routes.ratings },

@@ -1,4 +1,4 @@
-/* V2-S19-Referral: the referral subscription. Verification progress is drawn as
+/* V2-S19-Referral: referrals (free). Verification progress is drawn as
    tick marks on a ruler (the ladder). The left nav comes from AppShell. The columns
    answer to the page column's width, so they also fold when the agent panel opens. */
 @layer theme, base, components, utilities;
