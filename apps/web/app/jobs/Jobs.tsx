@@ -122,6 +122,7 @@ export function Jobs({
   const act = (c: JobCard, action: JobAction, reason: DismissReason | null, done: string) => {
     setError('');
     const before = cards;
+    const savedBefore = saved;
     if (action === 'dismissed') {
       setCards((all) => all.filter((x) => (reason === 'company' ? x.company !== c.company : x.id !== c.id)));
       setSaved((all) => all.filter((x) => x.jobId !== c.id));
@@ -136,6 +137,7 @@ export function Jobs({
       const r = await actOnJob(c.id, action, reason);
       if (!r.ok) {
         setCards(before);
+        setSaved(savedBefore);
         setError(r.error);
         setStatus('');
       }
