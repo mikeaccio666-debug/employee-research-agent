@@ -20,7 +20,7 @@
 - **是什么**：一个会"采访"人的 AI。学生和它聊天，它把这个人画成一页独一无二、每句话都有出处的个人画像（`{domain}/@handle`）。Startup 用自然语言描述想要的人，agent 找到并解释为什么推荐，双方通过聊天和 coffee chat 连接。还有可匿名发布的动态广场，以及 startup 定期办的线上活动。
 - **给谁用**：北美的大学生和应届生（含国际学生）；早期 startup 的创始人和招聘负责人。
 - **agent 随时能聊**：任何页面都能唤起它，它记得用户，还能陪求职者持续更新简历、给出成长建议。
-- **找到工作之后**：用户可以解锁"在职者"身份，约 coffee chat、做 networking、给内推。想要内推的求职者可以订阅，经过核验和包装后被推荐给在职者。Coffee chat 之后有类似 Google Maps 的评价。
+- **找到工作之后**：用户可以解锁"在职者"身份，约 coffee chat、做 networking、给内推。想要内推的求职者可以免费加入内推池，经过核验和包装后被推荐给在职者和导师；内推永远不能花钱买（PRD 7.15）。Coffee chat 之后有类似 Google Maps 的评价。
 - **将来（P2）**：agent 会通过 MCP 接入外部工具、使用技能，并和别的 agent 对话协作。
 - **最重要的三个界面**：① 画像工作室（左对话、右实时画像）；② 个人画像页；③ 企业端的匹配结果（印样）。
 - **语言**：界面英文为主，支持简体中文；所有关键页面都要验证中英文两种排版。
@@ -329,9 +329,9 @@
 - 解锁流程：agent 在对话里祝贺 → 公司邮箱验证 → 填写在职者资料 → 选择是否开通"在职者推荐"。
 - 在职者主页 `/insider`：本周推荐的求职者（复用印样的帧，附诚信分）、我的 coffee chat 时段与容量、内推记录（已约 / 已聊 / 已内推 / 结果）。
 
-#### S19 内推订阅：核验与内推包（桌面 + 移动）
+#### S19 内推：核验与内推包（免费，桌面 + 移动）
 
-- 订阅说明：写清楚买到的是什么（核验、包装、推荐），以及不承诺内推。
+- 说明：写清楚这是免费的，内容是核验、包装、推荐；任何人都不能花钱买内推，也不承诺内推（PRD 7.15，2026-11-09 取消了内推订阅）。
 - 核验进度：一份清单，每项显示状态（已验证 / 核验中 / 待补材料），点开可以上传或授权。
 - 内推包预览：针对岗位的简历、推荐语、3 条最强证据；每句话都有脚注出处；逐条确认后入池。
 
@@ -387,7 +387,7 @@
 | 页面上下文 | Looking at: Alex · Frontend intern match | 正在看：Alex · 前端实习匹配 |
 | 成长建议来源 | Platform data · 37 companies · last 90 days | 平台数据 · 37 家公司 · 最近 90 天 |
 | 解锁在职者 | Landed a job? Congrats. Verify with your work email to unlock Insider. | 拿到工作了？恭喜！用公司邮箱验证一下，就能解锁在职者身份。 |
-| 内推订阅说明 | You're paying for verification, packaging and introductions — not for a referral. Referrals are always the insider's call. | 订阅购买的是核验、包装和推荐服务，不是内推本身；是否内推始终由在职者决定。 |
+| 内推说明 | It's free: we verify your claims, package your evidence and introduce you to insiders. Nobody can pay for a referral here, and referrals are always the insider's call. | 这是免费的：我们核验你的说法、包装你的证据，再介绍给在职者。这里谁都不能花钱买内推，是否内推始终由在职者决定。 |
 | 评价提示 | How did your coffee chat with Alex go? | 和 Alex 的 coffee chat 怎么样？ |
 | 属实度 | Did Alex's portrait match the person you met? | Alex 的画像和你见到的本人一致吗？ |
 | 评价在职者 | How was your coffee chat with Jordan? | 和 Jordan 的 coffee chat 怎么样？ |
@@ -497,7 +497,7 @@
 ```
 
 ```text
-[S17–S20 新功能] 按 design-brief.md §7 的 S17–S20 依次做：求职陪伴（成长建议、成长计划、简历生成）、在职者的解锁流程与主页、内推订阅的核验进度与内推包、coffee chat 之后的评价表单与评分展示。
+[S17–S20 新功能] 按 design-brief.md §7 的 S17–S20 依次做：求职陪伴（成长建议、成长计划、简历生成）、在职者的解锁流程与主页、内推的核验进度与内推包（免费）、coffee chat 之后的评价表单与评分展示。
 评分参考 Google Maps 的信息结构（平均分 + 评价数 + 分布条），但用本系统的排版语言：等宽数字、细线分布条，不要外卖平台那种黄色星星。
 ```
 
@@ -524,7 +524,7 @@
 4. 每个页面单独一个画板，标题写编号（如"S1 画像工作室"）；再做一个目录页，可以点进每个页面。
 5. 按这个顺序做（没写移动端的先只做桌面 1440）：
    - P0：S1 画像工作室（桌面 + 移动）→ S1b 常驻 agent 面板 → S2 个人画像页（三套主题，桌面 + 移动）→ S3 落地页 → S4 诞生时刻分镜 → S5 Brief 工作室 → S6 印样 → S7 候选人详情 → S8 收件箱与 coffee chat → S9 动态广场 → S10 活动 → S11 公司画像页 → S12 隐私与可见性设置 → S13 价格页 → S14 状态合集 → S15 首次发布前的可见性选择
-   - P1：S17 求职陪伴 → S18 在职者 → S19 内推订阅 → S20 双向评价
+   - P1：S17 求职陪伴 → S18 在职者 → S19 内推（免费） → S20 双向评价
 6. 全部做完后列一个清单：哪些页面做了简化，哪些地方需要我来决定。
 ```
 

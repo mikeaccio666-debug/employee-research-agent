@@ -82,7 +82,7 @@ export function Packet() {
             <span className="c2">
               ·{' '}
               <Link href={routes.referrals} className={s.crumb}>
-                Referral subscription
+                Referrals
               </Link>{' '}
               › Packet
             </span>

@@ -5,25 +5,25 @@ import { talentNav } from '@/lib/nav';
 import { Verification } from './Verification';
 import s from './referrals.module.css';
 
-export const metadata: Metadata = { title: 'Referral subscription' };
+export const metadata: Metadata = { title: 'Referrals' };
 
-/** S19 · the referral subscription (Alex): what it is, what it isn't, and how verification is going. */
+/** S19 · referrals (Alex): free; what joining the pool gets you, what it doesn't, and how verification is going. */
 export default function ReferralsPage() {
   return (
     <AppShell
       nav={talentNav}
       active="grow"
       footer="Alex Rivera · @alex"
-      agent={{ context: 'Grow › Referral subscription' }}
+      agent={{ context: 'Grow › Referrals' }}
     >
       <ShellMain className={s.main}>
         <div className={s.cols}>
           <div>
-            <p className="lab">Grow › Referral subscription</p>
+            <p className="lab">Grow › Referrals</p>
             <h1 className={cx('t-d mt-3.5', s.h1)}>Get introduced to insiders — honestly.</h1>
             <p className="t-body c2 mt-3.5 max-w-[46ch]">
-              You’re paying for verification, packaging and introductions — not for a referral. Referrals are always the
-              insider’s call.
+              It’s free: we verify your claims, package your evidence and introduce you to insiders. Nobody can pay for a
+              referral here, and referrals are always the insider’s call.
             </p>
             <h2 className="lab mt-7">You get</h2>
             <div className={s.gets}>
@@ -44,11 +44,11 @@ export default function ReferralsPage() {
             <div className="sunk mt-5 px-4 py-3.5">
               <h2 className="lab">You don’t get</h2>
               <p className="t-s mt-1.5">
-                A promised referral, interview or job. Insiders never see that you pay, and nobody can pay them.
+                A promised referral, interview or job. Nobody can buy a referral here, and nobody is paid for giving one.
               </p>
             </div>
-            <p className="t-s b mt-5">[PRICE] / month · cancel any time</p>
-            <p className="t-xs c2">Active since Oct 15</p>
+            <p className="t-s b mt-5">Free · leave the pool any time</p>
+            <p className="t-xs c2">Joined Oct 15</p>
           </div>
           <Verification />
         </div>
