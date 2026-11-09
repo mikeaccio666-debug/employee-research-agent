@@ -51,13 +51,17 @@ const text = (html) =>
 const cap = (s) => (s.length > DESCRIPTION_CHARS ? `${s.slice(0, DESCRIPTION_CHARS).replace(/\s+\S*$/, '')} …` : s);
 
 const COUNTRY = { US: 'US', USA: 'US', 'United States': 'US', Canada: 'CA', UK: 'GB', 'United Kingdom': 'GB', GB: 'GB', Ireland: 'IE', Germany: 'DE', France: 'FR', Japan: 'JP', Australia: 'AU', Singapore: 'SG', 'South Korea': 'KR', India: 'IN', Netherlands: 'NL', Spain: 'ES', Switzerland: 'CH', Israel: 'IL' };
+const US_STATES = new Set('AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY PR'.split(' '));
+const CA_PROVINCES = new Set('AB BC MB NB NL NS NT NU ON PE QC SK YT'.split(' '));
 function location(asPublished, country = null) {
   const parts = asPublished.split(',').map((p) => p.trim()).filter(Boolean);
-  // "San Francisco, CA" is a US state code, not Canada.
-  const region = parts.length >= 2 && /^[A-Z]{2}$/.test(parts[1]) ? parts[1] : null;
+  // "San Francisco, CA" is a US state code, not Canada; "Toronto, ON" is a Canadian province.
+  const code = parts.length >= 2 && /^[A-Z]{2}$/.test(parts[1]) ? parts[1] : null;
+  const region = code && (US_STATES.has(code) || CA_PROVINCES.has(code)) ? code : null;
   const named = COUNTRY[parts.at(-1)] ?? null;
   const c = country ? (COUNTRY[country] ?? (country.length === 2 ? country.toUpperCase() : null)) : named;
-  return { as_published: asPublished, country: c ?? (region ? 'US' : null), region, city: parts.length >= 2 ? parts[0] : null };
+  const inferred = region ? (CA_PROVINCES.has(region) ? 'CA' : 'US') : null;
+  return { as_published: asPublished, country: c ?? inferred, region, city: parts.length >= 2 ? parts[0] : null };
 }
 const workplace = (s) => {
   const v = String(s ?? '').toLowerCase();

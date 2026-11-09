@@ -128,6 +128,13 @@ describe('job recommendations', () => {
     for (const i of r.items) assert.ok(['remote', 'unknown'].includes(i.job.workplace_type), `${i.job.title}: ${i.job.workplace_type}`);
   });
 
+  it('keeps Canadian postings out of a US-only search', () => {
+    const toronto = jobs.filter((j) => j.locations.some((l) => /, ON\b/.test(l.as_published)));
+    assert.ok(toronto.length > 0 && toronto.every((j) => j.locations.every((l) => !/, ON\b/.test(l.as_published) || l.country === 'CA')));
+    const ae = spec([], { roles: ['Commercial Account Executive'], locations: ['US'], workModes: ['onsite'] });
+    assert.ok(!recommend(ae, jobs, [], { now }).items.some((i) => /canada/i.test(i.job.title)));
+  });
+
   it('does not warn someone who needs no sponsorship', () => {
     const bill = jobs.filter((j) => /not eligible for visa sponsorship/i.test(j.description));
     for (const workAuth of ['US citizen, no sponsorship needed', '绿卡', 'Green card holder']) {
