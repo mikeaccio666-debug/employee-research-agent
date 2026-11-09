@@ -40,6 +40,7 @@ export const routes = {
   type: '/design/type',
   foundations: '/design/foundations',
   components: '/design/components',
+  doorframe: '/design/doorframe',
 } as const;
 
 export type Board = { k: string; t: string; d: string; href: string };
@@ -47,6 +48,14 @@ export type BoardGroup = { n: string; title: string; note?: string; items: Board
 
 // Mirrors the canvas index board (V2-S00), with each artboard pointing at its route.
 export const boardGroups: BoardGroup[] = [
+  {
+    n: '§5B',
+    title: '门框原型',
+    note: '原型测试用 · 2026-11-09',
+    items: [
+      { k: 'S22', t: '门框首页', d: '一道门框，三个手势 · 应届生和转行者 · 你不在时的便签', href: routes.doorframe },
+    ],
+  },
   {
     n: '§12.6',
     title: '三页改版与分镜',
