@@ -108,10 +108,12 @@ const ABBREVIATIONS: Record<string, string> = {
   sre: 'site reliability engineer',
   bd: 'business development',
 };
+/** Words a role name can drop: levels and filler. "Manager" or "intern" define the role, so they stay. */
+const ROLE_STOP = new Set(['a', 'an', 'the', 'and', 'or', 'of', 'for', 'in', 'at', 'to', 'senior', 'sr', 'junior', 'jr', 'i', 'ii', 'iii', 'iv', 'role', 'roles', 'job', 'position']);
 const roleWords = (role: string) =>
   words(ABBREVIATIONS[role.trim().toLowerCase()] ?? role)
     .flatMap((w) => words(ABBREVIATIONS[w] ?? w))
-    .filter(meaningful)
+    .filter((w) => !ROLE_STOP.has(w))
     .map(stem);
 
 /** 1: every word of the role is in the title; 0.5: most are, including its last ("analyst"). */
@@ -184,7 +186,7 @@ const MODE_LABEL: Record<JobPosting['workplace_type'], string> = { on_site: 'On 
 const SENIOR = /\b(senior|sr\.?|staff|principal|lead|director|head of|vp|vice president|manager|architect)\b/i;
 const EARLY = /\b(intern|internship|new grad|graduate|junior|entry[- ]level|associate|early career|apprentice|university)\b/i;
 const STUDENT = /\b(student|graduat|university|college|bootcamp|class of|undergrad|master'?s|phd candidate)/i;
-const NO_SPONSOR = /(not|unable to|cannot|can't|won't|will not|does not|do not)\s+(be able to\s+)?(offer|provide|support|sponsor)[^.\n]{0,40}(sponsor|visa)|without (the need for )?(current or future )?(visa )?sponsorship|no (visa )?sponsorship/i;
+const NO_SPONSOR = /(not |in)eligible for (visa |immigration )?sponsorship|(not|unable to|cannot|can't|won't|will not|does not|do not)\s+(be able to\s+)?(offer|provide|support|sponsor)[^.\n]{0,40}(sponsor|visa)|without (the need for )?(current or future )?(visa )?sponsorship|no (visa )?sponsorship/i;
 const NEEDS_SPONSOR = /sponsor|visa|f-?1|opt|cpt|h-?1b|stem/i;
 
 /** Confirmed lines worth matching: what they did and can do, not what they want. */

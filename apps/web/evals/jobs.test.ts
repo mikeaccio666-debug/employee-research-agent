@@ -110,6 +110,21 @@ describe('job recommendations', () => {
     assert.equal(recommend(analyst, jobs, saved, { now }).items.find((i) => i.job.id === first.id)?.action, 'saved');
   });
 
+  it('keeps the words that define a role', () => {
+    const pm = spec([], { roles: ['product manager'] });
+    const r = recommend(pm, jobs, [], { now });
+    assert.ok(r.items.length > 0);
+    for (const i of r.items) assert.match(i.job.title, /manag/i, `${i.job.title} is a manager role`);
+  });
+
+  it('warns when a posting says it will not sponsor', () => {
+    const bill = jobs.filter((j) => /not eligible for visa sponsorship/i.test(j.description));
+    assert.ok(bill.length > 0, 'the sample holds this wording');
+    const r = recommend(spec(analyst.claims, { roles: [bill[0]!.title], workAuth: 'F-1, needs sponsorship' }), bill, [], { now });
+    assert.ok(r.items.length > 0);
+    for (const i of r.items) assert.match(i.caution ?? '', /not eligible for visa sponsorship/i);
+  });
+
   it('asks for a portrait when there is nothing to match on', () => {
     const r = recommend(emptySpec(), jobs, [], { now });
     assert.equal(r.needsPortrait, true);
