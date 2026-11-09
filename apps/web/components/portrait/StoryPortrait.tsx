@@ -456,7 +456,7 @@ export function StoryPortrait({ data, anonymous = false }: { data: StoryPortrait
 
       <footer className="wrap flex flex-wrap items-center justify-between gap-3 pt-8 pb-14">
         <p className="t-s">
-          Drawn with Portrait ·{' '}
+          Drawn with Skystep ·{' '}
           <Link href={routes.studio} className="b">
             Draw yours
           </Link>

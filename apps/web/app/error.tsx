@@ -25,7 +25,7 @@ export default function ErrorPage({ error, retry }: { error: unknown; retry: () 
 
   return (
     <div className="relative min-h-screen overflow-hidden">
-      <title>Something went wrong · Portrait</title>
+      <title>Something went wrong · Skystep</title>
       <Ruler />
       <PublicHeader />
       <main className="wrap relative pt-24 pb-24 max-sm:pt-16">

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { cx } from '@portrait/ui';
+import { cx, Wordmark } from '@portrait/ui';
 import { routes } from '@/lib/routes';
 
 /**
@@ -22,7 +22,7 @@ export function PublicHeader({
         href={routes.landing}
         className={cx('font-extrabold tracking-[-0.02em] no-underline', brandSize === 22 ? 'text-[22px]' : 'text-[20px]')}
       >
-        Portrait
+        <Wordmark size={brandSize} />
       </Link>
       {children}
     </header>

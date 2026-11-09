@@ -1,4 +1,4 @@
-/* Portrait design system v0.2 — 身高线 (structure, type, motion) × 晨光 (colour)
+/* Skystep 青云步 design system v0.3 (package @portrait/ui): 身高线 (structure, type, motion) × 晨光 (colour), plus the brand mark tokens (--sky-*).
    Light "晨": cool painted wall, cream trim, gold chalk, blue-black pencil.
    Dark "夜": deep blue wall, soft wine trim oklch(0.300 0.025 1), chosen Oct 19; boards can still override --trim/--warm via tweaks, gold chalk, chalk-white text. */
 
@@ -15,6 +15,8 @@
     --chalk:oklch(0.875 0.100 78);--on-chalk:oklch(0.270 0.035 240);
     --ink:oklch(0.270 0.035 240);--ink-2:oklch(0.420 0.030 240);--ink-3:oklch(0.495 0.025 240);--edge:oklch(0.580 0.030 240);
     --new:var(--ink);--me:oklch(0.50 0.10 168);--me-wash:oklch(0.93 0.035 168);
+    /* brand: the Skystep 青云步 mark (three steps and a cloud), from the logo's #0E7C7B / #19A7A3 / #7FD6D2. Brand only, never a person's colour (--me). */
+    --sky-1:oklch(0.532 0.088 194);--sky-2:oklch(0.660 0.109 192);--sky-3:oklch(0.770 0.095 192);
     --spring:linear(0, 0.062, 0.191, 0.337, 0.475, 0.594, 0.692, 0.769, 0.829, 0.874, 0.908, 0.934, 0.952, 0.966, 0.976, 0.983, 0.988, 0.991, 0.994, 0.996, 1);
     --t-press:120ms;--t-s:240ms;--t-draw:380ms;--t-m:420ms;--t-settle:520ms;--t-l:640ms;
     --f:"Atkinson Hyperlegible Next","Atkinson Hyperlegible","Noto Sans SC",sans-serif;
@@ -28,6 +30,7 @@
     --chalk:oklch(0.820 0.110 80);--on-chalk:oklch(0.210 0.028 250);
     --ink:oklch(0.950 0.018 85);--ink-2:oklch(0.830 0.020 85);--ink-3:oklch(0.730 0.020 85);--edge:oklch(0.570 0.025 250);
     --new:var(--chalk);--me:oklch(0.76 0.10 168);--me-wash:oklch(0.32 0.05 168);
+    --sky-1:oklch(0.660 0.109 192);--sky-2:oklch(0.760 0.100 192);--sky-3:oklch(0.880 0.070 192);
   }
   .pv.dark.plum{--trim:oklch(0.300 0.065 352);--warm:oklch(0.350 0.085 352)}
   .pv.dark.garnet{--trim:oklch(0.300 0.065 22);--warm:oklch(0.350 0.085 22)}
@@ -53,6 +56,7 @@
       --chalk:oklch(0.820 0.110 80);--on-chalk:oklch(0.210 0.028 250);
       --ink:oklch(0.950 0.018 85);--ink-2:oklch(0.830 0.020 85);--ink-3:oklch(0.730 0.020 85);--edge:oklch(0.570 0.025 250);
       --new:var(--chalk);--me:oklch(0.76 0.10 168);--me-wash:oklch(0.32 0.05 168);
+    --sky-1:oklch(0.660 0.109 192);--sky-2:oklch(0.760 0.100 192);--sky-3:oklch(0.880 0.070 192);
     }
   }
 }
@@ -157,7 +161,7 @@
   /* app: once open, let focus rings show past the fold's edge */
   .grow.open>div{overflow:clip;overflow-clip-margin:6px}
   .gl{position:relative;padding-left:18px}
-  .gl::before{content:"";position:absolute;left:0;top:4px;bottom:4px;width:3px;border-radius:2px;background:var(--ink);transform:scaleY(0);transform-origin:top;transition:transform var(--t-m) var(--spring)}
+  .gl::before{content:"";position:absolute;left:0;top:4px;bottom:4px;width:2px;border-radius:2px;background:var(--ink);transform:scaleY(0);transform-origin:top;transition:transform var(--t-m) var(--spring)}
   .grow.open .gl::before,.gl.on::before{transform:scaleY(1)}
   @keyframes pv-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
   @keyframes pv-land{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}

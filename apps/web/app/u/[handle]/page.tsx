@@ -29,7 +29,7 @@ async function lookup(raw: string) {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { handle } = await params;
   if (isHandle(handle)) {
-    // The S02 board's title already ends in "· Portrait", so it skips the site's title template.
+    // The S02 board's title already ends in "· Skystep", so it skips the site's title template.
     return handle === 'lin' ? { title: { absolute: portraitTitles.lin } } : { title: portraitTitles.maya };
   }
   const portrait = await lookup(handle);

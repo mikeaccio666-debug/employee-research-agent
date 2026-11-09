@@ -42,7 +42,7 @@ export function ShareCards() {
             <CardMark key={m.date} top={m.top} date={m.date} isNew={m.isNew} />
           ))}
           <div className={c.top}>
-            <span className={c.wm}>Portrait</span>
+            <span className={c.wm}>Skystep</span>
             <span className={c.url}>{named.url}</span>
           </div>
           <div className="mt-[34px] flex items-end justify-between gap-10">
@@ -75,7 +75,7 @@ export function ShareCards() {
           <Ruler />
           <CardMark top={anonymous.mark.top} date={anonymous.mark.date} isNew />
           <div className={c.top}>
-            <span className={c.wm}>Portrait</span>
+            <span className={c.wm}>Skystep</span>
             <span className={c.url}>{anonymous.url}</span>
           </div>
           <p className="lab mt-10 text-[18px]">{anonymous.lab}</p>
@@ -100,7 +100,7 @@ export function ShareCards() {
           <Ruler />
           <CardMark top={work.mark.top} date={work.mark.date} isNew />
           <div className={c.top}>
-            <span className={c.wm}>Portrait</span>
+            <span className={c.wm}>Skystep</span>
             <span className={c.url}>{work.url}</span>
           </div>
           <div className="mt-[30px] grid min-h-0 flex-1 grid-cols-[400px_minmax(0,1fr)] gap-12">

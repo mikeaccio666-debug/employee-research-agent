@@ -159,7 +159,7 @@ export function Privacy({ account, fields }: { account: Account | null; fields?:
       else setDelNote(r.error);
     });
 
-  // The alias context is edited by talking to Portrait: open the agent with the cursor in its box.
+  // The alias context is edited by talking to Skystep: open the agent with the cursor in its box.
   const editContext = () => openAgent({ focus: true });
   const closeNewAlias = () => {
     setNewAlias(false);
