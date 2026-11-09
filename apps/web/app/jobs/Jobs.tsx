@@ -118,13 +118,29 @@ export function Jobs({
       ...all.filter((x) => x.jobId !== c.id),
     ]);
 
+  /** Puts back only the cards a failed request touched; later changes to other cards stay. */
+  const restoreCards = (before: JobCard[], touched: (c: JobCard) => boolean) =>
+    setCards((now) => {
+      const current = new Map(now.map((c) => [c.id, c]));
+      return before.flatMap((b) => (touched(b) ? [b] : current.has(b.id) ? [current.get(b.id)!] : []));
+    });
+  /** Puts back one job's saved entry (or its absence) where it was. */
+  const restoreSaved = (jobId: string, before: SavedJob[]) =>
+    setSaved((now) => {
+      const rest = now.filter((x) => x.jobId !== jobId);
+      const at = before.findIndex((x) => x.jobId === jobId);
+      if (at >= 0) rest.splice(Math.min(at, rest.length), 0, before[at]!);
+      return rest;
+    });
+
   /** Shows the change at once; a signed-out preview keeps it on the page only. */
   const act = (c: JobCard, action: JobAction, reason: DismissReason | null, done: string) => {
     setError('');
     const before = cards;
     const savedBefore = saved;
+    const touched = (x: JobCard) => (action === 'dismissed' && reason === 'company' ? x.company === c.company : x.id === c.id);
     if (action === 'dismissed') {
-      setCards((all) => all.filter((x) => (reason === 'company' ? x.company !== c.company : x.id !== c.id)));
+      setCards((all) => all.filter((x) => !touched(x)));
       setSaved((all) => all.filter((x) => x.jobId !== c.id));
     } else {
       mark(c.id, action);
@@ -136,8 +152,8 @@ export function Jobs({
     start(async () => {
       const r = await actOnJob(c.id, action, reason);
       if (!r.ok) {
-        setCards(before);
-        setSaved(savedBefore);
+        restoreCards(before, touched);
+        restoreSaved(c.id, savedBefore);
         setError(r.error);
         setStatus('');
       }
@@ -155,8 +171,8 @@ export function Jobs({
     start(async () => {
       const r = await undoJobAction(jobId);
       if (!r.ok) {
-        setSaved(savedBefore);
-        setCards(cardsBefore);
+        restoreSaved(jobId, savedBefore);
+        restoreCards(cardsBefore, (x) => x.id === jobId);
         setStatus('');
         setError(r.error);
       }
