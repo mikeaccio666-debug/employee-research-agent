@@ -191,7 +191,9 @@ const SENIOR = /\b(senior|sr\.?|staff|principal|lead|director|head of|vp|vice pr
 const EARLY = /\b(intern|internship|new grad|graduate|junior|entry[- ]level|associate|early career|apprentice|university)\b/i;
 const STUDENT = /\b(student|graduat|university|college|bootcamp|class of|undergrad|master'?s|phd candidate)/i;
 const NO_SPONSOR = /(not |in)eligible for (visa |immigration )?sponsorship|(not|unable to|cannot|can't|won't|will not|does not|do not)\s+(be able to\s+)?(offer|provide|support|sponsor)[^.\n]{0,40}(sponsor|visa)|without (the need for )?(current or future )?(visa )?sponsorship|no (visa )?sponsorship/i;
-const NEEDS_SPONSOR = /sponsor|visa|f-?1|opt|cpt|h-?1b|stem/i;
+const NEEDS_SPONSOR = /sponsor|visa|f-?1|\bopt\b|\bcpt\b|h-?1b|\bstem\b|担保|签证/i;
+/** "US citizen", "no sponsorship needed", "green card": already authorized. */
+const NO_SPONSOR_NEEDED = /\b(no|not|don'?t|doesn'?t|won'?t|without|never)\b[^.,;]{0,25}sponsor|citizen|green card|permanent resident|不需要|无需|公民|绿卡/i;
 
 /** Confirmed lines worth matching: what they did and can do, not what they want. */
 const matchable = (c: Claim) => c.status === 'confirmed' && c.layer !== 'intent';
@@ -217,14 +219,20 @@ export function recommend(
   // Without roles, the titles they held hint at what they'd do next, weighed less.
   const pastTitles = roles.length ? [] : [...new Set(claims.filter((c) => c.layer === 'experience' && c.title).map((c) => c.title!))];
   const early = prefs.jobTypes.includes('internship') || claims.some((c) => (c.layer === 'identity' || c.layer === 'experience') && STUDENT.test(c.statement));
-  const needsSponsor = !!prefs.workAuth && NEEDS_SPONSOR.test(prefs.workAuth);
+  const needsSponsor = !!prefs.workAuth && NEEDS_SPONSOR.test(prefs.workAuth) && !NO_SPONSOR_NEEDED.test(prefs.workAuth);
 
   const byJob = new Map(feedback.map((f) => [f.jobId, f]));
   const hiddenCompanies = new Set(feedback.filter((f) => f.action === 'dismissed' && f.reason === 'company').map((f) => f.company.toLowerCase()));
   const allowedTypes = prefs.jobTypes.flatMap((t) => TYPE_OF[t]);
-  const allowedModes = prefs.workModes.map((m) => MODE_OF[m]);
   const placePrefs = prefs.locations.filter((l) => !/^remote$|^远程$/i.test(l.trim()));
-  const remoteOk = !allowedModes.length || allowedModes.includes('remote') || prefs.locations.some((l) => /^remote$|^远程$/i.test(l.trim()));
+  const saidRemote = prefs.locations.length > placePrefs.length;
+  // "Remote" given as their only place means remote only, not anywhere.
+  const allowedModes: JobPosting['workplace_type'][] = prefs.workModes.length
+    ? prefs.workModes.map((m) => MODE_OF[m])
+    : saidRemote && !placePrefs.length
+      ? ['remote']
+      : [];
+  const remoteOk = !allowedModes.length || allowedModes.includes('remote') || saidRemote;
 
   let filteredOut = 0;
   const items: Recommendation[] = [];

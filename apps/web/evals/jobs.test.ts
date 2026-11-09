@@ -122,6 +122,21 @@ describe('job recommendations', () => {
     assert.ok(r.items.some((i) => /software engineering intern/i.test(i.job.title)), r.items.map((i) => i.job.title).join(' | '));
   });
 
+  it('reads "Remote" as their only place as remote only', () => {
+    const r = recommend(spec([], { roles: ['software engineer'], locations: ['Remote'] }), jobs, [], { now });
+    assert.ok(r.items.length > 0);
+    for (const i of r.items) assert.ok(['remote', 'unknown'].includes(i.job.workplace_type), `${i.job.title}: ${i.job.workplace_type}`);
+  });
+
+  it('does not warn someone who needs no sponsorship', () => {
+    const bill = jobs.filter((j) => /not eligible for visa sponsorship/i.test(j.description));
+    for (const workAuth of ['US citizen, no sponsorship needed', '绿卡', 'Green card holder']) {
+      const r = recommend(spec([], { roles: [bill[0]!.title], workAuth }), bill, [], { now });
+      assert.ok(r.items.length > 0);
+      for (const i of r.items) assert.equal(i.caution, null, workAuth);
+    }
+  });
+
   it('warns when a posting says it will not sponsor', () => {
     const bill = jobs.filter((j) => /not eligible for visa sponsorship/i.test(j.description));
     assert.ok(bill.length > 0, 'the sample holds this wording');
