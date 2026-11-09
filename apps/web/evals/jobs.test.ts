@@ -152,6 +152,15 @@ describe('job recommendations', () => {
     for (const i of r.items) assert.match(i.caution ?? '', /not eligible for visa sponsorship/i);
   });
 
+  it('keeps the warning when citizenship is foreign or negated and sponsorship is needed', () => {
+    const bill = jobs.filter((j) => /not eligible for visa sponsorship/i.test(j.description));
+    for (const workAuth of ['Indian citizen, F-1, needs sponsorship', 'Not a US citizen; F-1, needs sponsorship', 'Not a US citizen, will need a visa']) {
+      const r = recommend(spec([], { roles: [bill[0]!.title], workAuth }), bill, [], { now });
+      assert.ok(r.items.length > 0);
+      for (const i of r.items) assert.match(i.caution ?? '', /not eligible for visa sponsorship/i, workAuth);
+    }
+  });
+
   it('asks for a portrait when there is nothing to match on', () => {
     const r = recommend(emptySpec(), jobs, [], { now });
     assert.equal(r.needsPortrait, true);
