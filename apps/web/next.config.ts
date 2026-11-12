@@ -1,13 +1,15 @@
 import type { NextConfig } from 'next';
 import { withSentryConfig } from '@sentry/nextjs/config';
 
-// Preview deployments use a separate test Supabase project, or none (lib/supabase/env.ts).
+// On Vercel, VERCEL_ENV is production, preview or development; it is empty elsewhere. A deployment
+// that is not production uses the test Supabase project and refuses the production one
+// (lib/supabase/env.ts). The build log says which address this build was given.
 const deployment = process.env.VERCEL_ENV ?? '';
-if (deployment === 'preview') {
+if (deployment && deployment !== 'production') {
   console.log(
-    process.env.NEXT_PUBLIC_SUPABASE_PREVIEW_URL && process.env.NEXT_PUBLIC_SUPABASE_PREVIEW_PUBLISHABLE_KEY
-      ? `Preview build: Supabase is the test project at ${process.env.NEXT_PUBLIC_SUPABASE_PREVIEW_URL}`
-      : 'Preview build: no NEXT_PUBLIC_SUPABASE_PREVIEW_URL / _PUBLISHABLE_KEY, so this preview runs on the example data, without sign-in',
+    process.env.NEXT_PUBLIC_SUPABASE_URL
+      ? `${deployment} build: Supabase settings point at ${process.env.NEXT_PUBLIC_SUPABASE_URL}`
+      : `${deployment} build: no Supabase settings, so it runs on the example data, without sign-in`,
   );
 }
 

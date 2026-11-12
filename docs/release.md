@@ -4,7 +4,7 @@
 
 ## 一个改动怎么上线
 
-1. 开 PR。每个 PR 自动跑 CI 的 `check`：类型检查、单元测试、生产构建（`.github/workflows/ci.yml`）。改到 agent 代码时，另外跑 agent 评测（`.github/workflows/agent-evals.yml`）。Vercel 给每个 PR 一个预览网址。预览连的是单独的测试 Supabase 项目，碰不到正式数据；没配测试项目时，预览只显示示例数据、不能登录。每个预览页面顶上有个标签写着是哪种（设置见 `apps/web/README.md` 的“Previews”一节）。
+1. 开 PR。每个 PR 自动跑 CI 的 `check`：类型检查、单元测试、生产构建（`.github/workflows/ci.yml`）。改到 agent 代码时，另外跑 agent 评测（`.github/workflows/agent-evals.yml`）。Vercel 给每个 PR 一个预览网址。预览连的是单独的测试 Supabase 项目，碰不到正式数据。万一预览拿到的是正式库的配置，它会拒绝连接，只显示示例数据、不能登录。每个预览页面顶上有个标签，写着连的是哪个库（设置见 `apps/web/README.md` 的“Previews”一节）。
 2. 按风险等级做完下表要求的检查。
 3. Mike 合并。合并前都要先问 Mike；合并到默认分支就会自动部署生产。
 4. 合并后看一眼生产：Vercel Logs 里的报错，`model_calls` 表里的错误和耗时。
