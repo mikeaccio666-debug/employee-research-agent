@@ -61,6 +61,8 @@ function PersonFrame({ person }: { person: Person }) {
   const [lenses, setLenses] = useState(() => initPerson(person));
   const [editing, setEditing] = useState<string | null>(null);
   const [working, setWorking] = useState<string | null>(null);
+  /** Drafts the agent is rewriting right now: they take no gesture until the rewrite lands. */
+  const [busy, setBusy] = useState<string[]>([]);
   const [note, setNote] = useState<{ text: ReactNode; undo?: () => void } | null>(null);
   const [inbox, setInbox] = useState<Note[]>(person.notes);
   const [reviewing, setReviewing] = useState(false);
@@ -83,29 +85,30 @@ function PersonFrame({ person }: { person: Person }) {
   };
   const setDraft = (id: string, patch: Partial<Draft>) =>
     update((l) => ({ ...l, drafts: l.drafts.map((d) => (d.id === id ? { ...d, ...patch } : d)) }));
-  const snapshot = () => structuredClone(state);
-  const restore = (snap: LensState) => () => {
-    update(() => snap);
+  /** 撤销 takes back one gesture only: it works on the lens as it is now, so anything done since stays. */
+  const undo = (fn: (l: LensState) => LensState) => () => {
+    update(fn);
     setNote(null);
   };
+  /** Puts one draft back the way it was before the gesture. */
+  const putBack = (d: Draft) => undo((l) => ({ ...l, drafts: l.drafts.map((x) => (x.id === d.id ? d : x)) }));
 
   const yes = (d: Draft) => {
-    const snap = snapshot();
     setDraft(d.id, { state: 'ink' });
-    setNote({ text: <>定下了：{d.title}</>, undo: restore(snap) });
+    setNote({ text: <>定下了：{d.title}</>, undo: putBack(d) });
   };
   const no = (d: Draft) => {
-    const snap = snapshot();
     setDraft(d.id, { state: 'struck' });
-    setNote({ text: <>划掉了，agent 记住了，不会再提</>, undo: restore(snap) });
+    setNote({ text: <>划掉了，agent 记住了，不会再提</>, undo: putBack(d) });
   };
   const did = (d: Draft) => {
-    const snap = snapshot();
     update((l) => ({
       drafts: l.drafts.filter((x) => x.id !== d.id),
       done: [...l.done.map((x) => ({ ...x, fresh: false })), { ...d, sub: '刚刚做到 · 证据：自述，补一个链接可以升级', when: '今天', rung: 'said', fresh: true }],
     }));
-    setNote({ text: <>门框高了一道：{d.title}</>, undo: restore(snap) });
+    // Back to where it was: the step right above "now".
+    const back = undo((l) => ({ done: l.done.filter((x) => x.id !== d.id), drafts: [d, ...l.drafts.filter((x) => x.id !== d.id)] }));
+    setNote({ text: <>门框高了一道：{d.title}</>, undo: back });
   };
   const start = (d: Draft) => {
     setWorking(`在准备：${d.title}`);
@@ -117,11 +120,13 @@ function PersonFrame({ person }: { person: Person }) {
   const edit = (d: Draft, text: string) => {
     setEditing(null);
     setWorking(`在按你说的改：${d.title}`);
-    const snap = snapshot();
+    // Until the rewrite lands the draft takes no 对 / 改 / 不要, so nothing the person decides can be overwritten.
+    setBusy((b) => [...b, d.id]);
     later(900, () => {
+      setBusy((b) => b.filter((id) => id !== d.id));
       setWorking(null);
-      setDraft(d.id, { title: d.revised ?? d.title, sub: `你说：“${text}”。agent 按这个改了，还是铅笔，等你点“对”`, state: 'pencil' });
-      setNote({ text: <>改好了</>, undo: restore(snap) });
+      setDraft(d.id, { title: d.revised ?? d.title, sub: `你说：“${text}”。agent 按这个改了，还是铅笔，等你点“对”` });
+      setNote({ text: <>改好了</>, undo: putBack(d) });
     });
   };
 
@@ -172,6 +177,7 @@ function PersonFrame({ person }: { person: Person }) {
                 <NextRow
                   key={d.id}
                   d={d}
+                  busy={busy.includes(d.id)}
                   editing={editing === d.id}
                   onYes={() => yes(d)}
                   onNo={() => no(d)}
@@ -185,6 +191,7 @@ function PersonFrame({ person }: { person: Person }) {
                 <DraftRow
                   key={d.id}
                   d={d}
+                  busy={busy.includes(d.id)}
                   editing={editing === d.id}
                   onYes={() => yes(d)}
                   onNo={() => no(d)}
@@ -272,6 +279,8 @@ function vt(id: string): CSSProperties {
 
 type RowProps = {
   d: Draft;
+  /** The agent is rewriting this draft: no gesture lands until it is done. */
+  busy: boolean;
   editing: boolean;
   onYes: () => void;
   onNo: () => void;
@@ -281,10 +290,10 @@ type RowProps = {
 };
 
 /** Y / E / N on a focused row; a horizontal swipe on touch. */
-function useGestures(d: Draft, onYes: () => void, onNo: () => void, onEdit: () => void) {
+function useGestures(d: Draft, busy: boolean, onYes: () => void, onNo: () => void, onEdit: () => void) {
   const [dx, setDx] = useState(0);
   const from = useRef<number | null>(null);
-  const pencil = d.state === 'pencil';
+  const pencil = d.state === 'pencil' && !busy;
   return {
     dx,
     handlers: {
@@ -323,12 +332,14 @@ function useGestures(d: Draft, onYes: () => void, onNo: () => void, onEdit: () =
 
 function Gestures({
   d,
+  busy,
   strong,
   onYes,
   onNo,
   onEdit,
 }: {
   d: Draft;
+  busy: boolean;
   /** On a trim card: 对 becomes the primary button so it stays visible. */
   strong?: boolean;
   onYes: () => void;
@@ -336,6 +347,7 @@ function Gestures({
   onEdit: () => void;
 }) {
   if (d.state !== 'pencil') return null;
+  if (busy) return <StatusLine className="mt-3">agent 在改这一条</StatusLine>;
   return (
     <span className={cx(s.gest, !strong && s.reveal)}>
       <Button size="sm" variant={strong ? 'primary' : 'secondary'} onClick={onYes} aria-label={`对：${d.title}`}>
@@ -386,8 +398,8 @@ function Mentor({ m }: { m: NonNullable<Step['mentor']> }) {
 }
 
 /** A pencil line further up: compact, quiet, the three gestures. */
-function DraftRow({ d, editing, onYes, onNo, onEdit, onCancelEdit, onSend }: RowProps) {
-  const g = useGestures(d, onYes, onNo, onEdit);
+function DraftRow({ d, busy, editing, onYes, onNo, onEdit, onCancelEdit, onSend }: RowProps) {
+  const g = useGestures(d, busy, onYes, onNo, onEdit);
   return (
     <li
       className={cx(s.row, s.draft, d.state === 'ink' && s.ink)}
@@ -404,7 +416,7 @@ function DraftRow({ d, editing, onYes, onNo, onEdit, onCancelEdit, onSend }: Row
         </p>
         <p className="t-xs c2">{d.sub}</p>
         {d.mentor ? <Mentor m={d.mentor} /> : null}
-        <Gestures d={d} onYes={onYes} onNo={onNo} onEdit={onEdit} />
+        <Gestures d={d} busy={busy} onYes={onYes} onNo={onNo} onEdit={onEdit} />
         {editing ? <EditBox d={d} onSend={onSend} onCancel={onCancelEdit} /> : null}
       </div>
       <SwipeHint dx={g.dx} />
@@ -415,6 +427,7 @@ function DraftRow({ d, editing, onYes, onNo, onEdit, onCancelEdit, onSend }: Row
 /** The one step right above "now": big, like the next stop on a learning path. */
 function NextRow({
   d,
+  busy,
   editing,
   onYes,
   onNo,
@@ -424,7 +437,7 @@ function NextRow({
   onStart,
   onDid,
 }: RowProps & { onStart: () => void; onDid: () => void }) {
-  const g = useGestures(d, onYes, onNo, onEdit);
+  const g = useGestures(d, busy, onYes, onNo, onEdit);
   return (
     <li
       className={cx(s.row, s.next, d.state === 'ink' && s.ink)}
@@ -444,7 +457,7 @@ function NextRow({
         {d.state === 'pencil' ? (
           <>
             <p className="t-xs c2 mt-3">agent 用铅笔画的，还没定。</p>
-            <Gestures strong d={d} onYes={onYes} onNo={onNo} onEdit={onEdit} />
+            <Gestures strong d={d} busy={busy} onYes={onYes} onNo={onNo} onEdit={onEdit} />
           </>
         ) : (
           <span className={s.gest}>
