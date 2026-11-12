@@ -29,7 +29,7 @@ function Frame({ n, title, screen, children }: { n: string; title: string; scree
 function ChatColumn({ children }: { children: ReactNode }) {
   return (
     <div className="absolute top-0 bottom-0 left-0 w-[42%] bg-wall-2 px-3.5 py-[18px]">
-      <p className={cx(s.mini, 'b')}>Portrait</p>
+      <p className={cx(s.mini, 'b')}>Skystep</p>
       <div className={cx(s.bub, s.agent, 'mt-[60px] max-w-full bg-wall')}>{children}</div>
     </div>
   );
@@ -68,7 +68,7 @@ export default function BirthPage() {
             title="对话全屏，一栏"
             screen={
               <div className={cx(s.scr, 'px-[70px] py-[18px]')} lang="en">
-                <p className={cx(s.mini, 'b')}>Portrait</p>
+                <p className={cx(s.mini, 'b')}>Skystep</p>
                 <div className="mt-3.5 flex flex-col gap-2">
                   <div className={cx(s.bub, s.agent)}>What did your roommate build?</div>
                   <div className={cx(s.bub, s.user)}>Mostly the UI. I did the backend.</div>

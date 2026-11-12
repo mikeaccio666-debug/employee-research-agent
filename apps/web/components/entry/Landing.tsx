@@ -233,7 +233,7 @@ export function Landing() {
           </div>
           <footer className="t-xs c2 mt-10 flex flex-wrap gap-[18px]">
             <span>
-              <b className="text-ink">Portrait</b>
+              <b className="text-ink">Skystep 青云步</b>
             </span>
             <Link href={routes.pricing}>Pricing</Link>
             <Link href={routes.events}>Events</Link>

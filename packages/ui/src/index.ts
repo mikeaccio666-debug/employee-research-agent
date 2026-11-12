@@ -73,3 +73,4 @@ export {
 } from './components/conversation';
 export { EditableBlock, type EditableBlockProps } from './components/editing';
 export { Frame, MustHaves, mustCount, type FrameProps, type MustMark } from './components/sheet';
+export { Mark, Wordmark, BRAND } from './components/brand';

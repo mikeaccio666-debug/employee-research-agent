@@ -26,7 +26,7 @@ export default function GlobalError({ error, retry }: { error: unknown; retry: (
           placeItems: 'center',
         }}
       >
-        <title>Something went wrong · Portrait</title>
+        <title>Something went wrong · Skystep</title>
         <main style={{ maxWidth: 480, padding: 24 }}>
           <h1 style={{ fontSize: 28, margin: '0 0 8px' }}>Something went wrong on our side.</h1>
           <p style={{ margin: '0 0 20px', opacity: 0.75 }}>It isn’t anything you did. Trying again usually works.</p>

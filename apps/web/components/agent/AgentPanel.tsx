@@ -104,7 +104,7 @@ export function AgentPanel({
       <aside
         ref={panel}
         className={cx(s.panel, open && s.open, auto && s.auto)}
-        aria-label="Talk to Portrait"
+        aria-label="Talk to Skystep"
         inert={!open}
         onKeyDown={(e) => {
           if (e.key === 'Escape') setOpen(false);

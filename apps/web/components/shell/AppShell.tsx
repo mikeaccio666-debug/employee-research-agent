@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { createContext, useContext, useEffect, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
-import { Ruler, cx } from '@portrait/ui';
+import { Ruler, Wordmark, cx } from '@portrait/ui';
 import { NavFooter } from '@/components/account/Account';
 import { AgentPanel, type AgentConfig } from '@/components/agent/AgentPanel';
 import type { NavItem } from '@/lib/nav';
@@ -17,7 +17,7 @@ type ShellState = {
 };
 const ShellContext = createContext<ShellState>({ agentOpen: false, setAgentOpen: () => {}, openAgent: () => {} });
 
-/** Open or close the agent panel from page content ("Ask Portrait about this"). */
+/** Open or close the agent panel from page content ("Ask Skystep about this"). */
 export function useShell() {
   return useContext(ShellContext);
 }
@@ -82,14 +82,14 @@ export function AppShell({ nav, active, badges, footer, agent = {}, className, c
         <nav className={s.nav} aria-label="Main">
           <Ruler />
           <Link href={routes.landing} className={s.brand}>
-            Portrait
+            <Wordmark size={19} />
           </Link>
           {links()}
           <NavFooter fallback={footer} className={s.foot} />
         </nav>
         <nav className={s.mnav} aria-label="Main" ref={mnav}>
           <Link href={routes.landing} className={s.brand}>
-            Portrait
+            <Wordmark size={19} />
           </Link>
           {links()}
         </nav>

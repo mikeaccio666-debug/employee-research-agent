@@ -658,7 +658,7 @@ export function LiveStudio(props: LiveStudioProps) {
   );
 }
 
-const MADE_BY: Record<VersionEntry['madeBy'], string> = { agent: 'Portrait', person: 'You', undo: 'You · undo' };
+const MADE_BY: Record<VersionEntry['madeBy'], string> = { agent: 'Skystep', person: 'You', undo: 'You · undo' };
 
 const when = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });

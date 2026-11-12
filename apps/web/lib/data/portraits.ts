@@ -469,7 +469,7 @@ export function workPortrait(): WorkPortraitData {
       ],
       more: {
         title: 'Two more without a write-up yet',
-        text: 'Maya can walk you through them on a call. Portrait drafts a case from her voice notes when she’s ready.',
+        text: 'Maya can walk you through them on a call. Skystep drafts a case from her voice notes when she’s ready.',
       },
       kiosk: {
         lab: 'Case · clinic check-in kiosk',
@@ -631,7 +631,7 @@ export function workPortrait(): WorkPortraitData {
       bookedNote: 'After you meet, this becomes a mark on both your pages.',
     },
     lately: [
-      { verb: 'Went to', text: 'Portrait showcase night', when: 'Oct 8' },
+      { verb: 'Went to', text: 'Skystep showcase night', when: 'Oct 8' },
       { verb: 'Updated', text: 'Work', when: 'Oct 14' },
     ],
   };
@@ -652,7 +652,7 @@ export function isAlias(value: string): value is (typeof aliases)[number] {
 
 /** Page titles, from the boards' <title>s. The anonymous page is titled by its alias. */
 export const portraitTitles = {
-  lin: 'Lin Zhou · Portrait',
+  lin: 'Lin Zhou · Skystep',
   maya: 'Maya Ortiz · work first',
   cards: 'Share cards',
 } as const;

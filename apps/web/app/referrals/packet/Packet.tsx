@@ -77,7 +77,7 @@ export function Packet() {
         left={
           <span className="t-s">
             <Link href={routes.landing} className={cx('b', s.crumb)}>
-              Portrait
+              Skystep
             </Link>{' '}
             <span className="c2">
               ·{' '}

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useId, useRef, useState, useTransition } from 'react';
-import { Button, Grow, PencilMark, Ruler, buttonClass, cx, useFlash, withViewTransition } from '@portrait/ui';
+import { Button, Grow, PencilMark, Ruler, buttonClass, cx, useFlash, withViewTransition, Wordmark } from '@portrait/ui';
 import { FlowBar } from '@/components/chrome';
 import { HandleField } from '@/components/account/HandleField';
 import { VisibilityOptions } from '@/components/entry/VisibilityOptions';
@@ -99,8 +99,8 @@ export function FirstPublish({ account }: { account: Account | null }) {
       <FlowBar
         left={
           <span className="flex items-baseline gap-3.5">
-            <Link href={routes.landing} className="text-[19px] font-extrabold tracking-[-0.02em] no-underline">
-              Portrait
+            <Link href={routes.landing} className="no-underline">
+              <Wordmark size={19} />
             </Link>
             {link ? <span className="hand text-[17px]">{link}</span> : null}
           </span>
