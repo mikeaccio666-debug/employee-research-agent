@@ -17,7 +17,7 @@ import './globals.css';
 import { PreviewBadge } from '@/components/preview-badge';
 
 export const metadata: Metadata = {
-  title: { default: 'Portrait', template: '%s · Portrait' },
+  title: { default: 'Skystep', template: '%s · Skystep' },
   description: 'A portrait drawn from what you have actually done — found by the startups that need it.',
 };
 

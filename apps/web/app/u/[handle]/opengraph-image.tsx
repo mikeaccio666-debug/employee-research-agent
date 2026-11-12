@@ -143,7 +143,7 @@ export default async function Image({ params }: { params: Promise<{ handle: stri
             letterSpacing: -0.48,
           }}
         >
-          Portrait
+          Skystep
         </div>
         <div
           style={{
@@ -290,7 +290,7 @@ async function namedCard(portrait: PublicPortrait) {
       >
         <Ruler />
         <div style={{ position: 'absolute', left: 112, top: 48, fontSize: 24, lineHeight: 1.6, fontWeight: 800, letterSpacing: -0.48 }}>
-          Portrait
+          Skystep
         </div>
         <div style={{ position: 'absolute', right: 64, top: 55, fontSize: 18, lineHeight: 1.6, fontWeight: 700, color: C.ink2 }}>
           {`@${portrait.handle}`}
@@ -310,7 +310,7 @@ async function namedCard(portrait: PublicPortrait) {
           {line ? <div style={{ width: 900, fontSize: 40, lineHeight: 1.2, fontWeight: 700, color: C.ink }}>{line}</div> : null}
         </div>
         <div style={{ position: 'absolute', left: 112, bottom: 48, fontSize: 19, fontWeight: 700, color: C.ink3 }}>
-          Drawn with Portrait
+          Drawn with Skystep
         </div>
       </div>
     ),

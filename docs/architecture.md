@@ -44,7 +44,7 @@
 | 内容审核 | Claude 分类 + 规则 + 人工队列 | | 独立的信任与安全服务 |
 | 搜索 | Postgres 全文检索 + pgvector（HNSW 索引） | MVP 规模足够 | OpenSearch / Typesense + 专用向量库 |
 | 防机器人 | Cloudflare Turnstile 或 Vercel BotID（保护未登录对话） | 未登录即可对话，必须防刷 | 保留 |
-| 身份核验（P2） | 第三方服务（如 Stripe Identity） | 内推订阅防冒用身份 | 保留 |
+| 身份核验（P2） | 第三方服务（如 Stripe Identity） | 内推池防冒用身份 | 保留 |
 
 ---
 
@@ -342,7 +342,8 @@ P2 起新增 `apps/mcp-server/`（对外 MCP 服务）和 A2A 网关，见 8.4�
 | `GET / PATCH /api/grow/plan` | 成长计划 |
 | `POST /api/insider/verify` | 在职者验证（公司邮箱或证明文件） |
 | `GET /api/insider/recommendations` | 在职者推荐（付费） |
-| `POST /api/referrals/subscribe`、`GET /api/referrals/vetting` | 内推订阅、核验进度 |
+| `POST /api/referrals/join`、`GET /api/referrals/vetting` | 加入内推池（免费）、核验进度 |
+| `GET /api/mentors`、`POST /api/mentor-sessions`、`POST /api/mentor-reviews` | 导师列表、按次预约辅导、提交作品评审（PRD 7.15，付款走 Stripe Connect） |
 | `POST /api/referral-requests`、`PATCH /api/referral-requests/:id` | 内推相关的 coffee chat 请求、"已内推"标记 |
 | `POST /api/reviews`、`POST /api/reviews/:id/appeal` | 评价与申诉 |
 

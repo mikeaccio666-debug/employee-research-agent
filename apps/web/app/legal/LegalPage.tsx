@@ -13,7 +13,7 @@ export function LegalPage({ title, updated, children }: { title: string; updated
     <main className="mx-auto max-w-[68ch] px-4 py-10">
       <p className="t-xs c2">
         <Link href={routes.landing} className="linklike">
-          Portrait
+          Skystep
         </Link>{' '}
         ·{' '}
         <Link href={routes.privacyPolicy} className="linklike">

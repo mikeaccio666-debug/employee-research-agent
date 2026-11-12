@@ -11,7 +11,7 @@ import {
   type PointerEvent,
   type ReactNode,
 } from 'react';
-import { Button, Thread, cx } from '@portrait/ui';
+import { Button, Thread, Wordmark, cx } from '@portrait/ui';
 import { routes } from '@/lib/routes';
 import s from './Workspace.module.css';
 
@@ -130,14 +130,14 @@ export function Workspace({
       <div className={cx(s.app, className)} style={minHeight ? { minHeight } : undefined} data-view={view}>
         <header className={s.top}>
           <Link href={routes.landing} className={s.brand}>
-            Portrait
+            <Wordmark size={19} />
           </Link>
           {top}
         </header>
         <div className={s.mbar}>
           {view === 'talk' ? (
             <>
-              <span className="t-s b">Portrait</span>
+              <span className="t-s b">Skystep</span>
               {mobile?.status ? <span className="t-xs c2">{mobile.status}</span> : null}
             </>
           ) : (

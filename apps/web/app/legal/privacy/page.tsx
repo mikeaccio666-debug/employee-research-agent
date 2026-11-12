@@ -11,7 +11,7 @@ export default function PrivacyPolicyPage() {
   return (
     <LegalPage title="Privacy policy" updated="November 6, 2026">
       <p>
-        Portrait helps you build a page about your work from what you have actually done, and lets you choose who sees it. This page says what we
+        Skystep helps you build a page about your work from what you have actually done, and lets you choose who sees it. This page says what we
         keep, why, who else handles it, and how to remove it.
       </p>
 
@@ -49,7 +49,7 @@ export default function PrivacyPolicyPage() {
           to cancel it; pages already read stay among your documents until you delete them.
         </p>
         <p>
-          Portrait’s use of information received from Google APIs will adhere to the Google API Services User Data Policy, including the Limited Use
+          Skystep’s use of information received from Google APIs will adhere to the Google API Services User Data Policy, including the Limited Use
           requirements.
         </p>
       </Section>
@@ -81,7 +81,7 @@ export default function PrivacyPolicyPage() {
       </Section>
 
       <Section title="Children">
-        <p>Portrait is for people looking for work, and isn’t meant for anyone under 16.</p>
+        <p>Skystep is for people looking for work, and isn’t meant for anyone under 16.</p>
       </Section>
 
       <Section title="Changes">

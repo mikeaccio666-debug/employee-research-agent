@@ -9,7 +9,7 @@ export default function TermsPage() {
   const email = contact();
   return (
     <LegalPage title="Terms of service" updated="October 21, 2026">
-      <p>By using Portrait you agree to these terms. They are short on purpose.</p>
+      <p>By using Skystep you agree to these terms. They are short on purpose.</p>
 
       <Section title="Your portrait is yours">
         <p>
@@ -21,7 +21,7 @@ export default function TermsPage() {
       <Section title="Tell the truth">
         <p>
           Your page should describe what you actually did. Don’t claim others’ work, don’t share material you have no right to share, and don’t use
-          Portrait to mislead, harass or spam anyone.
+          Skystep to mislead, harass or spam anyone.
         </p>
       </Section>
 
@@ -41,7 +41,7 @@ export default function TermsPage() {
 
       <Section title="The service">
         <p>
-          Portrait is offered as it is, and is still being built: features may change or stop. We may suspend accounts that break these terms. As far
+          Skystep is offered as it is, and is still being built: features may change or stop. We may suspend accounts that break these terms. As far
           as the law allows, we aren’t liable for indirect losses, such as a job you didn’t get.
         </p>
       </Section>
