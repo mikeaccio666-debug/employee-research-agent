@@ -185,7 +185,7 @@ export async function resumePdf(r: Resume): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   doc.setTitle(r.target ? `${r.name}: résumé for ${r.target}` : `${r.name}: résumé`);
   doc.setAuthor(r.name);
-  doc.setCreator('Portrait');
+  doc.setCreator('Skystep');
   const fonts = await loadFonts(doc);
   const w = new Writer(doc, fonts);
 

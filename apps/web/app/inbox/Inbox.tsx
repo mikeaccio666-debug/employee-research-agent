@@ -184,7 +184,7 @@ export function Inbox() {
                       <div className="gl mt-3.5">
                         <p className="ln t-s">Declining is private. Northwind sees “not available right now”.</p>
                         <label className="ln fl mt-2.5 block" htmlFor="why">
-                          A reason only Portrait sees · optional
+                          A reason only Skystep sees · optional
                         </label>
                         <input
                           id="why"

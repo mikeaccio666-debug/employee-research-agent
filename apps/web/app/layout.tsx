@@ -16,7 +16,7 @@ import 'lxgw-wenkai-webfont/lxgwwenkai-regular.css';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: { default: 'Portrait', template: '%s · Portrait' },
+  title: { default: 'Skystep', template: '%s · Skystep' },
   description: 'A portrait drawn from what you have actually done — found by the startups that need it.',
 };
 
