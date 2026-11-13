@@ -36,7 +36,7 @@ export function ShareCards() {
       <h1 className="sr">Share cards</h1>
 
       <Shown n={1} caption={named.caption}>
-        <div role="group" aria-label={named.label} className={cx('pv light', c.card)}>
+        <div role="group" aria-label={named.label} className={cx('pv light morning', c.card)}>
           <Ruler />
           {named.marks.map((m) => (
             <CardMark key={m.date} top={m.top} date={m.date} isNew={m.isNew} />
@@ -96,7 +96,7 @@ export function ShareCards() {
       </Shown>
 
       <Shown n={3} caption={work.caption}>
-        <div role="group" aria-label={work.label} className={cx('pv light', c.card, c.work)}>
+        <div role="group" aria-label={work.label} className={cx('pv light morning', c.card, c.work)}>
           <Ruler />
           <CardMark top={work.mark.top} date={work.mark.date} isNew />
           <div className={c.top}>

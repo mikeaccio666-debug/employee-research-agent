@@ -2,30 +2,37 @@
 name: Skystep 青云步
 description: A career agent that draws you as an evidence-backed page and keeps marking your growth, like pencil lines on a doorframe.
 colors:
-  wall: "oklch(0.935 0.016 215)"
-  wall-2: "oklch(0.905 0.020 215)"
-  trim: "oklch(0.982 0.018 88)"
-  warm: "oklch(0.935 0.055 82)"
+  wall: "oklch(0.968 0.003 200)"
+  wall-2: "oklch(0.940 0.004 200)"
+  trim: "oklch(1 0 0)"
+  warm: "oklch(0.945 0.004 200)"
   chalk: "oklch(0.875 0.100 78)"
-  on-chalk: "oklch(0.270 0.035 240)"
-  ink: "oklch(0.270 0.035 240)"
-  ink-2: "oklch(0.420 0.030 240)"
-  ink-3: "oklch(0.495 0.025 240)"
-  edge: "oklch(0.580 0.030 240)"
+  on-chalk: "oklch(0.240 0.010 240)"
+  ink: "oklch(0.240 0.010 240)"
+  ink-2: "oklch(0.410 0.010 240)"
+  ink-3: "oklch(0.490 0.010 240)"
+  edge: "oklch(0.580 0.010 240)"
   me: "oklch(0.50 0.10 168)"
   me-wash: "oklch(0.93 0.035 168)"
   sky-1: "oklch(0.532 0.088 194)"
   sky-2: "oklch(0.660 0.109 192)"
   sky-3: "oklch(0.770 0.095 192)"
-  night-wall: "oklch(0.245 0.030 250)"
-  night-wall-2: "oklch(0.210 0.028 250)"
-  night-trim: "oklch(0.300 0.025 1)"
-  night-warm: "oklch(0.350 0.033 1)"
+  night-wall: "oklch(0.205 0.004 240)"
+  night-wall-2: "oklch(0.175 0.004 240)"
+  night-trim: "oklch(0.255 0.004 240)"
+  night-warm: "oklch(0.305 0.004 240)"
   night-chalk: "oklch(0.820 0.110 80)"
-  night-ink: "oklch(0.950 0.018 85)"
-  night-ink-2: "oklch(0.830 0.020 85)"
-  night-ink-3: "oklch(0.730 0.020 85)"
-  night-edge: "oklch(0.570 0.025 250)"
+  night-ink: "oklch(0.950 0.004 85)"
+  night-ink-2: "oklch(0.830 0.004 85)"
+  night-ink-3: "oklch(0.730 0.004 85)"
+  night-edge: "oklch(0.570 0.006 240)"
+  morning-wall: "oklch(0.935 0.016 215)"
+  morning-wall-2: "oklch(0.905 0.020 215)"
+  morning-trim: "oklch(0.982 0.018 88)"
+  morning-warm: "oklch(0.935 0.055 82)"
+  morning-ink: "oklch(0.270 0.035 240)"
+  morning-night-wall: "oklch(0.245 0.030 250)"
+  morning-night-trim: "oklch(0.300 0.025 1)"
 typography:
   name:
     fontFamily: "Atkinson Hyperlegible Next, Noto Sans SC, sans-serif"
@@ -173,7 +180,9 @@ The colour is "晨光" (morning light): a cool painted wall, cream trim, a singl
 
 ## Colors
 
-Cool wall, warm trim, one gold accent, and blue-black ink; the brand teal lives only in the logo mark.
+Neutral surfaces, one gold accent, near-black ink; the brand teal lives only in the logo mark. The default is a near-white wall with white trim by day and a dark grey wall with lighter grey trim by night. Surfaces carry only a trace of hue (chroma 0.003 to 0.010) and are told apart by lightness, never by hue, so the gold chalk is the only colour on a page before content arrives. Decided 2026-11-13 after comparing both on the same pages.
+
+The earlier palette (cool blue-grey wall, cream trim, deep blue and wine at night) stays as the optional theme **晨光** (`morning` class, `morning-*` tokens). Share cards and the Open Graph image keep 晨光 for now, as printed-card surfaces. No third theme: every theme doubles the screens to check.
 
 ### Primary
 - **Gold Chalk** (`chalk`): the only highlight. Marks "now", text that just changed (the `band` sweep), the selected footnote, the context tag in the composer, and the source message a block grew from. Text on it uses **On-Chalk Ink** (`on-chalk`).
@@ -185,15 +194,17 @@ Cool wall, warm trim, one gold accent, and blue-black ink; the brand teal lives 
 - **Person Colour** (`me`, `me-wash`): the default accent of a person's own portrait. Each portrait can pick its own hue; the platform never uses it for controls, and it is never the brand teal.
 
 ### Neutral
-- **Morning Wall** (`wall`): page background.
+- **Wall** (`wall`): page background, near-white, never pure white for the page itself.
 - **Shaded Wall** (`wall-2`): sunk areas, the agent column, secondary buttons, receipts.
-- **Cream Trim** (`trim`): raised panels, inputs, the person's own chat bubbles, selected blocks.
-- **Warm Trim** (`warm`): hover on trim surfaces.
+- **Trim** (`trim`): raised panels, inputs, the person's own chat bubbles, selected blocks. White by day, one step lighter than the wall by night.
+- **Hover Trim** (`warm`): hover on trim surfaces (the token keeps its old name).
 - **Pencil Ink** (`ink`, `ink-2`, `ink-3`): text in three steps; `ink-3` is the lightest allowed for text and still passes 4.5:1 on the wall.
 - **Edge** (`edge`): control borders (inputs, switches), 3:1 or better.
 
 ### Named Rules
 **The One Chalk Rule.** Gold chalk marks at most one "now" and the things that just changed. If two things on a screen are chalked at rest, one of them is wrong.
+
+**The Lightness Not Hue Rule.** Layers (wall, shaded wall, trim, hover) differ in lightness only. A new surface gets a new lightness step, not a new colour.
 
 **The Brand Is Not a Person Rule.** Teal is the company's mark; `me` is the person's colour. They never stand in for each other.
 

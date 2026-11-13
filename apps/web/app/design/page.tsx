@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Band, DateNote, Ruler, SectionMark } from '@portrait/ui';
 import { boardGroups } from '@/lib/routes';
+import { ThemeSwitch } from '@/components/design/ThemeSwitch';
 import s from './design.module.css';
 
 export const metadata: Metadata = { title: '目录 · 页面 v2' };
@@ -19,6 +20,7 @@ export default function DesignIndex() {
     <div lang="zh-CN" className="relative min-h-screen overflow-hidden pb-24">
       <Ruler />
       <header className="wrap relative pt-16">
+        <ThemeSwitch className="absolute top-3 right-6" />
         <SectionMark vw={220} d="M2 6 C60 3 140 7 218 4" isNew style={{ top: 70, width: 220 }} />
         <p className="hand pt-[22px] text-[18px]">
           <Band>v0.2 · Oct 19</Band> <DateNote>身高线的结构 × 晨光的颜色</DateNote>
