@@ -19,7 +19,7 @@ const MUTED = rgb(0.38, 0.38, 0.42);
 // blanks most Chinese characters. fontkit 2 subsets them correctly; pdf-lib only needs its subset
 // to offer the older streaming encoder.
 type Emitter = { on(event: string, cb: (arg?: unknown) => void): Emitter };
-const compatFontkit = {
+export const compatFontkit = {
   create(data: Uint8Array) {
     const font = fontkit.create(data as Buffer) as fontkit.Font;
     const createSubset = font.createSubset.bind(font);

@@ -14,7 +14,7 @@ export async function GET() {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: { message: 'Sign in first.' } }, { status: 401 });
 
-  const [profile, portrait, versions, conversations, sources, connections] = await Promise.all([
+  const [profile, portrait, versions, conversations, sources, connections, resumes] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
     supabase.from('portraits').select('spec, published_spec, status, published_at, created_at, updated_at').eq('owner_id', user.id).maybeSingle(),
     // Missing before the version-history migration runs; the export goes on without it.
@@ -23,6 +23,8 @@ export async function GET() {
     supabase.from('sources').select('kind, name, url, pages, created_at').eq('owner_id', user.id).order('created_at'),
     // Which apps are connected; never the sealed tokens.
     supabase.from('connections').select('provider, status, created_at').eq('owner_id', user.id).order('created_at'),
+    // Résumé versions from the résumé editor; missing before its migration runs.
+    supabase.from('resumes').select('name, is_default, target, doc, style, letter, created_at, updated_at').eq('owner_id', user.id).order('created_at'),
   ]);
   const ids = (conversations.data ?? []).map((c) => c.id as string);
   const messages = ids.length
@@ -42,6 +44,7 @@ export async function GET() {
     })),
     sources: sources.data ?? [],
     connected_apps: connections.data ?? [],
+    resumes: resumes.data ?? [],
   };
   const day = body.exported_at.slice(0, 10);
   return new NextResponse(JSON.stringify(body, null, 2), {

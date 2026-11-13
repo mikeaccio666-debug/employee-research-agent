@@ -5,6 +5,7 @@ export const routes = {
   studio: '/studio',
   apps: '/apps',
   jobs: '/jobs',
+  resume: '/resume',
   login: '/login',
   firstPublish: '/studio/publish',
   portrait: (handle: string) => `/@${handle}`,

@@ -2,7 +2,9 @@ import { loadPortrait } from '@/lib/agent/store';
 import { jobSource } from '@/lib/jobs/source';
 import { LIMITS } from '@/lib/portrait/spec';
 import { planForPosting, resumeFrom } from '@/lib/resume/model';
+import { docPdf } from '@/lib/resume/doc-pdf';
 import { resumePdf } from '@/lib/resume/pdf';
+import { versionOf } from '@/lib/resume/store';
 import { routes } from '@/lib/routes';
 import { getViewer, supabaseServer } from '@/lib/supabase/server';
 
@@ -10,7 +12,8 @@ import { getViewer, supabaseServer } from '@/lib/supabase/server';
 // lines of their portrait. ?for=tailored gives the one the agent put together for a role
 // (make_resume). ?job=<posting id>&first=<line ids> gives the one for a posting on the Jobs page:
 // the same confirmed lines, the ones the posting asks for first. Only ever the person's own
-// portrait: who it belongs to comes from the session.
+// portrait: who it belongs to comes from the session. ?version=<id> gives a version from the
+// résumé editor (app/resume), set in the template, font and size chosen there.
 
 export const dynamic = 'force-dynamic';
 
@@ -20,8 +23,10 @@ export async function GET(request: Request) {
   const viewer = await getViewer();
   const supabase = await supabaseServer();
   if (!viewer || !supabase) return json(401, 'Sign in to download your résumé.');
-  const { spec } = await loadPortrait(supabase, viewer.user.id);
   const params = new URL(request.url).searchParams;
+  const versionId = params.get('version');
+  if (versionId) return versionPdf(supabase, viewer.user.id, versionId);
+  const { spec } = await loadPortrait(supabase, viewer.user.id);
   const tailored = params.get('for') === 'tailored';
   if (tailored && !spec.resume) return json(404, 'There is no tailored résumé yet. Ask the studio agent for one.');
   const jobId = params.get('job');
@@ -38,7 +43,21 @@ export async function GET(request: Request) {
   if (!resume.sections.length) return json(409, 'Confirm a few lines on your portrait first; a résumé only holds confirmed lines.');
 
   const bytes = await resumePdf(resume);
-  const file = `${name.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '') || 'resume'}-resume${resume.target ? `-${resume.target.replace(/[^\p{L}\p{N}]+/gu, '-').slice(0, 40)}` : ''}.pdf`;
+  return pdf(bytes, `${slug(name) || 'resume'}-resume${resume.target ? `-${slug(resume.target).slice(0, 40)}` : ''}.pdf`);
+}
+
+const slug = (s: string) => s.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '');
+
+/** A version from the résumé editor, laid out as the editor shows it. */
+async function versionPdf(supabase: NonNullable<Awaited<ReturnType<typeof supabaseServer>>>, ownerId: string, id: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return json(404, 'That version isn’t there.');
+  const version = await versionOf(supabase, ownerId, id).catch(() => null);
+  if (!version) return json(404, 'That version isn’t there.');
+  const bytes = await docPdf(version.doc, version.style, { title: `${version.doc.name || 'Résumé'}: ${version.name}` });
+  return pdf(bytes, `${slug(version.doc.name) || 'resume'}-${slug(version.name).slice(0, 40) || 'resume'}.pdf`);
+}
+
+function pdf(bytes: Uint8Array, file: string) {
   return new Response(bytes as BodyInit, {
     headers: {
       'Content-Type': 'application/pdf',

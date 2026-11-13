@@ -288,6 +288,9 @@ Gently squared corners: 4px for buttons, inputs, chips and panels; 2–3px for s
 ### Brand mark
 - `Mark` and `Wordmark` in `@portrait/ui`: three steps and a cloud in `sky-1..3`, followed by "Skystep" (or 青云步 on Chinese-only surfaces).
 
+### Résumé sheet (the one exception to the wall)
+The résumé editor (`/resume`, `components/resume`) shows a sheet of paper: always white with near-black ink (`#18181b`, muted `#55555c`), by day and by night, because it is the page that gets printed and sent. Its type is the résumé's own, not ours: Arimo, Carlito, Tinos and Gelasio (open fonts drawn to the widths of Arial, Calibri, Times and Georgia) or Atkinson, set in points so the sheet matches the PDF line for line; its section headings are uppercase because that is résumé convention, not a UI label. Everything that edits the sheet speaks the app's language: pencil ink (`#3a3f47`) for hover underlines, dashed-underlined "+ Add" links and margin tools; a chalk wash for the field being typed in and for selected text; a dashed ink line where page one ends. No shadow under the sheet: white on the shaded wall is enough.
+
 ## Do's and Don'ts
 
 ### Do:
