@@ -71,7 +71,8 @@ Proposed shape; talent-data-hub decides. Bearer key per consumer, JobRecord v1 b
   rejected and "looking for" lines never count.
 - The right to work is never read off a portrait line and is never sent to the model. The panel
   quotes the posting's sentence beside what the person told the agent, and says when they conflict.
-- Nothing is stored. Each check is logged in `model_calls` with `stop_reason` starting `job_fit`,
+- Nothing is stored. Each answered check is logged once in `model_calls` with `stop_reason`
+  starting `job_fit:` (a call that got no answer is logged as `job_fit_failed` and isn't counted),
   which is how the daily cap is counted (`JOB_FIT_DAILY`, default 60 a person a day).
 - Signed out, the button is hidden: there is no portrait to check against.
 

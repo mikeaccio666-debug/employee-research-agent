@@ -69,6 +69,8 @@ export async function checkJobFit(jobId: string): Promise<Result<{ fit: Fit }>> 
   const env = summarizerFor(agentEnv);
   const began = Date.now();
   let conversationId: string | null = null;
+  // Whether the model's answer is already in the log: a check is logged, and counted, once.
+  let logged = false;
   try {
     const [job, portrait] = await Promise.all([jobSource().get(jobId), loadPortrait(supabase, user.id)]);
     if (!job) return { ok: false, error: 'That posting isn’t there any more.' };
@@ -79,7 +81,7 @@ export async function checkJobFit(jobId: string): Promise<Result<{ fit: Fit }>> 
       .from('model_calls')
       .select('id', { count: 'exact', head: true })
       .eq('conversation_id', conversationId)
-      .like('stop_reason', `${FIT_STOP}%`)
+      .like('stop_reason', `${FIT_STOP}:%`)
       .gte('created_at', since);
     if ((count ?? 0) >= FIT_DAILY) return { ok: false, error: 'That’s all the fit checks for today. They come back tomorrow.' };
 
@@ -89,17 +91,19 @@ export async function checkJobFit(jobId: string): Promise<Result<{ fit: Fit }>> 
       const { text: out, log } = await adapter.summarize(instructions, text, AbortSignal.timeout(40_000));
       // Marked as a fit check in stop_reason, which is how the day's checks are counted.
       await logCall(supabase, id, { provider: env.provider, ...log, stop_reason: `${FIT_STOP}:${log.stop_reason}`, latency_ms: Date.now() - began, error: null });
+      logged = true;
       return out;
     });
     return { ok: true, fit };
   } catch (e) {
     reportError('job fit check failed', e, { jobId });
-    if (conversationId) {
+    // A call that never got an answer is logged for us but doesn't use up one of the day's checks.
+    if (conversationId && !logged) {
       await logCall(supabase, conversationId, {
         provider: env.provider,
         model: env.model,
         latency_ms: Date.now() - began,
-        stop_reason: `${FIT_STOP}:failed`,
+        stop_reason: `${FIT_STOP}_failed`,
         error: e instanceof Error ? e.message.slice(0, 300) : 'failed',
       });
     }
