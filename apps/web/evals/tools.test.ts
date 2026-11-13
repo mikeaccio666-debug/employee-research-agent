@@ -5,7 +5,7 @@ import { numbersIn, unquotedNumbers } from '@/lib/agent/guards';
 import { plan } from '@/lib/agent/planner';
 import { parseSkill, SKILLS } from '@/lib/agent/skills';
 import { findQuote, runTool, TOOL_DEFS, type Grounds } from '@/lib/agent/tools';
-import { resumeFrom, resumeText } from '@/lib/resume/model';
+import { planForPosting, resumeFrom, resumeText } from '@/lib/resume/model';
 import { resumePdf } from '@/lib/resume/pdf';
 
 // The rules the studio agent's tools enforce (lib/agent/tools.ts), checked without a model.
@@ -420,6 +420,22 @@ describe('résumé', () => {
     assert.equal(publishedSpec(r.spec).resume, null);
     const none = await runTool('make_resume', JSON.stringify({ target: null, claim_ids: null }), emptySpec(), grounds());
     assert.match(none.output, /no experience on the portrait is confirmed/);
+  });
+
+  it('orders the résumé for a posting without adding, dropping or rewording a line', () => {
+    const s = spec();
+    // What the browser sends is not trusted: a draft, a rejected line and a made-up id are left out.
+    const plan = planForPosting(s, 'Backend Engineer at Stripe', ['clm_prj1aaaaaa', 'clm_drf1aaaaaa', 'clm_rej1aaaaaa', 'clm_nothere000', 'clm_prj1aaaaaa']);
+    const confirmed = s.claims.filter((c) => c.status === 'confirmed').map((c) => c.id);
+    assert.equal(plan.claims[0], 'clm_prj1aaaaaa');
+    assert.deepEqual([...plan.claims].sort(), [...confirmed].sort());
+    const forPosting = resumeFrom(s, who, plan);
+    assert.equal(forPosting.target, 'Backend Engineer at Stripe');
+    const lines = (t: string) => t.split('\n').filter((l) => l.startsWith('•')).sort();
+    assert.deepEqual(lines(resumeText(forPosting)), lines(resumeText(resumeFrom(s, who))));
+    assert.doesNotMatch(resumeText(forPosting), /hackathon|Rust|F-1|sponsorship/i);
+    // Nothing asked for: the plain order.
+    assert.deepEqual(planForPosting(s, 'x', []).claims, confirmed);
   });
 
   it('renders a PDF, Chinese included', async () => {
