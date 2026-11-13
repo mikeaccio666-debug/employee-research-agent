@@ -41,8 +41,10 @@ when `THD_API_URL` is set, else `sample`.
   Greenhouse, Ashby and Lever boards on 5 to 8 November 2026, from its connector fixtures. Built by
   `node apps/web/scripts/jobs-sample.mjs <talent-data-hub checkout>`, which makes no network request.
   The page says it is a sample and that some may have closed.
-- `thd`: talent-data-hub's read API, with our own consumer key. It does not exist yet (its plan's
-  layer 5). Its records are JobRecord v1; `lib/jobs/thd.ts` reads them, and unknown values in the
+- `thd`: talent-data-hub's read API, with our own consumer key. As of 2026-11-12 that API is merged
+  there but not deployed, and it is an event feed to mirror, not a search endpoint; the adapter in
+  `lib/jobs/source.ts` was written against the shape proposed below and will be rewritten as a
+  mirror (JOB-07). It stays off until `THD_API_URL` and `THD_API_KEY` are set. Its records are JobRecord v1; `lib/jobs/thd.ts` reads them, and unknown values in the
   contract's open sets read as `unknown`.
 
 ## What we ask talent-data-hub for
@@ -57,6 +59,21 @@ Proposed shape; talent-data-hub decides. Bearer key per consumer, JobRecord v1 b
    posting can say it closed).
 3. The event stream (`job.upserted`, `job.verified`, `job.closed`, `job.removed`) by webhook or
    cursor, so we can keep a mirror and drop closed postings from recommendations.
+
+## Fit check (JOB-11, first part)
+
+- "Check my fit" on a card (`checkJobFit` in `lib/job-actions.ts`, `lib/jobs/fit.ts`) lists what the
+  posting asks for, each requirement beside the confirmed line that shows it, or "Not in your
+  portrait yet". It shows counts ("Required: 5 of 8"), never a score.
+- One call to the provider's small model (`OPENAI_SUMMARY_MODEL` / `ANTHROPIC_SUMMARY_MODEL`) reads
+  the posting and the confirmed lines. Its answer is kept only where it can be checked: a
+  requirement must be the posting's own words, and a line must be one the person confirmed. Draft,
+  rejected and "looking for" lines never count.
+- The right to work is never read off a portrait line and is never sent to the model. The panel
+  quotes the posting's sentence beside what the person told the agent, and says when they conflict.
+- Nothing is stored. Each check is logged in `model_calls` with `stop_reason` starting `job_fit`,
+  which is how the daily cap is counted (`JOB_FIT_DAILY`, default 60 a person a day).
+- Signed out, the button is hidden: there is no portrait to check against.
 
 ## Next (JOB-07 onward)
 

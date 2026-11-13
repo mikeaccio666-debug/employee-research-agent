@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { useState, useTransition } from 'react';
 import { Chip, buttonClass, cx } from '@portrait/ui';
 import { ShellMain } from '@/components/shell/AppShell';
-import { actOnJob, undoJobAction } from '@/lib/job-actions';
+import { actOnJob, checkJobFit, undoJobAction } from '@/lib/job-actions';
+import type { Fit, Requirement } from '@/lib/jobs/fit';
 import type { DismissReason, JobAction, Reason } from '@/lib/jobs/match';
 import type { SavedJob } from '@/lib/jobs/store';
 import type { EmploymentType, WorkplaceType } from '@/lib/jobs/types';
@@ -84,6 +85,79 @@ function ReasonLine({ r }: { r: Reason }) {
   );
 }
 
+type FitState = { state: 'loading' } | { state: 'done'; fit: Fit } | { state: 'error'; error: string };
+
+function RequirementLine({ r }: { r: Requirement }) {
+  return (
+    <li className="t-s">
+      <span className={r.claimId ? undefined : 'c2'}>“{r.quote}”</span>
+      {r.screening ? <span className="t-xs c2"> · the form may ask this outright</span> : null}
+      <span className={cx('t-xs', s.quote, r.claimId ? undefined : 'c2')}>
+        {r.claimId ? (
+          <>
+            <span className="c2">You:</span> {r.statement}
+          </>
+        ) : (
+          'Not in your portrait yet'
+        )}
+      </span>
+    </li>
+  );
+}
+
+/** What the posting asks for, each requirement beside the confirmed line that shows it, or none. */
+function FitPanel({ fit }: { fit: Fit }) {
+  const listed = fit.requirements.filter((r) => r.kind !== 'authorization');
+  const must = listed.filter((r) => r.must);
+  const nice = listed.filter((r) => !r.must);
+  if (!listed.length && !fit.authorization)
+    return <p className={cx('t-xs c2', s.fit)}>This posting doesn’t list requirements we could quote. Read it before you apply.</p>;
+  return (
+    <div className={s.fit}>
+      {must.length ? (
+        <>
+          <p className="t-s b">
+            Required: {fit.must.covered} of {fit.must.total} are in your portrait
+          </p>
+          <ul className={s.reasons} aria-label="Required">
+            {must.map((r) => (
+              <RequirementLine key={r.quote} r={r} />
+            ))}
+          </ul>
+        </>
+      ) : null}
+      {nice.length ? (
+        <>
+          <p className="t-s b mt-3">
+            Preferred: {fit.nice.covered} of {fit.nice.total}
+          </p>
+          <ul className={s.reasons} aria-label="Preferred">
+            {nice.map((r) => (
+              <RequirementLine key={r.quote} r={r} />
+            ))}
+          </ul>
+        </>
+      ) : null}
+      {fit.authorization ? (
+        <p className={cx('t-xs mt-3', s.caution)}>
+          Right to work: “{fit.authorization.quote}”{' '}
+          {fit.authorization.saved
+            ? `You told the agent: ${fit.authorization.saved}.${fit.authorization.conflict ? ' These don’t seem to fit; check before you apply.' : ''}`
+            : 'You haven’t told the agent your work authorization.'}
+        </p>
+      ) : null}
+      <p className="t-xs c2 mt-3">
+        A small model read the posting; every requirement above is quoted from it and every “You” is a line you confirmed. If you have
+        something it says is missing, tell the agent in the{' '}
+        <Link className="linklike" href={routes.studio}>
+          studio
+        </Link>{' '}
+        and confirm the line.
+      </p>
+    </div>
+  );
+}
+
 /** S20 · Jobs for you, and the ones they saved. */
 export function Jobs({
   cards: initial,
@@ -107,6 +181,7 @@ export function Jobs({
   const [tab, setTab] = useState<'for-you' | 'saved'>('for-you');
   const [asking, setAsking] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
+  const [fits, setFits] = useState<Record<string, FitState>>({});
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   const [, start] = useTransition();
@@ -157,6 +232,16 @@ export function Jobs({
         setError(r.error);
         setStatus('');
       }
+    });
+  };
+
+  /** Asked for once per card; asking again after a failure tries again. */
+  const check = (id: string) => {
+    if (fits[id] && fits[id].state !== 'error') return;
+    setFits((all) => ({ ...all, [id]: { state: 'loading' } }));
+    start(async () => {
+      const r = await checkJobFit(id);
+      setFits((all) => ({ ...all, [id]: r.ok ? { state: 'done', fit: r.fit } : { state: 'error', error: r.error } }));
     });
   };
 
@@ -249,6 +334,7 @@ export function Jobs({
           <ul className={s.list} aria-label="Jobs for you">
             {cards.map((c) => {
               const facts = [c.location, WORKPLACE[c.workplace], TYPE[c.type], c.pay, posted(c.postedAt)].filter(Boolean);
+              const fit = fits[c.id];
               return (
                 <li key={c.id} className={s.card}>
                   <div className="flex items-baseline justify-between gap-3">
@@ -262,6 +348,17 @@ export function Jobs({
                     ))}
                   </ul>
                   {c.caution ? <p className={cx('t-xs mt-2', s.caution)}>{c.caution}</p> : null}
+                  {fit?.state === 'loading' ? (
+                    <p className={cx('t-xs c2', s.fit)} role="status">
+                      Reading the posting against your portrait…
+                    </p>
+                  ) : fit?.state === 'error' ? (
+                    <p className={cx('t-xs err', s.fit)} role="status">
+                      {fit.error}
+                    </p>
+                  ) : fit?.state === 'done' ? (
+                    <FitPanel fit={fit.fit} />
+                  ) : null}
                   {open === c.id ? <p className={cx('t-xs c2 mt-2', s.description)}>{c.description}</p> : null}
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <a
@@ -285,6 +382,11 @@ export function Jobs({
                     <Chip size="sm" tone="wall" aria-expanded={asking === c.id} onClick={() => setAsking(asking === c.id ? null : c.id)}>
                       Not for me
                     </Chip>
+                    {signedIn && (!fit || fit.state === 'error') ? (
+                      <Chip size="sm" onClick={() => check(c.id)}>
+                        {fit ? 'Check again' : 'Check my fit'}
+                      </Chip>
+                    ) : null}
                     <button type="button" className="linklike t-xs" onClick={() => setOpen(open === c.id ? null : c.id)}>
                       {open === c.id ? 'Hide the posting' : 'Read the posting'}
                     </button>
