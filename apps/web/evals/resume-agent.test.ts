@@ -39,6 +39,10 @@ describe('résumé assistant tools', () => {
     const wrong = call(c, 'rewrite', { id: bullet.id, field: 'text', text: 'Built weekly metrics for 3 teams, cutting reporting time 40%.' });
     assert.match(wrong.output, /^Not done: 40/);
     assert.equal(wrong.doc, c.doc);
+    // An id that happens to hold the digits doesn't count as someone saying them.
+    const doc = { ...c.doc, sections: c.doc.sections.map((s) => ({ ...s, entries: s.entries.map((e) => ({ ...e, bullets: e.bullets.map((b) => (b.id === bullet.id ? { ...b, id: 'blt_x40x40x4' } : b)) })) })) };
+    const sly = { ...c, doc, grounds: groundsFor(doc, emptySpec(), [], []) };
+    assert.match(call(sly, 'rewrite', { id: 'blt_x40x40x4', field: 'text', text: 'Cut reporting time 40%.' }).output, /^Not done: 40/);
     const told = ctx(['it cut the reporting time by about 40%']);
     const id = experience(told.doc).entries[0]!.bullets[0]!.id;
     const right = call(told, 'rewrite', { id, field: 'text', text: 'Built weekly metrics for 3 teams, cutting reporting time about 40%.' });

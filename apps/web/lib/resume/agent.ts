@@ -227,7 +227,10 @@ const LIMIT: Record<Field, number> = {
 /** What facts on the page may rest on: everything the person put somewhere, as plain text. */
 export function groundsFor(doc: ResumeDoc, spec: Spec, said: string[], sources: Source[]): string[] {
   const claims = visibleClaims(spec).flatMap((c) => [c.statement, c.title ?? '', c.org ?? '', c.when ?? '', ...c.evidence.map((e) => e.quote)]);
-  return [JSON.stringify(doc), ...claims, ...said, ...sources.flatMap((s) => s.pages.map((p) => p.text))].filter(Boolean);
+  // The page's words only: ids and settings are random or ours, and a digit in one must not
+  // vouch for a number nobody gave.
+  const words = JSON.stringify(doc, (k, v) => (k === 'id' || typeof v === 'number' || typeof v === 'boolean' ? undefined : v));
+  return [words, ...claims, ...said, ...sources.flatMap((s) => s.pages.map((p) => p.text))].filter(Boolean);
 }
 
 const norm = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
