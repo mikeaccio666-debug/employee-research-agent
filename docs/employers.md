@@ -35,15 +35,23 @@ these tables. Pages will get their own read paths when they exist (E1).
 (`lib/jobs/thd-api.ts`, `GET /v1/jobs?source=&tenant=`), then compare.
 
 - A listed posting that is new, has a higher revision, or was verified more recently is saved. A
-  held posting is never replaced by an older revision.
+  held posting is never replaced by an older revision, whether the copy came from the listing or
+  from a lookup by id.
 - A posting that closed stays, as closed. How long roles stay open and which ones reopen is what a
   dossier reads.
 - A held posting the listing no longer has is asked about by id. 410 (the employer opted out or
   asked for removal) deletes it; so does 404. Tables that later cite postings must reference `jobs`
   with `on delete cascade`, so what was derived from a removed posting goes with it.
 - If the listing fails or does not end, nothing is written. An incomplete read proves nothing.
-- A run asks about at most 200 missing postings; the rest wait for the next run, and the board is
-  not marked checked until all were asked about.
+- A run asks about at most 200 missing postings, the ones we have gone longest without hearing of
+  first. Each one asked about is saved, touched (`fetched_at`) or deleted, so the next run starts
+  with the others. The board is not marked checked until all were asked about.
+- A stored record is kept under 12,000 bytes of JSON so it always fits the column: first with fewer
+  locations, then with only the fields we read and long texts cut, and it says so in `truncated`.
+  The link to the posting is never cut; a posting whose link is too long to keep whole is skipped,
+  not taken for gone.
+- Whose a posting is follows its board. When a person corrects a board's employer or marks it
+  `staffing` or `multi_brand`, a trigger moves every posting the board already holds.
 
 `lib/employers/slug.ts` turns a company name into a page address.
 

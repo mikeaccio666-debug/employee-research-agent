@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { freeSlug, slugBase } from '@/lib/employers/slug';
-import { planBoardSync, syncBoard, toRow, type Board, type EmployerStore, type JobRow } from '@/lib/employers/sync';
+import { RECORD_BUDGET, planBoardSync, storedRecord, syncBoard, toRow, type Board, type EmployerStore, type JobRow } from '@/lib/employers/sync';
 import { HubError, hubApi, type HubJob } from '@/lib/jobs/thd-api';
 
 // The employer layer's sync (lib/employers/sync.ts) against a stand-in for talent-data-hub's read
@@ -97,10 +97,13 @@ function memoryStore() {
     async jobsOnBoard(b) {
       return [...jobs.values()]
         .filter((j) => j.source_system === b.system && j.tenant === b.tenant)
-        .map((j) => ({ id: j.id, revision: j.revision, lastVerifiedAt: j.last_verified_at }));
+        .map((j) => ({ id: j.id, revision: j.revision, lastVerifiedAt: j.last_verified_at, fetchedAt: j.fetched_at }));
     },
     async saveJobs(rows) {
       for (const r of rows) jobs.set(r.id, r);
+    },
+    async touchJobs(ids, at) {
+      for (const id of ids) jobs.set(id, { ...jobs.get(id)!, fetched_at: at });
     },
     async removeJobs(ids) {
       for (const id of ids) jobs.delete(id);
@@ -157,7 +160,7 @@ describe('board sync', () => {
     const hub = fakeHub({ jobs: [open, closed, record({ title: 'Elsewhere', source: { system: 'lever', tenant: 'other', external_id: '1', posting_url: 'https://jobs.lever.co/other/1', apply_url: null } })] });
     const db = memoryStore();
     const result = await syncBoard(db.store, hub.api, board, { now: new Date('2026-11-13T12:00:00Z') });
-    assert.deepEqual(result, { saved: 2, removed: 0, complete: true });
+    assert.deepEqual(result, { saved: 2, removed: 0, skipped: 0, complete: true });
     assert.equal(db.employers.size, 1);
     assert.equal([...db.employers.values()][0]!.name, 'Acme Analytics, Inc.');
     assert.equal(db.boards.get(db.key(board))!.checkedAt, '2026-11-13T12:00:00.000Z');
@@ -186,7 +189,7 @@ describe('board sync', () => {
       removed: new Set([removed.id]),
     });
     const result = await syncBoard(db.store, later.api, board);
-    assert.deepEqual(result, { saved: 1, removed: 2, complete: true });
+    assert.deepEqual(result, { saved: 1, removed: 2, skipped: 0, complete: true });
     assert.equal(db.jobs.has(removed.id), false, '410 means delete');
     assert.equal(db.jobs.has(forgotten.id), false, 'an id talent-data-hub no longer knows cannot be shown with a source');
     assert.equal(db.jobs.get(closes.id)!.status, 'closed');
@@ -221,7 +224,7 @@ describe('board sync', () => {
 
   it('never replaces a posting with an older revision, and saves a newer verification', () => {
     const a = record({ title: 'Data Analyst', revision: 3 });
-    const stored = [{ id: a.id, revision: 3, lastVerifiedAt: a.last_verified_at }];
+    const stored = [{ id: a.id, revision: 3, lastVerifiedAt: a.last_verified_at, fetchedAt: '2026-11-05T10:00:00Z' }];
     assert.deepEqual(planBoardSync(stored, { jobs: [{ ...a, revision: 2 }], unread: [] }), { save: [], missing: [] });
     assert.deepEqual(planBoardSync(stored, { jobs: [a], unread: [] }), { save: [], missing: [] });
     const verified = { ...a, last_verified_at: '2026-11-06T09:15:02Z' };
@@ -234,7 +237,7 @@ describe('board sync', () => {
     await syncBoard(db.store, fakeHub({ jobs: [a] }).api, board);
     const unreadable = fakeHub({ jobs: [{ id: a.id, source: a.source, title: '' }] });
     const result = await syncBoard(db.store, unreadable.api, board);
-    assert.deepEqual(result, { saved: 0, removed: 0, complete: true });
+    assert.deepEqual(result, { saved: 0, removed: 0, skipped: 0, complete: true });
     assert.equal(db.jobs.get(a.id)!.title, 'Data Analyst');
   });
 
@@ -253,16 +256,82 @@ describe('board sync', () => {
     await syncBoard(db.store, fakeHub({ jobs }).api, board, { now: new Date('2026-11-12T00:00:00Z') });
     const hub = fakeHub({ jobs: [], removed: new Set(jobs.map((j) => j.id)) });
     const first = await syncBoard(db.store, hub.api, board, { maxLookups: 3, now: new Date('2026-11-13T00:00:00Z') });
-    assert.deepEqual(first, { saved: 0, removed: 3, complete: false });
+    assert.deepEqual(first, { saved: 0, removed: 3, skipped: 0, complete: false });
     assert.equal(db.boards.get(db.key(board))!.checkedAt, '2026-11-12T00:00:00.000Z', 'not marked checked until every missing posting was asked about');
     const second = await syncBoard(db.store, hub.api, board, { maxLookups: 3, now: new Date('2026-11-13T01:00:00Z') });
-    assert.deepEqual(second, { saved: 0, removed: 2, complete: true });
+    assert.deepEqual(second, { saved: 0, removed: 2, skipped: 0, complete: true });
     assert.equal(db.jobs.size, 0);
   });
 
-  it('cuts a very long location list so the row stays small', () => {
-    const many = record({ title: 'Field Technician', locations: Array.from({ length: 450 }, (_, i) => ({ as_published: `Site ${i}`, country: 'US', region: null, city: null })) });
-    assert.equal((toRow(many, null).record.locations as unknown[]).length, 200);
+  it('does not let a copy fetched by id replace a newer one we hold', async () => {
+    const a = record({ title: 'Data Analyst', revision: 3, status: 'closed', closed_at: '2026-11-10T00:00:00Z' });
+    const db = memoryStore();
+    await syncBoard(db.store, fakeHub({ jobs: [a] }).api, board, { now: new Date('2026-11-12T00:00:00Z') });
+    // The listing misses it, and the lookup answers with an older copy that is still open.
+    const stale = { ...a, revision: 2, status: 'open' as const, closed_at: null };
+    const result = await syncBoard(
+      db.store,
+      { listBoard: async () => ({ jobs: [], unread: [] }), getJob: async () => ({ state: 'found', job: stale }) },
+      board,
+      { now: new Date('2026-11-13T00:00:00Z') },
+    );
+    assert.deepEqual(result, { saved: 0, removed: 0, skipped: 0, complete: true });
+    assert.equal(db.jobs.get(a.id)!.revision, 3);
+    assert.equal(db.jobs.get(a.id)!.status, 'closed');
+    assert.equal(db.jobs.get(a.id)!.fetched_at, '2026-11-13T00:00:00.000Z', 'confirmed by id, so it is touched');
+  });
+
+  it('reaches every missing posting even when the first ones keep being found', async () => {
+    const found = Array.from({ length: 3 }, (_, i) => record({ title: `Still here ${i}` }));
+    const gone = Array.from({ length: 2 }, (_, i) => record({ title: `Removed ${i}` }));
+    const db = memoryStore();
+    await syncBoard(db.store, fakeHub({ jobs: [...found, ...gone] }).api, board, { now: new Date('2026-11-12T00:00:00Z') });
+    // The listing shows nothing; by id, three are still there and two answer 410.
+    const byId = fakeHub({ jobs: found, removed: new Set(gone.map((j) => j.id)) });
+    const hub = { listBoard: async () => ({ jobs: [], unread: [] }), getJob: byId.api.getJob };
+    let removed = 0;
+    for (let run = 1; run <= 3 && removed < 2; run++) {
+      removed += (await syncBoard(db.store, hub, board, { maxLookups: 2, now: new Date(Date.UTC(2026, 10, 13, run)) })).removed;
+    }
+    assert.equal(removed, 2, 'the removed postings were reached within three runs of two lookups');
+    assert.deepEqual([...db.jobs.keys()].sort(), found.map((j) => j.id).sort());
+  });
+
+  it('fits any record into the column, and says what it cut', () => {
+    const plain = record({ title: 'Data Analyst' });
+    assert.equal(storedRecord(plain)!.truncated, undefined);
+    assert.equal((storedRecord(plain)!.evidence as { parser_version: string }).parser_version, 'greenhouse@1.0.0', 'a record that fits is kept as served');
+
+    const bytes = (r: unknown) => Buffer.byteLength(JSON.stringify(r));
+    const many = record({ title: 'Field Technician', locations: Array.from({ length: 450 }, (_, i) => ({ as_published: `Site ${i}, a long published place name`, country: 'US', region: null, city: null })) });
+    const fewer = storedRecord(many)!;
+    assert.ok(bytes(fewer) <= RECORD_BUDGET);
+    assert.ok((fewer.locations as unknown[]).length >= 50, 'as many locations as fit');
+    assert.deepEqual(fewer.truncated, ['locations']);
+
+    const huge = record({
+      title: '职'.repeat(5000),
+      company: { name: 'x'.repeat(9000), domain: null },
+      locations: [{ as_published: '地'.repeat(9000), country: 'US', region: 'y'.repeat(9000), city: null }],
+      salary: [{ as_published: 'z'.repeat(9000), min: 1, max: 2, currency: 'USD', period: 'year' }],
+      extra_field_from_a_later_contract: 'w'.repeat(20000),
+    } as Partial<HubJob> & { title: string });
+    const least = storedRecord(huge)!;
+    assert.ok(bytes(least) <= RECORD_BUDGET, `${bytes(least)} bytes`);
+    assert.equal((least.source as { posting_url: string }).posting_url, huge.source.posting_url, 'the source link is never cut');
+    assert.equal(least.extra_field_from_a_later_contract, undefined);
+    assert.ok((least.truncated as string[]).includes('texts'));
+  });
+
+  it('skips a posting whose link is too long to keep whole, without taking it for gone', async () => {
+    const ok = record({ title: 'Data Analyst' });
+    const odd = record({ title: 'Odd one' });
+    odd.source = { ...odd.source, posting_url: `https://example.test/${'a'.repeat(3000)}` };
+    assert.equal(toRow(odd, null, '2026-11-13T00:00:00.000Z'), null);
+    const db = memoryStore();
+    const result = await syncBoard(db.store, fakeHub({ jobs: [ok, odd] }).api, board);
+    assert.deepEqual(result, { saved: 1, removed: 0, skipped: 1, complete: true });
+    assert.deepEqual([...db.jobs.keys()], [ok.id]);
   });
 });
 

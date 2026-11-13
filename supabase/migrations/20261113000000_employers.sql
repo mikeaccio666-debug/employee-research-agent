@@ -64,12 +64,33 @@ create table public.jobs (
   -- When talent-data-hub last saw it open at its source. Pages show this date.
   last_verified_at timestamptz not null,
   closed_at timestamptz,
+  -- When we last saved it, or confirmed by id that talent-data-hub still has it.
   fetched_at timestamptz not null default now(),
   foreign key (source_system, tenant) references public.employer_boards (source_system, tenant) on delete cascade
 );
 
 create index jobs_board on public.jobs (source_system, tenant);
 create index jobs_employer on public.jobs (employer_id, status);
+
+-- Whose a posting is follows its board. When a person corrects a board's employer, or marks the
+-- board as a staffing agency's or as carrying several brands, every posting already held moves with
+-- it, whether or not talent-data-hub has changed the posting since.
+create function public.employer_board_owns_jobs() returns trigger
+language plpgsql set search_path = '' as $$
+begin
+  update public.jobs
+     set employer_id = case when new.kind = 'single' then new.employer_id end
+   where source_system = new.source_system
+     and tenant = new.tenant
+     and employer_id is distinct from (case when new.kind = 'single' then new.employer_id end);
+  return null;
+end;
+$$;
+
+create trigger employer_boards_own_jobs after update of employer_id, kind on public.employer_boards
+  for each row execute function public.employer_board_owns_jobs();
+
+revoke all on function public.employer_board_owns_jobs() from public, anon, authenticated;
 
 alter table public.employers enable row level security;
 alter table public.employer_boards enable row level security;
