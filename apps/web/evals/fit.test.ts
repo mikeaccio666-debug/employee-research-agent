@@ -107,11 +107,12 @@ describe('fit check', () => {
   });
 
   it('gives the model confirmed lines only, and refuses an answer that is not the JSON asked for', async () => {
-    const yes = claim('Automated the weekly revenue report in Python', { title: 'Operations Assistant', org: 'Campus Dining' });
+    const yes = claim('Automated the weekly revenue report in Python', { title: 'Operations Assistant', org: 'Campus Dining', when: '2021 — now' });
     const no = claim('Fluent in Klingon', { status: 'draft' });
     const s = spec([yes, no], 'F-1, will need sponsorship');
     const input = fitInput(long, s);
-    assert.ok(input.includes(yes.id) && input.includes('Operations Assistant, Campus Dining'));
+    // The dates of a confirmed experience go with it: a years-of-experience requirement rests on them.
+    assert.ok(input.includes(yes.id) && input.includes('Operations Assistant, Campus Dining, 2021 — now — Automated'));
     assert.ok(!input.includes(no.id) && !input.includes('Klingon'));
     // Work authorization stays out of what the model reads.
     assert.ok(!input.includes('F-1'));
