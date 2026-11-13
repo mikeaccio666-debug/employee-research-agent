@@ -10,6 +10,10 @@
   /* Composer suggestion row: wraps on wide screens; one scrolling row on phones (S01 mobile). */
   .cmp-sugg{display:flex;gap:8px;flex-wrap:wrap;padding:4px 0 6px}
   .cmp-sugg.clip{flex-wrap:nowrap;overflow:hidden}
+  /* Composer Speak chip while recording: a dot in the text colour that breathes (still under reduced motion). */
+  .rec-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:currentColor;margin-right:4px;animation:rec-pulse 1.2s ease-in-out infinite}
+  @keyframes rec-pulse{50%{opacity:0.3}}
+  @media (prefers-reduced-motion:reduce){.rec-dot{animation:none}}
   @media (max-width:760px){
     .cmp-sugg{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
     .cmp-sugg>*{flex:none}
