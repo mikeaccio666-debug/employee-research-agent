@@ -75,6 +75,10 @@ Proposed shape; talent-data-hub decides. Bearer key per consumer, JobRecord v1 b
   model is called, and that line is what the daily cap counts; the answer's tokens follow in a
   `job_fit_answer:` line, or `job_fit_failed` when there was none. The cap is `JOBS_FIT_DAILY`, default 60 a person a day.
 - Signed out, the button is hidden: there is no portrait to check against.
+- When at least one requirement is covered, the panel links "Résumé for this posting (PDF)":
+  `/api/resume?job=<id>&first=<line ids>`. It is the full résumé with the lines the posting asks for
+  placed first in their sections (`planForPosting` in `lib/resume/model.ts`). No line is added,
+  dropped or reworded, and ids that aren't the person's confirmed lines are ignored. Nothing is saved.
 
 ## Next (JOB-07 onward)
 
