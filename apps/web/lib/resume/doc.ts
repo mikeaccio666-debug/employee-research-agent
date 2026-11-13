@@ -89,6 +89,41 @@ export const ResumeDoc = z.object({
 export type ResumeDoc = z.infer<typeof ResumeDoc>;
 
 /**
+ * The cover letter that goes with a version: set in the same font under the same name and
+ * contact line, so the two read as a pair. Paragraphs are edited one by one, like bullets.
+ */
+export const LETTER_MAX = { to: 300, date: 40, greeting: 120, paragraph: 1500, paragraphs: 8, closing: 80 } as const;
+const Paragraph = z.object({ id, text: str(LETTER_MAX.paragraph) });
+export const ResumeLetter = z.object({
+  /** Who it's to, one line each: "Hiring team", "Acme Corp". */
+  to: str(LETTER_MAX.to),
+  date: str(LETTER_MAX.date),
+  greeting: str(LETTER_MAX.greeting),
+  paragraphs: z.array(Paragraph).max(LETTER_MAX.paragraphs).default([]),
+  closing: str(LETTER_MAX.closing),
+});
+export type ResumeLetter = z.infer<typeof ResumeLetter>;
+
+export const emptyLetter = (): ResumeLetter => ({ to: '', date: '', greeting: 'Dear hiring team,', paragraphs: [{ id: newId('par'), text: '' }], closing: 'Sincerely,' });
+
+/** The stored letter, or a fresh one if there is none yet. */
+export function readLetter(raw: unknown): ResumeLetter {
+  const parsed = ResumeLetter.safeParse(raw);
+  return parsed.success && (parsed.data.greeting || parsed.data.paragraphs.length) ? parsed.data : emptyLetter();
+}
+
+/** Whether a letter has anything in it beyond the defaults. */
+export const letterWritten = (l: ResumeLetter) => !!(l.to.trim() || l.paragraphs.some((x) => x.text.trim()));
+
+/** The letter as plain text, in reading order. */
+export function letterText(doc: ResumeDoc, l: ResumeLetter): string {
+  return [doc.name, shownContacts(doc).map((c) => c.value).join(' | '), '', l.date, l.to, '', l.greeting, ...l.paragraphs.map((x) => x.text).filter((t) => t.trim()), '', l.closing, doc.name]
+    .filter((x, i, all) => x !== '' || all[i - 1] !== '')
+    .join('\n')
+    .trim();
+}
+
+/**
  * Fonts a résumé may use. Arial, Calibri, Times and Georgia can't be embedded in a PDF we hand
  * out, so each is stood in for by an open font drawn to the same widths (lib/resume/fonts).
  */

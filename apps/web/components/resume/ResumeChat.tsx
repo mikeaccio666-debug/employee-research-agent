@@ -27,6 +27,8 @@ type Props = {
   /** The version open in the editor, and what the others are called, for changes made in them. */
   versionId: string | null;
   versionNames: Record<string, string>;
+  /** Which page is open: the starters fit it. */
+  mode?: 'resume' | 'letter';
   /** Receipts already undone in this tab, by key. */
   undone: ReadonlySet<string>;
   onSend: (text: string) => boolean | void;
@@ -38,8 +40,15 @@ type Props = {
   onClose?: () => void;
 };
 
-const STARTERS = ['Make my bullets stronger', 'Fit this on one page', 'Tailor it to a job posting', 'What’s weakest here?'];
-const TAILOR = 'Tailor this version to this posting:\n\n';
+const STARTERS = {
+  resume: ['Make my bullets stronger', 'Fit this on one page', 'Tailor it to a job posting', 'What’s weakest here?'],
+  letter: ['Write my cover letter', 'Write one for a job posting', 'Make it shorter and plainer'],
+};
+// Starters that need the person to paste something first: the box opens with this in it.
+const PASTE: Record<string, string> = {
+  'Tailor it to a job posting': 'Tailor this version to this posting:\n\n',
+  'Write one for a job posting': 'Write a cover letter for this posting:\n\n',
+};
 
 /** Plain text with blank lines as paragraph breaks. */
 function Paras({ text }: { text: string }) {
@@ -103,6 +112,8 @@ export function ResumeChat(p: Props) {
   };
 
   const empty = !p.thread.length && !p.live;
+  const starters = STARTERS[p.mode ?? 'resume'];
+  const letterEmpty = p.mode === 'letter';
 
   return (
     <aside className={s.chat} aria-label="Assistant">
@@ -167,9 +178,9 @@ export function ResumeChat(p: Props) {
           key={draft.n}
           defaultText={draft.text}
           placeholder="Ask for a change, or paste a job posting"
-          suggestions={empty && p.ready ? STARTERS : undefined}
+          suggestions={(empty || letterEmpty) && p.ready && !p.busy ? starters : undefined}
           onSuggestion={(text) => {
-            if (text === STARTERS[2]) setDraft((d) => ({ text: TAILOR, n: d.n + 1 }));
+            if (PASTE[text]) setDraft((d) => ({ text: PASTE[text]!, n: d.n + 1 }));
             else p.onSend(text);
           }}
           onSend={(text) => {

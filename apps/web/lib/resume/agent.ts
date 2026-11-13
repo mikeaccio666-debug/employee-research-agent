@@ -18,8 +18,10 @@ import {
   SECTION_INFO,
   SECTION_KINDS,
   SIZE,
+  LETTER_MAX,
   type Entry,
   type ResumeDoc,
+  type ResumeLetter,
   type ResumeStyle,
   type SectionKind,
 } from './doc';
@@ -42,6 +44,7 @@ What you do
 - Make the résumé read better for the role they want: sharper bullets that lead with what they did and what changed, consistent tense and dates, tighter wording, sensible order, one page.
 - Tailor a version to a role or a posting they paste: reorder sections, entries and bullets so what the role asks for comes first, use the posting's words where they truly describe the person's work, and trim what doesn't help. Never copy a requirement onto the page as if it were their experience.
 - Answer questions about their résumé honestly, and say what is weak.
+- Write or rework the cover letter that goes with this version (write_letter), from the same facts: why this role, one or two things they did that show it, plainly, under a page. A letter for a posting may name the company and role from the posting; everything it says about the person must come from the facts below.
 
 What you never do
 - Never add facts. Numbers, dates, organisations, titles, tools and results must already be in the résumé, in the confirmed portrait lines, in what they shared, or in what they told you in this chat. You may phrase with more force, not more facts. If a bullet would be stronger with a number, ask for it ("Roughly how many users? A range is fine.").
@@ -49,7 +52,7 @@ What you never do
 - Don't touch their name, contact details, or anything you weren't asked to change on a line they clearly wrote carefully; when unsure, ask first.
 
 How you work
-- The résumé as it is right now comes with each message in <resume_state>, with an id in brackets before each section, entry and bullet. Use those ids in your tools. It may differ from what your earlier changes made: the person may have undone or edited them. Trust the latest state.
+- The résumé and its cover letter as they are right now come with each message in <resume_state>, with an id in brackets before each section, entry and bullet. Use those ids in your tools. It may differ from what your earlier changes made: the person may have undone or edited them. Trust the latest state.
 - Make several small changes rather than one sweeping one, so each can be undone on its own. Don't rewrite things that are already good.
 - If a tool refuses a change, fix it as the refusal says or ask the person; don't try to get around it.
 - After changing things, say in one or two plain sentences what you changed and why. Don't list every change: the page shows them.
@@ -158,6 +161,24 @@ export const RESUME_TOOL_DEFS: ToolDef[] = [
   },
 ];
 
+RESUME_TOOL_DEFS.push({
+  name: 'write_letter',
+  description:
+    'Write the whole cover letter for this version, replacing what is there. Keep what the person wrote unless asked to change it. The page puts their name under the closing.',
+  parameters: {
+    type: 'object',
+    properties: {
+      date: { type: 'string', maxLength: LETTER_MAX.date, description: 'Leave as it is unless asked; empty for none.' },
+      to: { type: 'string', maxLength: LETTER_MAX.to, description: 'Who it is to, e.g. "Hiring team, Acme Corp".' },
+      greeting: { type: 'string', maxLength: LETTER_MAX.greeting },
+      paragraphs: { type: 'array', items: { type: 'string', maxLength: LETTER_MAX.paragraph }, maxItems: LETTER_MAX.paragraphs },
+      closing: { type: 'string', maxLength: LETTER_MAX.closing },
+    },
+    required: ['date', 'to', 'greeting', 'paragraphs', 'closing'],
+    additionalProperties: false,
+  },
+});
+
 export const RESUME_KIT: Kit = { instructions: RESUME_INSTRUCTIONS, tools: RESUME_TOOL_DEFS };
 
 const Args = {
@@ -175,6 +196,13 @@ const Args = {
   }),
   add_section: z.object({ kind: z.enum(SECTION_KINDS), heading: z.string().max(MAX.heading).nullable() }),
   remove: z.object({ id: z.string().max(40) }),
+  write_letter: z.object({
+    date: z.string().max(LETTER_MAX.date),
+    to: z.string().max(LETTER_MAX.to),
+    greeting: z.string().max(LETTER_MAX.greeting),
+    paragraphs: z.array(z.string().max(LETTER_MAX.paragraph)).min(1).max(LETTER_MAX.paragraphs),
+    closing: z.string().max(LETTER_MAX.closing),
+  }),
   move: z.object({ id: z.string().max(40), to: z.number().int().min(0).max(30) }),
   set_page: z.object({
     template: z.enum(['keep', 'standard', 'compact']),
@@ -204,8 +232,9 @@ export function groundsFor(doc: ResumeDoc, spec: Spec, said: string[], sources: 
 
 const norm = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 
-export type ToolContext = { doc: ResumeDoc; style: ResumeStyle; grounds: string[] };
-export type ToolOutcome = { doc: ResumeDoc; style: ResumeStyle; output: string; changes: { note: string; change: Change }[] };
+export type ToolContext = { doc: ResumeDoc; style: ResumeStyle; letter: ResumeLetter; grounds: string[] };
+export type ToolOutcome = { doc: ResumeDoc; style: ResumeStyle; letter: ResumeLetter; output: string; changes: { note: string; change: Change }[] };
+type PageOutcome = Omit<ToolOutcome, 'letter'>;
 
 /** Why new words can't go on the page, or null when they can. */
 function unbacked(text: string, grounds: string[], kept: string): string | null {
@@ -247,8 +276,46 @@ const FIELD_WORD: Record<Field, string> = {
 
 /** Runs one tool call against the page; refusals leave the page as it was. */
 export function runResumeTool(name: string, input: string, ctx: ToolContext): ToolOutcome {
+  if (name !== 'write_letter') return { ...runPageTool(name, input, ctx), letter: ctx.letter };
+  const keep = (output: string): ToolOutcome => ({ doc: ctx.doc, style: ctx.style, letter: ctx.letter, output, changes: [] });
+  let raw: unknown;
+  try {
+    raw = JSON.parse(input);
+  } catch {
+    return keep('Not done: the arguments weren’t valid JSON.');
+  }
+  const parsed = Args.write_letter.safeParse(raw);
+  if (!parsed.success) return keep(`Not done: ${parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')}`);
+  const a = parsed.data;
+  const paragraphs = a.paragraphs.map((t) => t.trim()).filter(Boolean);
+  if (!paragraphs.length) return keep('Not done: the letter would be empty.');
+  const before = ctx.letter;
+  const kept = [before.to, before.date, before.greeting, before.closing, ...before.paragraphs.map((x) => x.text)].join('\n');
+  // The letter may name the company and role (the posting is in the chat); numbers and filler are checked.
+  const why = unbacked([a.date, a.to, a.greeting, ...paragraphs, a.closing].join('\n'), ctx.grounds, kept);
+  if (why) return keep(why);
+  // Paragraphs that stay the same keep their ids, so only the changed ones are marked.
+  const same = new Map(before.paragraphs.map((x) => [x.text.trim(), x.id]));
+  const letter: ResumeLetter = {
+    date: a.date.trim(),
+    to: a.to.trim(),
+    greeting: a.greeting.trim(),
+    paragraphs: paragraphs.map((text) => ({ id: same.get(text) ?? newId('par'), text })),
+    closing: a.closing.trim(),
+  };
+  const fresh = !before.paragraphs.some((x) => x.text.trim());
+  return {
+    doc: ctx.doc,
+    style: ctx.style,
+    letter,
+    output: `Done. The letter now has ${paragraphs.length} paragraph${paragraphs.length === 1 ? '' : 's'}.`,
+    changes: [{ note: fresh ? 'Wrote your cover letter' : 'Reworked your cover letter', change: { op: 'letter', before, after: letter } }],
+  };
+}
+
+function runPageTool(name: string, input: string, ctx: ToolContext): PageOutcome {
   const { doc, style, grounds } = ctx;
-  const keep = (output: string): ToolOutcome => ({ doc, style, output, changes: [] });
+  const keep = (output: string): PageOutcome => ({ doc, style, output, changes: [] });
   const schema = Args[name as keyof typeof Args];
   if (!schema) return keep(`Not done: there is no tool called ${name}.`);
   let raw: unknown;
@@ -408,6 +475,7 @@ const KINDS_SHOWN: Record<SectionKind, string> = {
 export function stateBlock(
   doc: ResumeDoc,
   style: ResumeStyle,
+  letter: ResumeLetter,
   about: { name: string; target: string; fit: { onePage: boolean; overflowLines: number | null; size: number } },
 ): string {
   const lines = [
@@ -426,6 +494,13 @@ export function stateBlock(
       for (const b of e.bullets) lines.push(`    [${b.id}] ${b.text || '(empty)'}`);
     }
   }
+  const written = letter.paragraphs.some((x) => x.text.trim());
+  lines.push(written || letter.to ? 'Cover letter:' : 'Cover letter: not written yet.');
+  if (written || letter.to) {
+    for (const f of ['date', 'to', 'greeting'] as const) if (letter[f]) lines.push(`  ${f}: ${letter[f]}`);
+    for (const x of letter.paragraphs) if (x.text.trim()) lines.push(`  ¶ ${x.text}`);
+    if (letter.closing) lines.push(`  closing: ${letter.closing}`);
+  }
   lines.push('</resume_state>');
   return lines.join('\n');
 }
@@ -440,7 +515,7 @@ export function portraitBlock(spec: Spec): string | null {
 
 export type ResumeTurnEvent =
   | { event: 'message.delta'; data: { text: string } }
-  | { event: 'resume.change'; data: { doc: ResumeDoc; style: ResumeStyle; receipts: ResumeReceipt[] } }
+  | { event: 'resume.change'; data: { doc: ResumeDoc; style: ResumeStyle; letter: ResumeLetter; receipts: ResumeReceipt[] } }
   | { event: 'message.done'; data: { messageId: number | null } }
   | { event: 'error'; data: { code: string; retryable: boolean; message: string } };
 
@@ -464,6 +539,7 @@ export async function runResumeTurn({
   rows,
   doc: start,
   style: startStyle,
+  letter: startLetter,
   grounds,
   version,
   emit,
@@ -476,6 +552,7 @@ export async function runResumeTurn({
   rows: Row[];
   doc: ResumeDoc;
   style: ResumeStyle;
+  letter: ResumeLetter;
   grounds: string[];
   version: string | null;
   emit: (e: ResumeTurnEvent) => void;
@@ -485,6 +562,7 @@ export async function runResumeTurn({
   const history: Item[] = replay(recent(rows), env, adapter);
   let doc = start;
   let style = startStyle;
+  let letter = startLetter;
   let lastId: number | null = null;
 
   for (let step = 0; step < MAX_STEPS; step++) {
@@ -511,15 +589,16 @@ export async function runResumeTurn({
     const receipts: ResumeReceipt[] = [];
     const refused: { tool: string; why: string }[] = [];
     for (const call of answer.calls) {
-      const out = runResumeTool(call.name, call.input, { doc, style, grounds });
+      const out = runResumeTool(call.name, call.input, { doc, style, letter, grounds });
       doc = out.doc;
       style = out.style;
+      letter = out.letter;
       for (const c of out.changes) receipts.push({ note: c.note, dashed: false, change: c.change, version });
       const failed = out.output.startsWith('Not done');
       if (failed) refused.push({ tool: call.name, why: out.output.slice(0, 300) });
       results.push({ call, output: out.output, failed });
     }
-    if (receipts.length) emit({ event: 'resume.change', data: { doc, style, receipts } });
+    if (receipts.length) emit({ event: 'resume.change', data: { doc, style, letter, receipts } });
     if (refused.length) console.info('resume agent tool refused', { conversationId, model: env.model, refused });
     const answers = adapter.results(results);
     await append(supabase, conversationId, 'tool', stored(answers, env, { receipts: receipts as never, ...(refused.length ? { refused } : {}) }), null);
@@ -527,5 +606,5 @@ export async function runResumeTurn({
   }
 
   emit({ event: 'message.done', data: { messageId: lastId } });
-  return { doc, style };
+  return { doc, style, letter };
 }

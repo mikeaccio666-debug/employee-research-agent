@@ -4,7 +4,7 @@ import { loadSources } from '@/lib/agent/sources';
 import { append, conversationFor, history, loadPortrait, sentToday } from '@/lib/agent/store';
 import { stored, unansweredToolCalls, using } from '@/lib/agent/turn';
 import { groundsFor, portraitBlock, RESUME_KIT, runResumeTurn, stateBlock, type ResumeTurnEvent } from '@/lib/resume/agent';
-import { ResumeDoc, ResumeStyle } from '@/lib/resume/doc';
+import { ResumeDoc, ResumeLetter, ResumeStyle } from '@/lib/resume/doc';
 import { supabaseServer } from '@/lib/supabase/server';
 import { reportError } from '@/lib/observability/report';
 
@@ -24,6 +24,7 @@ const Body = z.object({
   target: z.string().max(120),
   doc: ResumeDoc,
   style: ResumeStyle,
+  letter: ResumeLetter,
   fit: z.object({ onePage: z.boolean(), overflowLines: z.number().int().min(0).max(999).nullable(), size: z.number().min(1).max(20) }),
   provider: z.enum(PROVIDERS).optional(),
   model: z.string().max(100).optional(),
@@ -43,7 +44,7 @@ export async function POST(req: Request) {
 
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return json(400, 'bad_message', 'That message is empty or too long (8,000 characters at most).');
-  const { message: text, version, name, target, doc, style, fit, provider, model, effort } = parsed.data;
+  const { message: text, version, name, target, doc, style, letter, fit, provider, model, effort } = parsed.data;
   const agent = canSwitchModel(user.email) ? agentFor(provider ?? agentEnv.provider, { model, effort: effort as Effort | undefined }) : agentEnv;
   if (!agent) return json(503, 'agent_not_configured', 'That model isn’t connected here. Your message wasn’t sent.');
 
@@ -84,14 +85,14 @@ export async function POST(req: Request) {
         // between messages, and older messages drop out of what the model reads (lib/resume/agent.ts).
         const { env, adapter } = using(agent, RESUME_KIT);
         const lines = portraitBlock(portrait.spec);
-        const extras = [stateBlock(doc, style, { name, target, fit }), ...(lines ? [lines] : [])];
+        const extras = [stateBlock(doc, style, letter, { name, target, fit }), ...(lines ? [lines] : [])];
         const items = stored(adapter.user(text, extras), env);
         messageId = await append(supabase, conversationId, 'user', items, text);
 
         const rows = await history(supabase, conversationId);
         const said = rows.filter((r) => r.role === 'user').map((r) => r.body ?? '');
         const grounds = groundsFor(doc, portrait.spec, said, sources);
-        await runResumeTurn({ agent, supabase, conversationId, rows, doc, style, grounds, version, emit });
+        await runResumeTurn({ agent, supabase, conversationId, rows, doc, style, letter, grounds, version, emit });
       } catch (e) {
         reportError('resume turn failed', e, { messageId });
         emit({

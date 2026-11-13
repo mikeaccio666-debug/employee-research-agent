@@ -1,4 +1,4 @@
-import { type Bullet, type Entry, type ResumeDoc, type ResumeStyle, type Section } from './doc';
+import { type Bullet, type Entry, type ResumeDoc, type ResumeLetter, type ResumeStyle, type Section } from './doc';
 
 // What the AI beside the résumé changed, one record per change, kept so the person can undo any
 // one of them later, not only the last. Each record says how to put things back; putting back
@@ -16,7 +16,11 @@ export type Change =
   | { op: 'added'; kind: Kind; id: string }
   | { op: 'removed'; kind: Kind; parent: string | null; index: number; value: Section | Entry | Bullet }
   | { op: 'moved'; kind: Kind; id: string; from: number; to: number }
-  | { op: 'style'; before: Partial<ResumeStyle>; after: Partial<ResumeStyle> };
+  | { op: 'style'; before: Partial<ResumeStyle>; after: Partial<ResumeStyle> }
+  | { op: 'letter'; before: ResumeLetter; after: ResumeLetter };
+
+/** Everything the assistant can change: the résumé, how it's set, and its cover letter. */
+export type Page = { doc: ResumeDoc; style: ResumeStyle; letter: ResumeLetter };
 
 /** One change as the thread shows it, under the reply that made it. */
 export type ResumeReceipt = { note: string; dashed: false; change: Change; version: string | null };
@@ -98,35 +102,40 @@ export function moveTo(doc: ResumeDoc, id: string, to: number): ResumeDoc {
   return insertAt(without, at.kind, at.parent, to, item) ?? doc;
 }
 
-export type Reverted = { doc: ResumeDoc; style: ResumeStyle } | { error: string };
+export type Reverted = Page | { error: string };
 
 /** Puts one change back, if the page still shows what the change left. */
-export function revert(doc: ResumeDoc, style: ResumeStyle, change: Change): Reverted {
+export function revert(page: Page, change: Change): Reverted {
+  const { doc, style, letter } = page;
+  const ok = (next: Partial<Page>): Page => ({ doc, style, letter, ...next });
   switch (change.op) {
     case 'text': {
       const now = getText(doc, change.ref);
       if (now === null) return { error: 'That part of the page is gone now.' };
       if (now !== change.after) return { error: 'You’ve changed those words since, so they stay as you wrote them.' };
-      return { doc: setText(doc, change.ref, change.before), style };
+      return ok({ doc: setText(doc, change.ref, change.before) });
     }
     case 'added':
-      return { doc: find(doc, change.id) ? removeId(doc, change.id) : doc, style };
+      return ok({ doc: find(doc, change.id) ? removeId(doc, change.id) : doc });
     case 'removed': {
-      if (find(doc, change.value.id)) return { doc, style };
+      if (find(doc, change.value.id)) return ok({});
       const next = insertAt(doc, change.kind, change.parent, change.index, change.value);
-      return next ? { doc: next, style } : { error: 'Where it was is gone now, so it can’t go back.' };
+      return next ? ok({ doc: next }) : { error: 'Where it was is gone now, so it can’t go back.' };
     }
     case 'moved': {
       if (!find(doc, change.id)) return { error: 'That part of the page is gone now.' };
-      return { doc: moveTo(doc, change.id, change.from), style };
+      return ok({ doc: moveTo(doc, change.id, change.from) });
     }
     case 'style': {
       const back: Partial<ResumeStyle> = {};
       for (const [k, v] of Object.entries(change.before) as [keyof ResumeStyle, never][]) {
         if (style[k] === change.after[k]) back[k] = v;
       }
-      return { doc, style: { ...style, ...back } };
+      return ok({ style: { ...style, ...back } });
     }
+    case 'letter':
+      if (JSON.stringify(letter) !== JSON.stringify(change.after)) return { error: 'You’ve changed the letter since, so it stays as you wrote it.' };
+      return ok({ letter: change.before });
   }
 }
 
@@ -143,5 +152,9 @@ export function touched(change: Change): string[] {
     return [`${id}:${field}`];
   }
   if (change.op === 'added' || change.op === 'moved') return [change.id];
+  if (change.op === 'letter') {
+    const { before, after } = change;
+    return after.paragraphs.filter((x) => !before.paragraphs.some((b) => b.id === x.id && b.text === x.text)).map((x) => `${x.id}:p`);
+  }
   return [];
 }

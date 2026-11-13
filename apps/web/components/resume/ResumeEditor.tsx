@@ -14,6 +14,7 @@ import {
   SIZE,
   TEMPLATES,
   type ResumeDoc,
+  type ResumeLetter,
   type ResumeStyle,
   type SectionKind,
   type TemplateId,
@@ -45,8 +46,8 @@ type Props = {
   assistant: { ready: boolean; note: string | null; voice?: boolean };
 };
 
-type Draft = { name: string; target: string; doc: ResumeDoc; style: ResumeStyle };
-const draftOf = (v: ResumeVersion): Draft => ({ name: v.name, target: v.target, doc: v.doc, style: v.style });
+type Draft = { name: string; target: string; doc: ResumeDoc; style: ResumeStyle; letter: ResumeLetter };
+const draftOf = (v: ResumeVersion): Draft => ({ name: v.name, target: v.target, doc: v.doc, style: v.style, letter: v.letter });
 const same = (a: Draft, b: Draft) => JSON.stringify(a) === JSON.stringify(b);
 const PT = 4 / 3;
 
@@ -110,6 +111,14 @@ export function ResumeEditor({ versions: initial, canSave, notice, thread: initi
     if (opts?.commit) commit(next);
     if (opts?.focus) setFocus((f) => ({ id: opts.focus!, n: (f?.n ?? 0) + 1 }));
   };
+  const changeLetter = (letter: ResumeLetter, opts?: { commit?: boolean; focus?: string }) => {
+    const next = { ...draft, letter };
+    setDraft(next);
+    if (opts?.commit) commit(next);
+    if (opts?.focus) setFocus((f) => ({ id: opts.focus!, n: (f?.n ?? 0) + 1 }));
+  };
+  // The résumé or its cover letter, on the same sheet, in the same font, under the same name.
+  const [mode, setMode] = useState<'resume' | 'letter'>('resume');
   const setStyle = (patch: Partial<ResumeStyle>) => {
     if (live) return;
     const next = { ...draft, style: { ...draft.style, ...patch } };
@@ -275,7 +284,7 @@ export function ResumeEditor({ versions: initial, canSave, notice, thread: initi
     const h = heightAt(best);
     setScale(best);
     setOverflow(h > limitPt + 0.5 ? h - limitPt : null);
-  }, [draft.doc, draft.style, limitPt, fontsReady]);
+  }, [draft.doc, draft.style, draft.letter, mode, limitPt, fontsReady]);
 
 
   // ---- Phones: edit with the text at full size, or look at the page as it prints ----
@@ -342,7 +351,7 @@ export function ResumeEditor({ versions: initial, canSave, notice, thread: initi
         const res = await fetch('/api/resume/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message, version: canSave ? current.id : null, name: sentFrom.name, target: sentFrom.target, doc: sentFrom.doc, style: sentFrom.style, fit }),
+          body: JSON.stringify({ message, version: canSave ? current.id : null, name: sentFrom.name, target: sentFrom.target, doc: sentFrom.doc, style: sentFrom.style, letter: sentFrom.letter, fit }),
         });
         if (!res.ok || !res.body) {
           const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
@@ -353,8 +362,11 @@ export function ResumeEditor({ versions: initial, canSave, notice, thread: initi
             turn.reply += (data as { text: string }).text;
             setLive({ ...turn });
           } else if (event === 'resume.change') {
-            const d = data as { doc: ResumeDoc; style: ResumeStyle; receipts: ResumeReceipt[] };
-            const next = { ...draftRef.current, doc: d.doc, style: d.style };
+            const d = data as { doc: ResumeDoc; style: ResumeStyle; letter: ResumeLetter; receipts: ResumeReceipt[] };
+            const next = { ...draftRef.current, doc: d.doc, style: d.style, letter: d.letter };
+            // A letter it wrote is worth looking at where it is.
+            if (d.receipts.some((r) => r.change.op === 'letter')) setMode('letter');
+            else if (d.receipts.some((r) => r.change.op !== 'style')) setMode('resume');
             setDraft(next);
             commit(next);
             turn.receipts = [...turn.receipts, ...d.receipts];
@@ -388,22 +400,20 @@ export function ResumeEditor({ versions: initial, canSave, notice, thread: initi
   const undoChange = (items: { key: string; receipt: ResumeReceipt }[]) => {
     // Newest first, so later changes come off before the ones they were made on top of.
     let d = draftRef.current;
-    let st = d.style;
-    let doc = d.doc;
+    let page = { doc: d.doc, style: d.style, letter: d.letter };
     const done: string[] = [];
     let problem: string | null = null;
     for (const { key, receipt } of [...items].reverse()) {
-      const r = revert(doc, st, receipt.change);
+      const r = revert(page, receipt.change);
       if ('error' in r) {
         problem = r.error;
         continue;
       }
-      doc = r.doc;
-      st = r.style;
+      page = r;
       done.push(key);
     }
     if (done.length) {
-      d = { ...d, doc, style: st };
+      d = { ...d, ...page };
       setDraft(d);
       commit(d);
       setUndone((u) => new Set([...u, ...done]));
@@ -432,10 +442,10 @@ export function ResumeEditor({ versions: initial, canSave, notice, thread: initi
     return () => ro.disconnect();
   }, [reflow]);
 
-  // The PDF is made from the saved version, so unsaved changes are saved first, in one click.
-  const download = () =>
+  // Files are made from the saved version, so unsaved changes are saved first, in one click.
+  const download = (format: 'pdf' | 'docx') =>
     start(async () => {
-      if (!canSave) return setStatus({ text: 'Sign in to download your own résumé as a PDF.', error: true });
+      if (!canSave) return setStatus({ text: 'Sign in to download your own résumé.', error: true });
       let since = current.updatedAt;
       if (dirty) {
         const r = await saveVersion({ id: current.id, since, ...draft });
@@ -444,7 +454,8 @@ export function ResumeEditor({ versions: initial, canSave, notice, thread: initi
         setVersions((vs) => vs.map((v) => (v.id === current.id ? { ...v, ...draft, updatedAt: since } : v)));
       }
       setStatus({ text: dirty ? 'Saved. Downloading…' : 'Downloading…' });
-      window.location.href = `/api/resume?version=${encodeURIComponent(current.id)}`;
+      const what = mode === 'letter' ? '&doc=letter' : '';
+      window.location.href = `/api/resume?version=${encodeURIComponent(current.id)}${what}${format === 'docx' ? '&format=docx' : ''}`;
     });
 
   // Template, font, size and fit stay in the bar; alignment, paper and the target role sit under
@@ -555,6 +566,19 @@ export function ResumeEditor({ versions: initial, canSave, notice, thread: initi
           />
         </div>
         <NewVersion disabled={!canSave || pending} onPick={add} />
+        <Segmented<'resume' | 'letter'>
+          label="Document"
+          mode="radio"
+          options={[
+            { value: 'resume', label: 'Résumé' },
+            { value: 'letter', label: 'Cover letter' },
+          ]}
+          value={mode}
+          onChange={(m) => {
+            setMode(m);
+            setMarks(new Set());
+          }}
+        />
         <span className={s.spacer} />
         {status ? (
           <span className={cx('t-xs', status.error ? s.error : s.status)} role="status">
@@ -563,9 +587,7 @@ export function ResumeEditor({ versions: initial, canSave, notice, thread: initi
         ) : dirty && canSave ? (
           <span className={cx('t-xs', s.status)}>Unsaved changes</span>
         ) : null}
-        <Button variant="secondary" size="sm" onClick={download} disabled={pending} title={dirty ? 'Saves, then downloads' : 'Download this version as a PDF'}>
-          <DownloadIcon /> PDF
-        </Button>
+<DownloadMenu disabled={pending} what={mode === 'letter' ? 'letter' : 'résumé'} dirty={dirty} onPick={download} />
         {canSave ? (
           <>
             <Button variant="secondary" size="sm" onClick={cancel} disabled={!dirty || pending}>
@@ -602,7 +624,7 @@ export function ResumeEditor({ versions: initial, canSave, notice, thread: initi
         ) : (
           format
         )}
-        <SectionsMenu doc={draft.doc} onChange={setDoc} />
+        {mode === 'resume' ? <SectionsMenu doc={draft.doc} onChange={setDoc} /> : null}
         <span className={s.tool}>
           <button type="button" className={s.tiny} onClick={undo} disabled={!past.length} aria-label="Undo" title="Undo (Ctrl+Z)">
             <UndoIcon />
@@ -631,6 +653,7 @@ export function ResumeEditor({ versions: initial, canSave, notice, thread: initi
           error={chatError}
           versionId={canSave ? current.id : null}
           versionNames={Object.fromEntries(versions.map((v) => [v.id, v.name]))}
+          mode={mode}
           undone={undone}
           onSend={ask}
           onUndo={(key, receipt) => undoChange([{ key, receipt }])}
@@ -645,7 +668,7 @@ export function ResumeEditor({ versions: initial, canSave, notice, thread: initi
         {overflow !== null ? (
           <p className={cx('t-sm', s.fitNote, s.overflowNote)} role="status">
             {draft.style.fitOnePage
-              ? `Even at ${Math.max(9, +(draft.style.size * minScale(draft.style)).toFixed(1))}pt this runs about ${Math.ceil((overflow / (draft.style.size * 1.3)) * 1)} lines past one page. Cut or shorten a few bullets, or hide a section.`
+              ? `Even at ${Math.max(9, +(draft.style.size * minScale(draft.style)).toFixed(1))}pt this runs about ${Math.ceil(overflow / (draft.style.size * 1.3))} lines past one page. ${mode === 'letter' ? 'A cover letter reads best under a page: shorten a paragraph.' : 'Cut or shorten a few bullets, or hide a section.'}`
               : `This runs about ${Math.ceil(overflow / (draft.style.size * 1.3))} lines past one page. Turn on Fit to one page, or shorten it.`}
           </p>
         ) : null}
@@ -661,16 +684,39 @@ export function ResumeEditor({ versions: initial, canSave, notice, thread: initi
               pageEnd={overflow !== null ? limitPt : null}
               sheetRef={sheetRef}
               reflow={reflow}
+              letter={mode === 'letter' ? draft.letter : null}
+              onLetter={view === 'edit' && !busy ? changeLetter : null}
             />
             </MarksContext.Provider>
           </div>
         </div>
         <div aria-hidden inert style={{ position: 'absolute', top: 0, left: -20000, visibility: 'hidden', pointerEvents: 'none' }}>
-          <ResumeSheet doc={draft.doc} style={draft.style} scale={scale} onChange={null} focus={null} pageEnd={null} contentRef={contentRef} sheetRef={measureRef} />
+          <ResumeSheet doc={draft.doc} style={draft.style} scale={scale} onChange={null} focus={null} pageEnd={null} contentRef={contentRef} sheetRef={measureRef} letter={mode === 'letter' ? draft.letter : null} />
         </div>
       </div>
       </div>
     </div>
+  );
+}
+
+function DownloadMenu({ disabled, what, dirty, onPick }: { disabled: boolean; what: string; dirty: boolean; onPick: (format: 'pdf' | 'docx') => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover
+      open={open}
+      setOpen={setOpen}
+      disabled={disabled}
+      aria={`Download this ${what}`}
+      label={
+        <>
+          <DownloadIcon /> Download
+        </>
+      }
+    >
+      <MenuButton onClick={() => (setOpen(false), onPick('pdf'))}>PDF: send this one</MenuButton>
+      <MenuButton onClick={() => (setOpen(false), onPick('docx'))}>Word (.docx): to edit elsewhere</MenuButton>
+      <p className={cx('t-xs', s.popHint)}>{dirty ? `Saves your changes, then downloads the ${what}.` : `Downloads the ${what} as it’s saved.`}</p>
+    </Popover>
   );
 }
 

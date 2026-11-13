@@ -11,7 +11,10 @@ import {
   SECTION_INFO,
   type Contact,
   type Entry,
+  LETTER_MAX,
+  newId,
   type ResumeDoc,
+  type ResumeLetter,
   type ResumeStyle,
   type Section,
 } from '@/lib/resume/doc';
@@ -53,7 +56,12 @@ type Props = {
   sheetRef?: React.Ref<HTMLDivElement>;
   /** Phones: the text flows to the screen's width at full size, for editing; not the page's layout. */
   reflow?: boolean;
+  /** The cover letter instead of the résumé, under the same name and contact line. */
+  letter?: ResumeLetter | null;
+  onLetter?: LetterChange | null;
 };
+
+export type LetterChange = (next: ResumeLetter, opts?: { commit?: boolean; focus?: string }) => void;
 
 /** CSS variables for a style at a scale, in points: the sheet and the fit measurement share them. */
 export function sheetVars(style: ResumeStyle, scale: number): Record<string, string> {
@@ -68,7 +76,7 @@ export function sheetVars(style: ResumeStyle, scale: number): Record<string, str
   };
 }
 
-export function ResumeSheet({ doc, style, scale, onChange, focus, pageEnd, contentRef, sheetRef, reflow }: Props) {
+export function ResumeSheet({ doc, style, scale, onChange, focus, pageEnd, contentRef, sheetRef, reflow, letter, onLetter }: Props) {
   const editing = !!onChange;
   const paper = PAPER[style.paper];
   const m = metrics(style, scale);
@@ -143,12 +151,71 @@ export function ResumeSheet({ doc, style, scale, onChange, focus, pageEnd, conte
           </div>
         ) : null}
 
-        {doc.sections.map((sec) =>
-          sec.hidden && !editing ? null : !editing && !hasContent(sec) ? null : (
-            <SectionView key={sec.id} sec={sec} doc={doc} onChange={onChange} />
-          ),
+        {letter ? (
+          <LetterBody doc={doc} letter={letter} onChange={editing ? (onLetter ?? null) : null} />
+        ) : (
+          doc.sections.map((sec) =>
+            sec.hidden && !editing ? null : !editing && !hasContent(sec) ? null : (
+              <SectionView key={sec.id} sec={sec} doc={doc} onChange={onChange} />
+            ),
+          )
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * The cover letter under the header: date, who it's to, greeting, paragraphs, closing and the
+ * name. Paragraphs work like bullets: Enter starts the next, Backspace in an empty one removes it.
+ */
+function LetterBody({ doc, letter, onChange }: { doc: ResumeDoc; letter: ResumeLetter; onChange: LetterChange | null }) {
+  const editing = !!onChange;
+  const set = (patch: Partial<ResumeLetter>, commit: boolean, focus?: string) => onChange?.({ ...letter, ...patch }, { commit, focus });
+  const field = (key: 'date' | 'to' | 'greeting' | 'closing', placeholder: string) =>
+    letter[key] || editing ? (
+      <div className={s.letterGap}>
+        <Text value={letter[key]} id={`letter:${key}`} placeholder={placeholder} className={s.block} onChange={onChange && ((v, commit) => set({ [key]: v }, commit))} />
+      </div>
+    ) : null;
+  const paragraphs = editing ? letter.paragraphs : letter.paragraphs.filter((x) => x.text.trim());
+  const onKey = (ev: KeyboardEvent<HTMLElement>, pid: string, i: number, text: string) => {
+    if (!onChange) return;
+    if (ev.key === 'Enter') {
+      ev.preventDefault();
+      if (letter.paragraphs.length >= LETTER_MAX.paragraphs) return;
+      const id = newId('par');
+      const next = [...letter.paragraphs];
+      next.splice(i + 1, 0, { id, text: '' });
+      set({ paragraphs: next }, true, `${id}:p`);
+    } else if (ev.key === 'Backspace' && !text && letter.paragraphs.length > 1) {
+      ev.preventDefault();
+      const prev = letter.paragraphs[i - 1];
+      set({ paragraphs: letter.paragraphs.filter((x) => x.id !== pid) }, true, prev ? `${prev.id}:p` : undefined);
+    }
+  };
+  return (
+    <div className={s.letter}>
+      {field('date', 'Date, e.g. November 13, 2026')}
+      {field('to', 'To, e.g. Hiring team, Acme Corp')}
+      {field('greeting', 'Dear hiring team,')}
+      <div className={s.letterGap}>
+        {paragraphs.map((x, i) => (
+          <div key={x.id} className={cx(s.para, s.letterPara)}>
+            <Text
+              value={x.text}
+              id={`${x.id}:p`}
+              placeholder={i === 0 ? 'Why this role, and why you: one thing you did that shows it' : 'Another paragraph'}
+              label={`Letter, paragraph ${i + 1} of ${paragraphs.length}. Enter starts a new paragraph`}
+              className={s.block}
+              onChange={onChange && ((v, commit) => set({ paragraphs: letter.paragraphs.map((p) => (p.id === x.id ? { ...p, text: v } : p)) }, commit))}
+              onKeyDown={(ev) => onKey(ev, x.id, i, x.text)}
+            />
+          </div>
+        ))}
+      </div>
+      {field('closing', 'Sincerely,')}
+      {doc.name ? <div className={s.sign}>{doc.name}</div> : null}
     </div>
   );
 }

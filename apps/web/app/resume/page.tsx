@@ -5,7 +5,7 @@ import { ResumeEditor } from '@/components/resume/ResumeEditor';
 import { agentEnv } from '@/lib/agent/env';
 import { voiceKey } from '@/lib/voice/transcribe';
 import { conversationFor, history, loadPortrait, toThread, type ThreadMessage } from '@/lib/agent/store';
-import { defaultStyle, docFromPortrait, exampleDoc } from '@/lib/resume/doc';
+import { defaultStyle, docFromPortrait, emptyLetter, exampleDoc } from '@/lib/resume/doc';
 import { insertVersion, versionsOf, type ResumeVersion } from '@/lib/resume/store';
 import { talentNav } from '@/lib/nav';
 import { routes } from '@/lib/routes';
@@ -20,6 +20,7 @@ const example = (): ResumeVersion => ({
   target: '',
   doc: exampleDoc(),
   style: defaultStyle(),
+  letter: emptyLetter(),
   updatedAt: new Date(0).toISOString(),
 });
 

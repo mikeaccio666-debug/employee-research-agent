@@ -3,7 +3,7 @@ import path from 'node:path';
 import * as fontkit from 'fontkit';
 import { PDFDocument, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 import { compatFontkit, FONTS_DIR } from './pdf';
-import { dates, hasHeadLine, metrics, minScale, PAPER, shown, shownContacts, type FontId, type ResumeDoc, type ResumeStyle } from './doc';
+import { dates, hasHeadLine, metrics, minScale, PAPER, shown, shownContacts, type FontId, type ResumeDoc, type ResumeLetter, type ResumeStyle } from './doc';
 
 // A version from the résumé editor as a PDF, laid out the way the editor's page shows it
 // (components/resume/ResumePage.tsx): same fonts, sizes, spacing and margins, real text in reading
@@ -181,8 +181,8 @@ class Layout {
   }
 }
 
-/** Lays the page out once; with no document it only counts pages. */
-function lay(doc: PDFDocument | null, faces: Faces, resume: ResumeDoc, style: ResumeStyle, scale: number) {
+/** Lays the page out once; with no document it only counts pages. A letter replaces the sections. */
+function lay(doc: PDFDocument | null, faces: Faces, resume: ResumeDoc, style: ResumeStyle, scale: number, letter: ResumeLetter | null = null) {
   const m = metrics(style, scale);
   const L = new Layout(doc, PAPER[style.paper], m.margin);
   const compact = style.template === 'compact';
@@ -196,6 +196,34 @@ function lay(doc: PDFDocument | null, faces: Faces, resume: ResumeDoc, style: Re
   if (contacts.length) {
     const s = m.size * 0.95;
     L.paragraph(tk([{ text: contacts.join(' | ') }], s), { size: s, lead: m.lead * 0.95, align: head, color: MUTED });
+  }
+
+  if (letter) {
+    // Same spacing as components/resume/resume.module.css (.letter, .letterGap, .letterPara, .sign).
+    L.y -= m.sectionGap * 1.5;
+    let first = true;
+    const block = (text: string) => {
+      if (!text.trim()) return;
+      if (!first) L.y -= m.lead;
+      first = false;
+      L.paragraph(tk([{ text }]), { size: m.size, lead: m.lead, align: 'left' });
+    };
+    block(letter.date);
+    block(letter.to);
+    block(letter.greeting);
+    const paras = letter.paragraphs.map((x) => x.text).filter((t) => t.trim());
+    for (const [i, text] of paras.entries()) {
+      if (i === 0 && !first) L.y -= m.lead;
+      if (i > 0) L.y -= m.lead * 0.6;
+      first = false;
+      L.paragraph(tk([{ text }]), { size: m.size, lead: m.lead, align: body });
+    }
+    block(letter.closing);
+    if (resume.name) {
+      L.y -= m.lead * 2;
+      L.paragraph(tk([{ text: resume.name }]), { size: m.size, lead: m.lead, align: 'left' });
+    }
+    return L.count;
   }
 
   for (const section of shown(resume)) {
@@ -229,16 +257,16 @@ function lay(doc: PDFDocument | null, faces: Faces, resume: ResumeDoc, style: Re
 }
 
 /** The scale the page is set at: 1, or the largest that fits one page when asked to fit. */
-export async function fitScale(resume: ResumeDoc, style: ResumeStyle): Promise<{ scale: number; pages: number }> {
+export async function fitScale(resume: ResumeDoc, style: ResumeStyle, letter: ResumeLetter | null = null): Promise<{ scale: number; pages: number }> {
   const scratch = await PDFDocument.create();
   const faces = await embed(scratch, style.font);
-  let pages = lay(null, faces, resume, style, 1);
+  let pages = lay(null, faces, resume, style, 1, letter);
   if (!style.fitOnePage || pages <= 1) return { scale: 1, pages };
   const floor = minScale(style);
   let scale = 1;
   while (pages > 1 && scale > floor) {
     scale = Math.max(floor, scale - 0.02);
-    pages = lay(null, faces, resume, style, scale);
+    pages = lay(null, faces, resume, style, scale, letter);
   }
   return { scale, pages };
 }
@@ -252,5 +280,17 @@ export async function docPdf(resume: ResumeDoc, style: ResumeStyle, meta: { titl
   doc.setCreator('Skystep');
   const faces = await embed(doc, style.font);
   lay(doc, faces, resume, style, scale);
+  return doc.save();
+}
+
+/** The cover letter as PDF bytes, set like the résumé it goes with. */
+export async function letterPdf(resume: ResumeDoc, letter: ResumeLetter, style: ResumeStyle, meta: { title?: string } = {}): Promise<Uint8Array> {
+  const { scale } = await fitScale(resume, style, letter);
+  const doc = await PDFDocument.create();
+  doc.setTitle(meta.title ?? `${resume.name || 'Cover letter'}: cover letter`);
+  if (resume.name) doc.setAuthor(resume.name);
+  doc.setCreator('Skystep');
+  const faces = await embed(doc, style.font);
+  lay(doc, faces, resume, style, scale, letter);
   return doc.save();
 }

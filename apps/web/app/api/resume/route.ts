@@ -2,7 +2,8 @@ import { loadPortrait } from '@/lib/agent/store';
 import { jobSource } from '@/lib/jobs/source';
 import { LIMITS } from '@/lib/portrait/spec';
 import { planForPosting, resumeFrom } from '@/lib/resume/model';
-import { docPdf } from '@/lib/resume/doc-pdf';
+import { docPdf, fitScale, letterPdf } from '@/lib/resume/doc-pdf';
+import { docDocx } from '@/lib/resume/docx';
 import { resumePdf } from '@/lib/resume/pdf';
 import { versionOf } from '@/lib/resume/store';
 import { routes } from '@/lib/routes';
@@ -13,7 +14,8 @@ import { getViewer, supabaseServer } from '@/lib/supabase/server';
 // (make_resume). ?job=<posting id>&first=<line ids> gives the one for a posting on the Jobs page:
 // the same confirmed lines, the ones the posting asks for first. Only ever the person's own
 // portrait: who it belongs to comes from the session. ?version=<id> gives a version from the
-// résumé editor (app/resume), set in the template, font and size chosen there.
+// résumé editor (app/resume), set in the template, font and size chosen there; with &doc=letter
+// its cover letter instead, and with &format=docx as a Word file.
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +27,7 @@ export async function GET(request: Request) {
   if (!viewer || !supabase) return json(401, 'Sign in to download your résumé.');
   const params = new URL(request.url).searchParams;
   const versionId = params.get('version');
-  if (versionId) return versionPdf(supabase, viewer.user.id, versionId);
+  if (versionId) return versionFile(supabase, viewer.user.id, versionId, params.get('doc') === 'letter', params.get('format') === 'docx');
   const { spec } = await loadPortrait(supabase, viewer.user.id);
   const tailored = params.get('for') === 'tailored';
   if (tailored && !spec.resume) return json(404, 'There is no tailored résumé yet. Ask the studio agent for one.');
@@ -48,13 +50,32 @@ export async function GET(request: Request) {
 
 const slug = (s: string) => s.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '');
 
-/** A version from the résumé editor, laid out as the editor shows it. */
-async function versionPdf(supabase: NonNullable<Awaited<ReturnType<typeof supabaseServer>>>, ownerId: string, id: string) {
+/** A version from the résumé editor, or its cover letter, laid out as the editor shows it. */
+async function versionFile(supabase: NonNullable<Awaited<ReturnType<typeof supabaseServer>>>, ownerId: string, id: string, letter: boolean, word: boolean) {
   if (!/^[0-9a-f-]{36}$/i.test(id)) return json(404, 'That version isn’t there.');
   const version = await versionOf(supabase, ownerId, id).catch(() => null);
   if (!version) return json(404, 'That version isn’t there.');
-  const bytes = await docPdf(version.doc, version.style, { title: `${version.doc.name || 'Résumé'}: ${version.name}` });
-  return pdf(bytes, `${slug(version.doc.name) || 'resume'}-${slug(version.name).slice(0, 40) || 'resume'}.pdf`);
+  const base = `${slug(version.doc.name) || 'resume'}-${slug(version.name).slice(0, 40) || 'resume'}${letter ? '-cover-letter' : ''}`;
+  const theLetter = letter ? version.letter : null;
+  if (word) {
+    const { scale } = await fitScale(version.doc, version.style, theLetter);
+    return file(await docDocx(version.doc, version.style, scale, theLetter), `${base}.docx`, DOCX);
+  }
+  const title = `${version.doc.name || 'Résumé'}: ${letter ? 'cover letter' : version.name}`;
+  const bytes = theLetter ? await letterPdf(version.doc, theLetter, version.style, { title }) : await docPdf(version.doc, version.style, { title });
+  return pdf(bytes, `${base}.pdf`);
+}
+
+const DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+function file(bytes: Uint8Array, name: string, type: string) {
+  return new Response(bytes as BodyInit, {
+    headers: {
+      'Content-Type': type,
+      'Content-Disposition': `attachment; filename="${name.endsWith('.docx') ? 'resume.docx' : 'resume.pdf'}"; filename*=UTF-8''${encodeURIComponent(name)}`,
+      'Cache-Control': 'private, no-store',
+    },
+  });
 }
 
 function pdf(bytes: Uint8Array, file: string) {
