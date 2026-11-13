@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type DragEvent, type KeyboardEvent, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type DragEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { cx } from '@portrait/ui';
 import {
   dates,
@@ -23,6 +23,18 @@ import s from './resume.module.css';
 // every field editable in place. Laid out with the same numbers as the PDF (lib/resume/doc-pdf.ts),
 // in points, so what you see is what you download. Read only, it is the same page without the
 // editing controls.
+
+/**
+ * What the assistant changed, marked on the page until the person has looked: field ids
+ * ("blt_x:b", "ent_x:title", "title") and the ids of whole sections, entries and bullets it added
+ * or moved. `hot` is the one whose receipt is being pointed at in the thread.
+ */
+export type Marks = { ids: ReadonlySet<string>; hot: string | null; seen?: (id: string) => void };
+export const MarksContext = createContext<Marks>({ ids: new Set(), hot: null });
+function useMark(id: string) {
+  const m = useContext(MarksContext);
+  return cx(m.ids.has(id) && s.ai, m.hot === id && s.hot);
+}
 
 export type SheetChange = (next: ResumeDoc, opts?: { commit?: boolean; focus?: string }) => void;
 
@@ -181,15 +193,18 @@ function SectionView({ sec, doc, onChange }: { sec: Section; doc: ResumeDoc; onC
   const entries = editing ? sec.entries : sec.entries.filter((e) => e.title || e.subtitle || e.text || e.bullets.some((b) => b.text.trim()));
   const drag = useDrag((from, to) => onChange?.(edit.moveEntry(doc, sec.id, from, to), { commit: true }));
   const canAdd = editing && (sec.kind !== 'summary' || sec.entries.length === 0);
+  const mark = useMark(sec.id);
+  const marks = useContext(MarksContext);
+  const markOf = (id: string) => cx(marks.ids.has(id) && s.ai, marks.hot === id && s.hot);
 
   return (
-    <section className={cx(s.section, sec.hidden && s.hiddenSection)} aria-label={sec.heading}>
+    <section className={cx(s.section, sec.hidden && s.hiddenSection, mark)} aria-label={sec.heading}>
       <div className={s.heading}>
         <Text value={sec.heading} id={`${sec.id}:h`} placeholder={info.heading} onChange={onChange && ((v, commit) => onChange(edit.setSection(doc, sec.id, { heading: v }), { commit }))} />
         {sec.hidden ? <span className={s.hiddenNote}>hidden from the page</span> : null}
       </div>
       {entries.map((e, i) => (
-        <div key={e.id} className={cx(s.entry, drag.over === e.id && s.dropBefore, drag.dragging === e.id && s.dragging)} {...drag.target(e.id, i)}>
+        <div key={e.id} className={cx(s.entry, drag.over === e.id && s.dropBefore, drag.dragging === e.id && s.dragging, markOf(e.id))} {...drag.target(e.id, i)}>
           {editing && sec.kind !== 'summary' ? (
             <span className={s.rowTools}>
               <span className={s.grip} {...drag.handle(e.id, i)} title="Drag to reorder" aria-hidden>
@@ -322,6 +337,8 @@ function Bullets({ sec, e, doc, onChange }: { sec: Section; e: Entry; doc: Resum
   const editing = !!onChange;
   const drag = useDrag((from, to) => onChange?.(edit.moveBullet(doc, sec.id, e.id, from, to), { commit: true }));
   const bullets = editing ? e.bullets : e.bullets.filter((b) => b.text.trim());
+  const marks = useContext(MarksContext);
+  const markOf = (id: string) => cx(marks.ids.has(id) && s.ai, marks.hot === id && s.hot);
   if (!bullets.length && !editing) return null;
 
   const onKey = (ev: KeyboardEvent<HTMLElement>, bid: string, i: number, text: string) => {
@@ -344,7 +361,7 @@ function Bullets({ sec, e, doc, onChange }: { sec: Section; e: Entry; doc: Resum
     <>
       <ul className={s.bullets}>
         {bullets.map((b, i) => (
-          <li key={b.id} className={cx(s.bullet, s.para, drag.over === b.id && s.dropBefore, drag.dragging === b.id && s.dragging)} {...drag.target(b.id, i)}>
+          <li key={b.id} className={cx(s.bullet, s.para, drag.over === b.id && s.dropBefore, drag.dragging === b.id && s.dragging, markOf(b.id))} {...drag.target(b.id, i)}>
             {editing ? (
               <span className={s.rowTools}>
                 <span className={s.grip} {...drag.handle(b.id, i)} title="Drag to reorder (or Alt+↑/↓ while typing)" aria-hidden>
@@ -405,6 +422,8 @@ function Text({
 }) {
   const ref = useRef<HTMLSpanElement>(null);
   const editable = !!onChange;
+  const mark = useMark(id);
+  const { seen } = useContext(MarksContext);
   useLayoutEffect(() => {
     const el = ref.current;
     if (el && el.textContent !== value) el.textContent = value;
@@ -413,7 +432,7 @@ function Text({
   // reusing the read-only one and leaving the editable one empty.
   if (!onChange)
     return (
-      <span key="read" className={className}>
+      <span key="read" className={cx(className, mark)}>
         {value}
       </span>
     );
@@ -421,7 +440,8 @@ function Text({
     <span
       key="edit"
       ref={ref}
-      className={cx(s.field, className)}
+      className={cx(s.field, className, mark)}
+      onFocus={mark ? () => seen?.(id) : undefined}
       contentEditable="plaintext-only"
       suppressContentEditableWarning
       role="textbox"

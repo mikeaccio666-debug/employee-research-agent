@@ -68,11 +68,11 @@ export async function POST(req: Request) {
   } catch {
     return json(500, 'no_conversation', 'Couldn’t open your conversation. Try again in a moment.');
   }
-  if ((await sentToday(supabase, conversationId)) >= DAILY_MESSAGES) {
+  if ((await sentToday(supabase, user.id)) >= DAILY_MESSAGES) {
     return json(429, 'daily_limit', 'That’s today’s limit for the agent. Your portrait is saved; pick it up tomorrow.');
   }
   const cap = dailyMessagesFor(agent.provider);
-  if (cap !== null && (await sentToday(supabase, conversationId, agent.provider)) >= cap) {
+  if (cap !== null && (await sentToday(supabase, user.id, agent.provider)) >= cap) {
     return json(429, 'model_daily_limit', 'That’s today’s limit for this model. Switch to the other one, or pick it up tomorrow.');
   }
 

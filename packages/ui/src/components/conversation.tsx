@@ -113,6 +113,8 @@ export type ComposerProps = {
   error?: ReactNode;
   /** What Attach does (open a file picker). Without it the chip is decoration. */
   onAttach?: () => void;
+  /** False leaves the Attach chip out, where nothing can be attached. */
+  attach?: boolean;
   /**
    * Turns a recording into text (the app's speech-to-text). With it, a Speak chip records from the
    * microphone and puts the words into the box to read and fix; nothing is sent until they press Send.
@@ -231,6 +233,7 @@ export function Composer({
   clipSuggestions,
   error,
   onAttach,
+  attach = true,
   onDictate,
   maxDictateSeconds = 120,
   disabled,
@@ -299,9 +302,11 @@ export function Composer({
       ) : null}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Chip size="sm" tone={chipTone} aria-label="Attach a file" onClick={onAttach} disabled={disabled && !!onAttach}>
-            Attach
-          </Chip>
+          {attach ? (
+            <Chip size="sm" tone={chipTone} aria-label="Attach a file" onClick={onAttach} disabled={disabled && !!onAttach}>
+              Attach
+            </Chip>
+          ) : null}
           {onDictate ? (
             voice.state === 'recording' ? (
               <>

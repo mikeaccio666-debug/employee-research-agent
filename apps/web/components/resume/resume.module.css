@@ -99,7 +99,29 @@
   .formatStack > .tool { justify-content: space-between; }
   .popHint { color: var(--ink-3); margin: 4px 6px 0; }
 
-  /* The desk the sheet lies on. */
+  /* The assistant on the left, the desk on the right; each scrolls on its own. */
+  .work { display: grid; grid-template-columns: minmax(300px, 30%) minmax(0, 1fr); min-height: 0; }
+  .work.single { grid-template-columns: minmax(0, 1fr); }
+  .work > * { min-height: 0; }
+  .chat {
+    display: grid; grid-template-rows: auto minmax(0, 1fr) auto; min-height: 0; max-width: 440px;
+    border-right: 1px solid var(--wall-2); background: var(--wall);
+  }
+  .chatHead { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px 6px; }
+  .chatScroll { overflow: auto; padding: 4px 16px 16px; }
+  .chatFoot { padding: 8px 12px 12px; }
+  .changes { display: grid; gap: 2px; margin-top: 8px; }
+  .undoLink {
+    padding: 2px 4px; border: 0; background: transparent; color: var(--ink-2); font: 500 13px/1.4 var(--f);
+    text-decoration: underline; text-underline-offset: 3px; cursor: pointer; justify-self: start;
+  }
+  .undoLink:hover { color: var(--ink); }
+  .undoLink[disabled] { opacity: 0.4; cursor: default; }
+  .undoAll { margin-top: 4px; }
+  .undone { color: var(--ink-3); }
+  .chatScroll p + p { margin-top: 8px; }
+
+
   .desk {
     position: relative;
     overflow: auto;
@@ -180,6 +202,13 @@
   .field:empty::before { content: attr(data-placeholder); color: #8a8a92; pointer-events: none; }
   .block { display: block; }
 
+  /* What the assistant changed, until the person has looked: chalk under the words, a dashed
+     pencil underline (the app's mark for a draft). The one pointed at in the thread is lit. */
+  .ai { background: color-mix(in oklch, var(--chalk) 30%, #fff); text-decoration: underline dashed 1px var(--pencil); text-underline-offset: 2.5pt; border-radius: 2px; }
+  li.ai, div.ai, section.ai { text-decoration: none; outline: 1.5px dashed var(--pencil); outline-offset: 2pt; background: none; }
+  .hot { background: var(--chalk); color: var(--on-chalk); }
+  li.hot, div.hot, section.hot { outline: 2px solid var(--ink-paper); outline-offset: 2pt; background: none; color: inherit; }
+
   /* Controls that float in the margin beside an entry or bullet while editing; never on the page.
      24px targets (WCAG 2.5.8); always shown, and larger, on touch screens. */
   .rowTools {
@@ -215,6 +244,10 @@
   /* Phones and small tablets: the page scrolls as a whole; the page settings stay on top. */
   @media (max-width: 900px) {
     .editor { position: static; height: auto; min-height: 0; }
+    .chat { display: block; max-width: none; border-right: 0; }
+    .chatHead { display: none; }
+    .chatScroll { overflow: visible; padding-top: 12px; }
+    .chatFoot { position: sticky; bottom: 0; z-index: 5; background: var(--wall); }
     .tools { position: sticky; top: 0; z-index: 10; background: var(--wall); }
     .desk { overflow: visible; }
   }
@@ -242,7 +275,8 @@
     .grip { display: none; }
   }
   @media print {
-    .top, .tools, .fitNote, .rowTools, .eye, .add, .pageEnd { display: none !important; }
+    .top, .tools, .fitNote, .rowTools, .eye, .add, .pageEnd, .chat { display: none !important; }
+    .ai, .hot { background: none !important; text-decoration: none !important; outline: none !important; }
     .desk { padding: 0; background: none; overflow: visible; }
   }
 }

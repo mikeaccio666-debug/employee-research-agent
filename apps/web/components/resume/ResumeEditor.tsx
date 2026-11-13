@@ -22,7 +22,10 @@ import * as edit from '@/lib/resume/edit';
 import { createVersion, deleteVersion, makeDefault, saveVersion } from '@/lib/resume-actions';
 import type { ResumeVersion } from '@/lib/resume/store';
 import { routes } from '@/lib/routes';
-import { ResumeSheet, sheetVars, type SheetChange } from './ResumeSheet';
+import type { ThreadMessage } from '@/lib/agent/store';
+import { revert, touched, type ResumeReceipt } from '@/lib/resume/changes';
+import { ResumeChat, type Live } from './ResumeChat';
+import { MarksContext, ResumeSheet, sheetVars, type SheetChange } from './ResumeSheet';
 import { CloseIcon, DownIcon, DownloadIcon, EyeIcon, EyeOffIcon, MoreIcon, PencilIcon, RedoIcon, StarIcon, TrashIcon, UndoIcon, UpIcon } from './icons';
 import s from './resume.module.css';
 
@@ -36,6 +39,10 @@ type Props = {
   canSave: boolean;
   /** Shown instead of saving when the deployment can't store versions yet. */
   notice?: string | null;
+  /** The conversation with the assistant so far, across versions. */
+  thread: ThreadMessage[];
+  /** Whether the assistant can run here, and if not, why. */
+  assistant: { ready: boolean; note: string | null; voice?: boolean };
 };
 
 type Draft = { name: string; target: string; doc: ResumeDoc; style: ResumeStyle };
@@ -43,11 +50,41 @@ const draftOf = (v: ResumeVersion): Draft => ({ name: v.name, target: v.target, 
 const same = (a: Draft, b: Draft) => JSON.stringify(a) === JSON.stringify(b);
 const PT = 4 / 3;
 
-export function ResumeEditor({ versions: initial, canSave, notice }: Props) {
+/** Reads server-sent events from a fetch body: `event: x` / `data: {...}` blocks. */
+async function readEvents(body: ReadableStream<Uint8Array>, on: (event: string, data: unknown) => void) {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    let cut: number;
+    while ((cut = buf.indexOf('\n\n')) >= 0) {
+      const block = buf.slice(0, cut);
+      buf = buf.slice(cut + 2);
+      let event = 'message';
+      let data = '';
+      for (const line of block.split('\n')) {
+        if (line.startsWith('event: ')) event = line.slice(7);
+        else if (line.startsWith('data: ')) data += line.slice(6);
+      }
+      if (data) on(event, JSON.parse(data));
+    }
+  }
+}
+
+export function ResumeEditor({ versions: initial, canSave, notice, thread: initialThread, assistant }: Props) {
   const [versions, setVersions] = useState(initial);
   const [currentId, setCurrentId] = useState(initial[0]?.id ?? '');
   const current = versions.find((v) => v.id === currentId) ?? versions[0]!;
-  const [draft, setDraft] = useState<Draft>(() => draftOf(current));
+  const [draft, setDraftState] = useState<Draft>(() => draftOf(current));
+  // The draft as of the last change, for the assistant's changes arriving mid-stream.
+  const draftRef = useRef(draft);
+  const setDraft = useCallback((d: Draft) => {
+    draftRef.current = d;
+    setDraftState(d);
+  }, []);
   const [past, setPast] = useState<Draft[]>([]);
   const [future, setFuture] = useState<Draft[]>([]);
   const [focus, setFocus] = useState<{ id: string; n: number } | null>(null);
@@ -74,6 +111,7 @@ export function ResumeEditor({ versions: initial, canSave, notice }: Props) {
     if (opts?.focus) setFocus((f) => ({ id: opts.focus!, n: (f?.n ?? 0) + 1 }));
   };
   const setStyle = (patch: Partial<ResumeStyle>) => {
+    if (live) return;
     const next = { ...draft, style: { ...draft.style, ...patch } };
     setDraft(next);
     commit(next);
@@ -85,6 +123,7 @@ export function ResumeEditor({ versions: initial, canSave, notice }: Props) {
   };
 
   const undo = () => {
+    setMarks(new Set());
     const prev = past[past.length - 1];
     if (!prev) return;
     setPast(past.slice(0, -1));
@@ -93,6 +132,7 @@ export function ResumeEditor({ versions: initial, canSave, notice }: Props) {
     setDraft(prev);
   };
   const redo = () => {
+    setMarks(new Set());
     const next = future[0];
     if (!next) return;
     setFuture(future.slice(1));
@@ -133,6 +173,7 @@ export function ResumeEditor({ versions: initial, canSave, notice }: Props) {
     setPast([]);
     setFuture([]);
     setStatus(null);
+    setMarks(new Set());
   };
 
   const save = () =>
@@ -239,15 +280,137 @@ export function ResumeEditor({ versions: initial, canSave, notice }: Props) {
 
   // ---- Phones: edit with the text at full size, or look at the page as it prints ----
   const [narrow, setNarrow] = useState(false);
-  const [view, setView] = useState<'edit' | 'preview'>('edit');
+  // Up to small tablets the assistant takes the screen in turn with the page, as a third view.
+  const [compact, setCompact] = useState(false);
+  const [view, setView] = useState<'edit' | 'preview' | 'assistant'>('edit');
   useEffect(() => {
     const q = window.matchMedia('(max-width: 760px)');
-    const on = () => setNarrow(q.matches);
+    const c = window.matchMedia('(max-width: 900px)');
+    const on = () => {
+      setNarrow(q.matches);
+      setCompact(c.matches);
+    };
     on();
     q.addEventListener('change', on);
-    return () => q.removeEventListener('change', on);
+    c.addEventListener('change', on);
+    return () => {
+      q.removeEventListener('change', on);
+      c.removeEventListener('change', on);
+    };
   }, []);
+  useEffect(() => {
+    if (!compact && view === 'assistant') setView('edit');
+  }, [compact, view]);
   const reflow = narrow && view === 'edit';
+
+  // ---- The assistant: a conversation beside the page whose changes land on it, marked ----
+  const [chatOpen, setChatOpen] = useState(true);
+  useEffect(() => {
+    try {
+      if (localStorage.getItem('resume.chat') === 'closed') setChatOpen(false);
+    } catch {}
+  }, []);
+  const toggleChat = (open: boolean) => {
+    setChatOpen(open);
+    try {
+      localStorage.setItem('resume.chat', open ? 'open' : 'closed');
+    } catch {}
+  };
+  const [thread, setThread] = useState(initialThread);
+  const [live, setLive] = useState<Live | null>(null);
+  const [chatError, setChatError] = useState<string | null>(null);
+  const [undone, setUndone] = useState<ReadonlySet<string>>(new Set());
+  const [marks, setMarks] = useState<ReadonlySet<string>>(new Set());
+  const [hot, setHot] = useState<string | null>(null);
+  const busy = live !== null;
+  const mark = (ids: string[]) => setMarks((m) => new Set([...m, ...ids]));
+  const seen = useCallback((id: string) => setMarks((m) => (m.has(id) ? new Set([...m].filter((x) => x !== id)) : m)), []);
+
+  const ask = (message: string): boolean => {
+    if (busy || !assistant.ready) return false;
+    setChatError(null);
+    setMarks(new Set());
+    const sentFrom = draftRef.current;
+    const turn: Live = { user: message, reply: '', receipts: [] };
+    setLive(turn);
+    const size = +(sentFrom.style.size * scale).toFixed(1);
+    const fit = { onePage: overflow === null, overflowLines: overflow === null ? null : Math.ceil(overflow / (sentFrom.style.size * 1.3)), size };
+    (async () => {
+      let failed: string | null = null;
+      let messageId: number | null = null;
+      try {
+        const res = await fetch('/api/resume/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message, version: canSave ? current.id : null, name: sentFrom.name, target: sentFrom.target, doc: sentFrom.doc, style: sentFrom.style, fit }),
+        });
+        if (!res.ok || !res.body) {
+          const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
+          throw new Error(body?.error?.message ?? 'Couldn’t reach the assistant. Try again.');
+        }
+        await readEvents(res.body, (event, data) => {
+          if (event === 'message.delta') {
+            turn.reply += (data as { text: string }).text;
+            setLive({ ...turn });
+          } else if (event === 'resume.change') {
+            const d = data as { doc: ResumeDoc; style: ResumeStyle; receipts: ResumeReceipt[] };
+            const next = { ...draftRef.current, doc: d.doc, style: d.style };
+            setDraft(next);
+            commit(next);
+            turn.receipts = [...turn.receipts, ...d.receipts];
+            // Paragraph breaks between rounds of tool calls, so the reply doesn't run together.
+            if (turn.reply && !turn.reply.endsWith('\n\n')) turn.reply += '\n\n';
+            setLive({ ...turn });
+            mark(d.receipts.flatMap((r) => touched(r.change)));
+          } else if (event === 'message.done') {
+            messageId = (data as { messageId: number | null }).messageId;
+          } else if (event === 'error') {
+            failed = (data as { message: string }).message;
+          }
+        });
+      } catch (e) {
+        failed = e instanceof Error ? e.message : 'Couldn’t reach the assistant. Try again.';
+      }
+      const id = messageId ?? -Date.now();
+      // Receipts keep their keys from the live turn, so an Undo already pressed stays pressed.
+      setUndone((u) => new Set([...u].map((k) => (k.startsWith('live:') ? k.replace('live:', `${id}:`) : k))));
+      setThread((t) => [
+        ...t,
+        { id: -Date.now() - 1, role: 'user', body: message, receipts: [] },
+        ...(turn.reply.trim() || turn.receipts.length ? [{ id, role: 'assistant' as const, body: turn.reply.trim(), receipts: turn.receipts as never }] : []),
+      ]);
+      setLive(null);
+      if (failed) setChatError(failed);
+    })();
+    return true;
+  };
+
+  const undoChange = (items: { key: string; receipt: ResumeReceipt }[]) => {
+    // Newest first, so later changes come off before the ones they were made on top of.
+    let d = draftRef.current;
+    let st = d.style;
+    let doc = d.doc;
+    const done: string[] = [];
+    let problem: string | null = null;
+    for (const { key, receipt } of [...items].reverse()) {
+      const r = revert(doc, st, receipt.change);
+      if ('error' in r) {
+        problem = r.error;
+        continue;
+      }
+      doc = r.doc;
+      st = r.style;
+      done.push(key);
+    }
+    if (done.length) {
+      d = { ...d, doc, style: st };
+      setDraft(d);
+      commit(d);
+      setUndone((u) => new Set([...u, ...done]));
+      setMarks((m) => new Set([...m].filter((id) => !items.some((x) => touched(x.receipt.change).includes(id)))));
+    }
+    setStatus(problem ? { text: problem, error: true } : { text: done.length > 1 ? `Undid ${done.length} changes.` : 'Undone.' });
+  };
 
   // ---- Fit the sheet to the width of the desk ----
   const deskRef = useRef<HTMLDivElement>(null);
@@ -420,12 +583,13 @@ export function ResumeEditor({ versions: initial, canSave, notice }: Props) {
       </div>
 
       <div className={s.tools} role="toolbar" aria-label="Page settings">
-        <Segmented<'edit' | 'preview'>
+        <Segmented<'edit' | 'preview' | 'assistant'>
           label="View"
           mode="radio"
           options={[
             { value: 'edit', label: 'Edit' },
             { value: 'preview', label: 'Preview' },
+            ...(compact ? [{ value: 'assistant' as const, label: busy ? 'Assistant…' : 'Assistant' }] : []),
           ]}
           value={view}
           onChange={setView}
@@ -448,9 +612,35 @@ export function ResumeEditor({ versions: initial, canSave, notice }: Props) {
           </button>
         </span>
         {narrow ? null : <MoreMenu>{extras}</MoreMenu>}
+        {compact || chatOpen ? null : (
+          <Button variant="quiet" size="sm" onClick={() => toggleChat(true)} aria-label="Show the assistant">
+            Assistant
+          </Button>
+        )}
       </div>
 
-      <div className={s.desk} ref={deskRef}>
+      <div className={cx(s.work, (compact || !chatOpen) && s.single)}>
+      {(!compact && chatOpen) || (compact && view === 'assistant') ? (
+        <ResumeChat
+          thread={thread}
+          live={live}
+          ready={assistant.ready}
+          note={assistant.note}
+          voice={assistant.voice}
+          busy={busy}
+          error={chatError}
+          versionId={canSave ? current.id : null}
+          versionNames={Object.fromEntries(versions.map((v) => [v.id, v.name]))}
+          undone={undone}
+          onSend={ask}
+          onUndo={(key, receipt) => undoChange([{ key, receipt }])}
+          onUndoAll={undoChange}
+          onPoint={setHot}
+          onShowPage={compact ? () => setView('edit') : undefined}
+          onClose={compact ? undefined : () => toggleChat(false)}
+        />
+      ) : null}
+      <div className={s.desk} ref={deskRef} hidden={compact && view === 'assistant'}>
         {notice ? <p className={cx('t-sm', s.fitNote)}>{notice}</p> : null}
         {overflow !== null ? (
           <p className={cx('t-sm', s.fitNote, s.overflowNote)} role="status">
@@ -461,21 +651,24 @@ export function ResumeEditor({ versions: initial, canSave, notice }: Props) {
         ) : null}
         <div style={reflow ? undefined : { height: sheetHeight ? sheetHeight * zoom : undefined, width: sheetRef.current ? sheetRef.current.offsetWidth * zoom : undefined, margin: '0 auto' }}>
           <div className={s.sheetBox} style={{ transform: zoom < 1 && !reflow ? `scale(${zoom})` : undefined }}>
+            <MarksContext.Provider value={{ ids: marks, hot, seen }}>
             <ResumeSheet
               doc={draft.doc}
               style={draft.style}
               scale={scale}
-              onChange={view === 'edit' ? change : null}
+              onChange={view === 'edit' && !busy ? change : null}
               focus={focus}
               pageEnd={overflow !== null ? limitPt : null}
               sheetRef={sheetRef}
               reflow={reflow}
             />
+            </MarksContext.Provider>
           </div>
         </div>
         <div aria-hidden inert style={{ position: 'absolute', top: 0, left: -20000, visibility: 'hidden', pointerEvents: 'none' }}>
           <ResumeSheet doc={draft.doc} style={draft.style} scale={scale} onChange={null} focus={null} pageEnd={null} contentRef={contentRef} sheetRef={measureRef} />
         </div>
+      </div>
       </div>
     </div>
   );

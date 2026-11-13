@@ -2,7 +2,7 @@ import OpenAI from 'openai';
 import type { AgentEnv } from '../env';
 import { STUDIO_INSTRUCTIONS } from '../prompt';
 import { TOOL_DEFS } from '../tools';
-import type { Adapter, Call, Item } from './types';
+import type { Adapter, Call, Item, Kit, ToolDef } from './types';
 
 // OpenAI through the Responses API. History is ours (append-only in Postgres), so nothing is kept
 // on OpenAI's side; reasoning comes back encrypted so it can be replayed next turn.
@@ -18,15 +18,19 @@ function forStrictMode(schema: unknown): Record<string, unknown> {
   return JSON.parse(JSON.stringify(schema, (key, value) => (key === 'maxLength' || key === 'minLength' ? undefined : value)));
 }
 
-const TOOLS = TOOL_DEFS.map((t) => ({
-  type: 'function' as const,
-  name: t.name,
-  description: t.description,
-  parameters: forStrictMode(t.parameters),
-  strict: true,
-}));
+const toolsFor = (defs: ToolDef[]) =>
+  defs.map((t) => ({
+    type: 'function' as const,
+    name: t.name,
+    description: t.description,
+    parameters: forStrictMode(t.parameters),
+    strict: true,
+  }));
+const STUDIO_TOOLS = toolsFor(TOOL_DEFS);
 
-export function openaiAdapter(env: AgentEnv): Adapter {
+export function openaiAdapter(env: AgentEnv, kit?: Kit): Adapter {
+  const instructions = kit?.instructions ?? STUDIO_INSTRUCTIONS;
+  const TOOLS = kit ? toolsFor(kit.tools) : STUDIO_TOOLS;
   const client = new OpenAI({ apiKey: env.apiKey, baseURL: env.baseURL });
   const reasoning = reasoningModel(env.model);
 
@@ -64,7 +68,7 @@ export function openaiAdapter(env: AgentEnv): Adapter {
         const stream = await client.responses.create(
           {
             model: env.model,
-            instructions: STUDIO_INSTRUCTIONS,
+            instructions,
             input: history as unknown as OpenAI.Responses.ResponseInput,
             tools: TOOLS,
             tool_choice: 'auto',

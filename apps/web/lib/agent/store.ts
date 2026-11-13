@@ -21,23 +21,29 @@ export type Attachment = { kind: SourceKind; name: string };
 /** `connect`: an app the agent offered to connect, shown as a Connect button under the reply. */
 export type Receipt = { note: string; dashed: boolean; claimId?: string; connect?: string };
 
-/** The person's studio conversation, started on their first message. */
-export async function conversationFor(supabase: SupabaseClient, ownerId: string, create: boolean): Promise<string | null> {
+/**
+ * companion: the studio's conversation. resume: the one beside the résumé editor, across all
+ * the person's résumé versions.
+ */
+export type Purpose = 'companion' | 'resume';
+
+/** One of the person's conversations, started on their first message there. */
+export async function conversationFor(supabase: SupabaseClient, ownerId: string, create: boolean, purpose: Purpose = 'companion'): Promise<string | null> {
   const { data } = await supabase
     .from('conversations')
     .select('id')
     .eq('owner_id', ownerId)
-    .eq('purpose', 'companion')
+    .eq('purpose', purpose)
     .maybeSingle<{ id: string }>();
   if (data || !create) return data?.id ?? null;
   const { data: made, error } = await supabase
     .from('conversations')
-    .insert({ owner_id: ownerId, purpose: 'companion' })
+    .insert({ owner_id: ownerId, purpose })
     .select('id')
     .single<{ id: string }>();
   if (made) return made.id;
   // Two first messages at once: the other one made it.
-  if (error?.code === '23505') return conversationFor(supabase, ownerId, false);
+  if (error?.code === '23505') return conversationFor(supabase, ownerId, false, purpose);
   throw new Error(error?.message ?? 'Could not start the conversation');
 }
 
@@ -69,13 +75,19 @@ export async function append(
   return data.id;
 }
 
-/** Messages the person sent in the last 24 hours, to one provider's model or to any. */
-export async function sentToday(supabase: SupabaseClient, conversationId: string, via?: string): Promise<number> {
+/**
+ * Messages the person sent in the last 24 hours, in all their conversations (the daily limit is
+ * for the person, not for one page), to one provider's model or to any.
+ */
+export async function sentToday(supabase: SupabaseClient, ownerId: string, via?: string): Promise<number> {
   const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+  const { data: mine } = await supabase.from('conversations').select('id').eq('owner_id', ownerId).returns<{ id: string }[]>();
+  const ids = (mine ?? []).map((c) => c.id);
+  if (!ids.length) return 0;
   let query = supabase
     .from('conversation_messages')
     .select('id', { count: 'exact', head: true })
-    .eq('conversation_id', conversationId)
+    .in('conversation_id', ids)
     .eq('role', 'user')
     .gte('created_at', since);
   // Each stored message is marked with the provider it went to (lib/agent/turn.ts).
