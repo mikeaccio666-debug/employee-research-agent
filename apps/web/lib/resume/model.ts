@@ -1,4 +1,4 @@
-import { visibleClaims, type Claim, type Spec } from '@/lib/portrait/spec';
+import { LIMITS, visibleClaims, type Claim, type ResumePlan, type Spec } from '@/lib/portrait/spec';
 
 // The résumé made from a portrait (PRD COACH-01): a plain, single-column document an applicant
 // tracking system can read. Only confirmed lines go on it, in the person's own wording; a résumé
@@ -37,12 +37,13 @@ const sectionOf = (c: Claim) => (PROJECT.test(c.kind) ? 'Projects' : ACTIVITY.te
 const ORDER = ['Summary', 'Experience', 'Projects', 'Activities', 'Skills', 'Background'];
 
 /**
- * The résumé for a portrait. `plan` is the agent's selection for one role (its order wins inside
- * each section); without one, every confirmed line goes on in the portrait's order.
+ * The résumé for a portrait. A plan is a selection for one role (its order wins inside each
+ * section): `true` takes the one the agent saved, or one is handed in (a posting's, from the Jobs
+ * page). Without one, every confirmed line goes on in the portrait's order.
  */
-export function resumeFrom(spec: Spec, who: { name: string; contact: string[] }, tailored = false): Resume {
+export function resumeFrom(spec: Spec, who: { name: string; contact: string[] }, tailored: boolean | Pick<ResumePlan, 'target' | 'claims'> = false): Resume {
   const confirmed = visibleClaims(spec);
-  const plan = tailored ? spec.resume : null;
+  const plan = tailored === true ? spec.resume : tailored || null;
   const lines = plan ? plan.claims.map((id) => confirmed.find((c) => c.id === id)).filter((c): c is Claim => !!c) : confirmed;
 
   const sections = new Map<string, ResumeEntry[]>();
@@ -84,4 +85,15 @@ export function resumeText(r: Resume): string {
     }
   }
   return out.filter((l, i) => l || out[i - 1]).join('\n');
+}
+
+/**
+ * The résumé for one posting: every confirmed line, the ones the posting asks for first. `first`
+ * comes from the browser (the fit check isn't stored), so only ids of the person's own confirmed
+ * lines are kept, and nothing is added, dropped or reworded: the order is all that changes.
+ */
+export function planForPosting(spec: Spec, target: string, first: string[]): Pick<ResumePlan, 'target' | 'claims'> {
+  const confirmed = visibleClaims(spec).map((c) => c.id);
+  const lead = [...new Set(first)].filter((id) => confirmed.includes(id));
+  return { target: target.slice(0, LIMITS.target), claims: [...lead, ...confirmed.filter((id) => !lead.includes(id))] };
 }

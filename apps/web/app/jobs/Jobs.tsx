@@ -106,7 +106,9 @@ function RequirementLine({ r }: { r: Requirement }) {
 }
 
 /** What the posting asks for, each requirement beside the confirmed line that shows it, or none. */
-function FitPanel({ fit }: { fit: Fit }) {
+function FitPanel({ fit, jobId }: { fit: Fit; jobId: string }) {
+  // The lines this posting asks for, required ones first: they lead the résumé for it.
+  const lead = [...new Set(fit.requirements.flatMap((r) => (r.claimId ? [r.claimId] : [])))];
   const listed = fit.requirements.filter((r) => r.kind !== 'authorization');
   const must = listed.filter((r) => r.must);
   const nice = listed.filter((r) => !r.must);
@@ -144,6 +146,14 @@ function FitPanel({ fit }: { fit: Fit }) {
           {fit.authorization.saved
             ? `You told the agent: ${fit.authorization.saved}.${fit.authorization.conflict ? ' These don’t seem to fit; check before you apply.' : ''}`
             : 'You haven’t told the agent your work authorization.'}
+        </p>
+      ) : null}
+      {lead.length ? (
+        <p className="t-xs c2 mt-3">
+          <a className="linklike" href={`/api/resume?job=${encodeURIComponent(jobId)}&first=${lead.join(',')}`} download>
+            Résumé for this posting (PDF)
+          </a>
+          : all your confirmed lines, with the {lead.length === 1 ? 'one' : lead.length} this posting asks for first. Nothing is reworded.
         </p>
       ) : null}
       <p className="t-xs c2 mt-3">
@@ -357,7 +367,7 @@ export function Jobs({
                       {fit.error}
                     </p>
                   ) : fit?.state === 'done' ? (
-                    <FitPanel fit={fit.fit} />
+                    <FitPanel fit={fit.fit} jobId={c.id} />
                   ) : null}
                   {open === c.id ? <p className={cx('t-xs c2 mt-2', s.description)}>{c.description}</p> : null}
                   <div className="mt-3 flex flex-wrap items-center gap-2">
