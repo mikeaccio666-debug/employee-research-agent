@@ -8,9 +8,13 @@ export const metadata: Metadata = { title: 'v0.2 颜色' };
 /** V2-Colors: the 晨 and 夜 palettes, the wine trim (live), contrast and the rules for colour. */
 export default function ColorsPage() {
   return (
-    <div lang="zh-CN" className="relative min-h-screen overflow-hidden pb-24">
+    // This board records the optional 晨光 theme, so it keeps those colours whatever the site theme is.
+    <div lang="zh-CN" className="pv morning relative min-h-screen overflow-hidden pb-24">
       <Ruler />
       <BoardHeader band="v0.2 · Oct 19" date="身高线的结构 × 晨光的颜色" title="颜色">
+        <p className="t-body zh c2 mt-3.5 max-w-[46em]">
+          这块板记录的是可选主题「晨光」。产品默认的配色从 2026 年 11 月起是中性的近白和深灰，数值和规则在 DESIGN.md 的 Colors 一节。
+        </p>
         <p className="t-body zh c2 mt-3.5 max-w-[46em]">
           亮色「晨」：刷了浅蓝灰漆的墙、奶油色的门框、一支金色粉笔、一支蓝黑铅笔。暗色「夜」：深蓝的墙、酒红色的门框，粉笔还是那支金色的，正文换成白粉笔。平台只有一个强调色——金色粉笔；酒红只做暗色里的“面”，不做强调。
         </p>
