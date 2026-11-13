@@ -38,6 +38,7 @@ import type { Effort, ModelChoice, Provider } from '@/lib/agent/env';
 import type { Attachment, Receipt as ReceiptData, ThreadMessage } from '@/lib/agent/store';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { OPENER } from '@/lib/agent/opener';
+import { dictate } from '@/lib/voice/client';
 import { routes } from '@/lib/routes';
 import { TRIAL_MESSAGES } from '@/lib/auth-options';
 import s from './studio.module.css';
@@ -56,6 +57,8 @@ export type LiveStudioProps = {
   publishedRev: number | null;
   /** False when the deployment has no model key: the studio says so instead of pretending. */
   agentReady: boolean;
+  /** True when the deployment can turn speech into text (an OpenAI key): the box gets a Speak chip. */
+  voiceReady?: boolean;
   /** Started without an account (an anonymous sign-in): they can talk, but saving means signing up. */
   anonymous?: boolean;
   /** For people allowed to switch the agent's model: the choices and the defaults. */
@@ -143,7 +146,7 @@ function Paras({ text, className }: { text: string; className?: string }) {
 
 /** S01 for a real account: the conversation with the agent beside the portrait it draws. */
 export function LiveStudio(props: LiveStudioProps) {
-  const { name, handle, visibilityLabel, published, agentReady, anonymous = false } = props;
+  const { name, handle, visibilityLabel, published, agentReady, voiceReady = false, anonymous = false } = props;
   const [spec, setSpec] = useState(props.spec);
   const [thread, setThread] = useState(props.thread);
   const [publishedRev, setPublishedRev] = useState(props.publishedRev);
@@ -542,9 +545,10 @@ export function LiveStudio(props: LiveStudioProps) {
             defaultText={landingDraft}
             id="msg"
             context={modelPicker}
-            placeholder="Tell me what you’ve done, attach your résumé or a picture of your work, or paste a link — in any language"
+            placeholder="Tell me what you’ve done (type it or press Speak), attach your résumé or a picture of your work, or paste a link — in any language"
             onSend={(text) => send(text)}
             onAttach={() => picker.current?.click()}
+            onDictate={voiceReady ? dictate : undefined}
             disabled={busy || !agentReady || trialOver}
             error={error}
           />
