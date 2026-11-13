@@ -5,6 +5,7 @@ export type NavItem = { key: string; label: string; href: string };
 // Left-nav sets as drawn on the canvas. Pages pick one and mark the active key.
 export const talentNav: NavItem[] = [
   { key: 'portrait', label: 'My portrait', href: routes.studio },
+  { key: 'jobs', label: 'Jobs', href: routes.jobs },
   { key: 'grow', label: 'Grow', href: routes.grow },
   { key: 'feed', label: 'Feed', href: routes.feed },
   { key: 'events', label: 'Events', href: routes.events },

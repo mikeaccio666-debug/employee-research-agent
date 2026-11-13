@@ -4,6 +4,7 @@ export const routes = {
   birth: '/start',
   studio: '/studio',
   apps: '/apps',
+  jobs: '/jobs',
   login: '/login',
   firstPublish: '/studio/publish',
   portrait: (handle: string) => `/@${handle}`,
