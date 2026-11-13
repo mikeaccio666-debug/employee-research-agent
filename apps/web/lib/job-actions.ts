@@ -1,6 +1,12 @@
 'use server';
 
+import { agentEnv, summarizerFor } from '@/lib/agent/env';
+import { anthropicAdapter } from '@/lib/agent/providers/anthropic';
+import { openaiAdapter } from '@/lib/agent/providers/openai';
+import { conversationFor, loadPortrait, logCall } from '@/lib/agent/store';
+import { checkFit, type Fit } from '@/lib/jobs/fit';
 import { DISMISS_REASONS, type DismissReason, type JobAction } from '@/lib/jobs/match';
+import { reportError } from '@/lib/observability/report';
 import { jobSource } from '@/lib/jobs/source';
 import { clearAction, setAction, snapshot } from '@/lib/jobs/store';
 import { supabaseServer } from '@/lib/supabase/server';
@@ -12,6 +18,7 @@ import type { Result } from '@/lib/account-actions';
 
 const NOT_SIGNED_IN = 'You’re signed out. Sign in again to save.';
 const FAILED = 'That didn’t save. Try again in a moment.';
+const FIT_FAILED = 'The check didn’t finish. Try again in a moment.';
 
 async function signedIn() {
   const supabase = await supabaseServer();
@@ -43,4 +50,66 @@ export async function undoJobAction(jobId: string): Promise<Result> {
     return { ok: false, error: FAILED };
   }
   return { ok: true };
+}
+
+/** Fit checks one person may start in a day (JOBS_FIT_DAILY): each is one call to the small model. */
+const FIT_DAILY = Number(process.env.JOBS_FIT_DAILY || 60);
+const FIT_STOP = 'job_fit';
+
+/**
+ * What one posting asks for against the person's confirmed lines (lib/jobs/fit.ts). One call to
+ * the provider's small model, logged with the studio conversation's other calls. Nothing is stored:
+ * the portrait and the posting both change, so the check is made fresh each time it is asked for.
+ */
+export async function checkJobFit(jobId: string): Promise<Result<{ fit: Fit }>> {
+  const session = await signedIn();
+  if (!session) return { ok: false, error: 'You’re signed out. Sign in again to check your fit.' };
+  if (!agentEnv) return { ok: false, error: 'The fit check isn’t set up here yet.' };
+  const { supabase, user } = session;
+  const env = summarizerFor(agentEnv);
+  const began = Date.now();
+  let conversationId: string | null = null;
+  // Whether the model's answer is already in the log, so a failure after it isn't logged twice.
+  let logged = false;
+  try {
+    const [job, portrait] = await Promise.all([jobSource().get(jobId), loadPortrait(supabase, user.id)]);
+    if (!job) return { ok: false, error: 'That posting isn’t there any more.' };
+    conversationId = await conversationFor(supabase, user.id, true);
+    if (!conversationId) return { ok: false, error: FIT_FAILED };
+    const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    const { count } = await supabase
+      .from('model_calls')
+      .select('id', { count: 'exact', head: true })
+      .eq('conversation_id', conversationId)
+      .eq('stop_reason', `${FIT_STOP}:started`)
+      .gte('created_at', since);
+    if ((count ?? 0) >= FIT_DAILY) return { ok: false, error: 'That’s all the fit checks for today. They come back tomorrow.' };
+
+    // The check takes its place in the day's count before the model is called, not when it
+    // answers: checks started at the same moment from several tabs would otherwise all pass.
+    await logCall(supabase, conversationId, { provider: env.provider, model: env.model, stop_reason: `${FIT_STOP}:started`, error: null });
+
+    const adapter = env.provider === 'anthropic' ? anthropicAdapter(env) : openaiAdapter(env);
+    const id = conversationId;
+    const fit = await checkFit(job, portrait.spec, async (instructions, text) => {
+      const { text: out, log } = await adapter.summarize(instructions, text, AbortSignal.timeout(40_000));
+      await logCall(supabase, id, { provider: env.provider, ...log, stop_reason: `${FIT_STOP}_answer:${log.stop_reason}`, latency_ms: Date.now() - began, error: null });
+      logged = true;
+      return out;
+    });
+    return { ok: true, fit };
+  } catch (e) {
+    reportError('job fit check failed', e, { jobId });
+    // A call that got no answer leaves a line saying why. Only the `started` line is counted.
+    if (conversationId && !logged) {
+      await logCall(supabase, conversationId, {
+        provider: env.provider,
+        model: env.model,
+        latency_ms: Date.now() - began,
+        stop_reason: `${FIT_STOP}_failed`,
+        error: e instanceof Error ? e.message.slice(0, 300) : 'failed',
+      });
+    }
+    return { ok: false, error: FIT_FAILED };
+  }
 }

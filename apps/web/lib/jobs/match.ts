@@ -190,7 +190,7 @@ const MODE_LABEL: Record<JobPosting['workplace_type'], string> = { on_site: 'On 
 const SENIOR = /\b(senior|sr\.?|staff|principal|lead|director|head of|vp|vice president|manager|architect)\b/i;
 const EARLY = /\b(intern|internship|new grad|graduate|junior|entry[- ]level|associate|early career|apprentice|university)\b/i;
 const STUDENT = /\b(student|graduat|university|college|bootcamp|class of|undergrad|master'?s|phd candidate)/i;
-const NO_SPONSOR = /(not |in)eligible for (visa |immigration )?sponsorship|(not|unable to|cannot|can't|won't|will not|does not|do not)\s+(be able to\s+)?(offer|provide|support|sponsor)[^.\n]{0,40}(sponsor|visa)|without (the need for )?(current or future )?(visa )?sponsorship|no (visa )?sponsorship/i;
+export const NO_SPONSOR = /(not |in)eligible for (visa |immigration )?sponsorship|(not|unable to|cannot|can't|won't|will not|does not|do not)\s+(be able to\s+)?(offer|provide|support|sponsor)[^.\n]{0,40}(sponsor|visa)|without (the need for )?(current or future )?(visa )?sponsorship|no (visa )?sponsorship/i;
 const NEEDS_SPONSOR = /sponsor|visa|f-?1|\bopt\b|\bcpt\b|h-?1b|\bstem\b|担保|签证/i;
 // They said they need none ("no sponsorship needed", "don't require sponsorship", 不需要).
 const NEGATED_NEED = /\b(don'?t|doesn'?t|won'?t|do not|does not|will not|not)\s+(need|require)[^.,;]{0,15}sponsor|\b(no|without)\b[^.,;]{0,15}sponsor|sponsorship (is )?not (needed|required)|不需要|无需/i;
@@ -199,7 +199,7 @@ const AUTHORIZED = /green card|permanent resident|\b(u\.?s\.?|american)\s+citize
 const NOT_AUTHORIZED = /\bnot\s+(an?\s+)?((u\.?s\.?|american)\s+)?(citizen|green card|permanent resident)|非美国公民|没有绿卡/i;
 // Words that say sponsorship is needed; these win over a status line.
 const EXPLICIT_NEED = /\bf-?1\b|\bh-?1b\b|\bopt\b|\bcpt\b|\bneeds?\b[^.,;]{0,15}sponsor|\brequires?\b[^.,;]{0,15}sponsor|需要(签证|担保)/i;
-function needsSponsorship(workAuth: string | null | undefined): boolean {
+export function needsSponsorship(workAuth: string | null | undefined): boolean {
   if (!workAuth || !NEEDS_SPONSOR.test(workAuth) || NEGATED_NEED.test(workAuth)) return false;
   if (EXPLICIT_NEED.test(workAuth)) return true;
   return !(AUTHORIZED.test(workAuth) && !NOT_AUTHORIZED.test(workAuth));
