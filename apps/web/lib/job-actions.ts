@@ -52,8 +52,8 @@ export async function undoJobAction(jobId: string): Promise<Result> {
   return { ok: true };
 }
 
-/** Fit checks one person may run in a day (JOB_FIT_DAILY): each is one call to the small model. */
-const FIT_DAILY = Number(process.env.JOB_FIT_DAILY || 60);
+/** Fit checks one person may start in a day (JOBS_FIT_DAILY): each is one call to the small model. */
+const FIT_DAILY = Number(process.env.JOBS_FIT_DAILY || 60);
 const FIT_STOP = 'job_fit';
 
 /**
@@ -69,7 +69,7 @@ export async function checkJobFit(jobId: string): Promise<Result<{ fit: Fit }>> 
   const env = summarizerFor(agentEnv);
   const began = Date.now();
   let conversationId: string | null = null;
-  // Whether the model's answer is already in the log: a check is logged, and counted, once.
+  // Whether the model's answer is already in the log, so a failure after it isn't logged twice.
   let logged = false;
   try {
     const [job, portrait] = await Promise.all([jobSource().get(jobId), loadPortrait(supabase, user.id)]);
@@ -81,23 +81,26 @@ export async function checkJobFit(jobId: string): Promise<Result<{ fit: Fit }>> 
       .from('model_calls')
       .select('id', { count: 'exact', head: true })
       .eq('conversation_id', conversationId)
-      .like('stop_reason', `${FIT_STOP}:%`)
+      .eq('stop_reason', `${FIT_STOP}:started`)
       .gte('created_at', since);
     if ((count ?? 0) >= FIT_DAILY) return { ok: false, error: 'That’s all the fit checks for today. They come back tomorrow.' };
+
+    // The check takes its place in the day's count before the model is called, not when it
+    // answers: checks started at the same moment from several tabs would otherwise all pass.
+    await logCall(supabase, conversationId, { provider: env.provider, model: env.model, stop_reason: `${FIT_STOP}:started`, error: null });
 
     const adapter = env.provider === 'anthropic' ? anthropicAdapter(env) : openaiAdapter(env);
     const id = conversationId;
     const fit = await checkFit(job, portrait.spec, async (instructions, text) => {
       const { text: out, log } = await adapter.summarize(instructions, text, AbortSignal.timeout(40_000));
-      // Marked as a fit check in stop_reason, which is how the day's checks are counted.
-      await logCall(supabase, id, { provider: env.provider, ...log, stop_reason: `${FIT_STOP}:${log.stop_reason}`, latency_ms: Date.now() - began, error: null });
+      await logCall(supabase, id, { provider: env.provider, ...log, stop_reason: `${FIT_STOP}_answer:${log.stop_reason}`, latency_ms: Date.now() - began, error: null });
       logged = true;
       return out;
     });
     return { ok: true, fit };
   } catch (e) {
     reportError('job fit check failed', e, { jobId });
-    // A call that never got an answer is logged for us but doesn't use up one of the day's checks.
+    // A call that got no answer leaves a line saying why. Only the `started` line is counted.
     if (conversationId && !logged) {
       await logCall(supabase, conversationId, {
         provider: env.provider,
