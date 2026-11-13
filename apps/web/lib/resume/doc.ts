@@ -264,14 +264,20 @@ export function docFromPortrait(spec: Spec, who: { name: string; email: string |
   const h = spec.headline;
   const headline = h && h.status === 'confirmed' && h.claims.every((cid) => confirmed.some((c) => c.id === cid)) ? h.text : '';
 
+  // Lines about one organisation become one entry with several bullets, unless their dates say
+  // they were different stints. The portrait's "title" is often what the line is about ("Team
+  // management"), so the first one stands as the role and the rest only add bullets.
   const entriesFor = (claims: Claim[]): Entry[] => {
     const out: Entry[] = [];
-    const byRole = new Map<string, Entry>();
+    const byKey = new Map<string, Entry[]>();
+    const norm = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
     for (const c of claims) {
-      const key = c.title || c.org ? `${c.title ?? ''}|${c.org ?? ''}` : null;
-      const same = key ? byRole.get(key) : undefined;
+      const key = c.org ? `org:${norm(c.org)}` : c.title ? `title:${norm(c.title)}` : null;
+      const when = splitWhen(c.when);
+      const same = key ? byKey.get(key)?.find((e) => !when.start || !e.start || (e.start === when.start && e.end === when.end)) : undefined;
       if (same) {
-        same.bullets.push({ id: newId('blt'), text: c.statement.slice(0, MAX.bullet) });
+        if (same.bullets.length < MAX.bullets) same.bullets.push({ id: newId('blt'), text: c.statement.slice(0, MAX.bullet) });
+        if (!same.start && when.start) Object.assign(same, when);
         continue;
       }
       const entry: Entry = {
@@ -283,7 +289,7 @@ export function docFromPortrait(spec: Spec, who: { name: string; email: string |
         bullets: [{ id: newId('blt'), text: c.statement.slice(0, MAX.bullet) }],
       };
       out.push(entry);
-      if (key) byRole.set(key, entry);
+      if (key) byKey.set(key, [...(byKey.get(key) ?? []), entry]);
     }
     return out.slice(0, MAX.entries);
   };
@@ -292,7 +298,12 @@ export function docFromPortrait(spec: Spec, who: { name: string; email: string |
   const work = experience.filter((c) => !PROJECT.test(c.kind) && !EDUCATION.test(c.kind));
   const projects = experience.filter((c) => PROJECT.test(c.kind));
   const school = confirmed.filter((c) => (c.layer === 'identity' || c.layer === 'experience') && EDUCATION.test(c.kind));
-  const skills = confirmed.filter((c) => c.layer === 'capability').map((c) => c.statement);
+  // Capability lines that name a skill ("SQL", "Python and dbt") go in the Skills list; ones that
+  // tell what was done with it are sentences, so they become bullets under Highlights.
+  const capability = confirmed.filter((c) => c.layer === 'capability').map((c) => c.statement.trim().replace(/[.。]+$/, ''));
+  const isName = (s: string) => s.split(/\s+/).length <= 5 && !/[.。;；]/.test(s);
+  const skills = capability.filter(isName);
+  const highlights = capability.filter((s) => !isName(s));
   const story = confirmed.filter((c) => c.layer === 'narrative').map((c) => c.statement);
 
   const section = (kind: SectionKind, entries: Entry[]): Section => ({ ...emptySection(kind), entries });
@@ -312,6 +323,9 @@ export function docFromPortrait(spec: Spec, who: { name: string; email: string |
       section('education', entriesFor(school)),
       section('experience', entriesFor(work)),
       section('projects', entriesFor(projects)),
+      ...(highlights.length
+        ? [{ ...section('custom', [{ ...emptyEntry(), bullets: highlights.slice(0, MAX.bullets).map((text) => ({ id: newId('blt'), text: `${text.slice(0, MAX.bullet - 1)}.` })) }]), heading: 'Highlights' }]
+        : []),
       section('skills', skills.length ? [{ ...emptyEntry(), title: 'Skills', text: skills.join(', ').slice(0, MAX.text) }] : []),
       section('certifications', []),
     ],
