@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import type { AgentEnv } from '../env';
 import { STUDIO_INSTRUCTIONS } from '../prompt';
 import { TOOL_DEFS } from '../tools';
-import type { Adapter, Call, Item } from './types';
+import type { Adapter, Call, Item, Kit, ToolDef } from './types';
 
 // Claude through the Messages API. Its history is replayed verbatim, thinking blocks included:
 // Claude ties its thinking to the exact conversation it was written in, so nothing already sent
@@ -30,14 +30,18 @@ function forStrictMode(schema: unknown): Anthropic.Beta.BetaTool.InputSchema {
   return walk(schema) as Anthropic.Beta.BetaTool.InputSchema;
 }
 
-const TOOLS: Anthropic.Beta.BetaTool[] = TOOL_DEFS.map((t) => ({
-  name: t.name,
-  description: t.description,
-  input_schema: forStrictMode(t.parameters),
-  strict: true,
-}));
+const toolsFor = (defs: ToolDef[]): Anthropic.Beta.BetaTool[] =>
+  defs.map((t) => ({
+    name: t.name,
+    description: t.description,
+    input_schema: forStrictMode(t.parameters),
+    strict: true,
+  }));
+const STUDIO_TOOLS = toolsFor(TOOL_DEFS);
 
-export function anthropicAdapter(env: AgentEnv): Adapter {
+export function anthropicAdapter(env: AgentEnv, kit?: Kit): Adapter {
+  const instructions = kit?.instructions ?? STUDIO_INSTRUCTIONS;
+  const TOOLS = kit ? toolsFor(kit.tools) : STUDIO_TOOLS;
   const client = new Anthropic({ apiKey: env.apiKey, baseURL: env.baseURL });
 
   /** One call without tools or history. */
@@ -78,7 +82,7 @@ export function anthropicAdapter(env: AgentEnv): Adapter {
           {
             model: env.model,
             max_tokens: 16000,
-            system: STUDIO_INSTRUCTIONS,
+            system: instructions,
             tools: TOOLS,
             tool_choice: { type: 'auto' },
             messages: history as unknown as Message[],

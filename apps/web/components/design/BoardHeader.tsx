@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { Band, DateNote, SectionMark, buttonClass } from '@portrait/ui';
 import { routes } from '@/lib/routes';
+import { ThemeSwitch } from './ThemeSwitch';
 
 export type BoardHeaderProps = {
   /** Gold band at the start of the handwritten line: "v0.2 · Oct 19". */
@@ -26,6 +27,7 @@ export function BoardHeader({ band, date, title, children }: BoardHeaderProps) {
       >
         ← <span lang="zh-CN">目录</span>
       </Link>
+      <ThemeSwitch className="absolute top-3 right-6" />
       <SectionMark vw={220} d="M2 6 C60 3 140 7 218 4" isNew style={{ top: 70, width: 220 }} />
       <p className="hand pt-[22px] text-[18px]">
         <Band>{band}</Band> <DateNote>{date}</DateNote>

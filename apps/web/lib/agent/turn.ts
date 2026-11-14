@@ -7,7 +7,7 @@ import { plan, PLAN_TAG } from './planner';
 import type { ConnectorId } from '@/lib/connectors/catalog';
 import type { Connectors } from './connectors';
 import { IMAGE_INSTRUCTIONS, type See } from './images';
-import type { Adapter, Item } from './providers/types';
+import type { Adapter, Item, Kit } from './providers/types';
 import { append, logCall, saveSpec, type Attachment, type Receipt, type Row } from './store';
 import type { Source, SourceKind } from './sources';
 import { runTool, snapshot, type Ask, type Said } from './tools';
@@ -38,7 +38,7 @@ export type TurnEvent =
 
 
 /** Our own notes on a stored item. They never go to the model. */
-type Notes = {
+export type Notes = {
   via?: Provider;
   viaModel?: string;
   receipts?: Receipt[];
@@ -53,6 +53,8 @@ type Notes = {
 export type Summary = { text: string; through: number };
 
 const STATE_TAG = '<portrait_state>';
+// Blocks the app adds to a message (the page's state, the plan), left out when another model reads it.
+const APP_TAGS = [STATE_TAG, PLAN_TAG, '<resume_state>', '<portrait_lines>'];
 
 // Recent messages the model always gets verbatim, however long the conversation.
 const KEEP_TURNS = 6;
@@ -61,12 +63,13 @@ const KEEP_TURNS = 6;
 // a model stuck in a loop stops here.
 const MAX_STEPS = 10;
 
-const ADAPTERS: Record<Provider, (env: AgentEnv) => Adapter> = { openai: openaiAdapter, anthropic: anthropicAdapter };
+const ADAPTERS: Record<Provider, (env: AgentEnv, kit?: Kit) => Adapter> = { openai: openaiAdapter, anthropic: anthropicAdapter };
 
-const using = (env: AgentEnv) => ({ env, adapter: ADAPTERS[env.provider](env) });
+/** The adapter for a model, speaking for the studio agent unless another agent's kit is given. */
+export const using = (env: AgentEnv, kit?: Kit) => ({ env, adapter: ADAPTERS[env.provider](env, kit) });
 
 /** Marks items as written by this provider and model, with our notes on the first one. */
-const stored = (items: Item[], env: AgentEnv, notes: Notes = {}): Item[] =>
+export const stored = (items: Item[], env: AgentEnv, notes: Notes = {}): Item[] =>
   items.map((item, i) => ({ ...item, ...(i === 0 ? notes : {}), via: env.provider, viaModel: env.model }));
 
 /** Whether a row was written by the model in use (rows from before models were noted: its default). */
@@ -93,7 +96,7 @@ const summaryBlock = (text: string) =>
   `<earlier_conversation>\nNotes on the conversation so far, written as the older messages were condensed:\n${text}\n</earlier_conversation>`;
 
 /** The history as the model in use reads it. */
-function replay(rows: Row[], env: AgentEnv, adapter: Adapter): Item[] {
+export function replay(rows: Row[], env: AgentEnv, adapter: Adapter): Item[] {
   const summary = latestSummary(rows);
   const head = summary ? [adapter.text('user', summaryBlock(summary.text))] : [];
   return head.concat(unsummarized(rows).flatMap((row) => {
@@ -120,7 +123,7 @@ function userText(row: Row): string | null {
   return (
     (content as { text?: unknown }[])
       .map((b) => (typeof b.text === 'string' ? b.text : ''))
-      .filter((t) => t && !t.startsWith(STATE_TAG) && !t.startsWith(PLAN_TAG))
+      .filter((t) => t && !APP_TAGS.some((tag) => t.startsWith(tag)))
       .join('\n\n') || row.body
   );
 }

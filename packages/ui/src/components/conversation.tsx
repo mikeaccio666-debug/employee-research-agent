@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { cx } from '../cx';
 import { Button, Chip } from './buttons';
 import { Stroke } from './marks';
@@ -113,10 +113,108 @@ export type ComposerProps = {
   error?: ReactNode;
   /** What Attach does (open a file picker). Without it the chip is decoration. */
   onAttach?: () => void;
+  /** False leaves the Attach chip out, where nothing can be attached. */
+  attach?: boolean;
+  /**
+   * Turns a recording into text (the app's speech-to-text). With it, a Speak chip records from the
+   * microphone and puts the words into the box to read and fix; nothing is sent until they press Send.
+   * Throw an Error whose message the person should see when it fails.
+   */
+  onDictate?: (audio: Blob) => Promise<string>;
+  /** The longest recording, in seconds. */
+  maxDictateSeconds?: number;
   disabled?: boolean;
   className?: string;
   style?: CSSProperties;
 };
+
+type Dictation = 'idle' | 'starting' | 'recording' | 'working';
+
+/** Recorder formats in the order we'd like them; Safari only has mp4. */
+const RECORDER_TYPES = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
+
+const clock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
+/** Microphone → recording → text, for the Composer's Speak chip. */
+function useDictation(onText: (text: string) => void, onDictate: ComposerProps['onDictate'], maxSeconds: number) {
+  const [state, setState] = useState<Dictation>('idle');
+  const [seconds, setSeconds] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const rec = useRef<{ recorder: MediaRecorder; stream: MediaStream; chunks: Blob[]; cancelled: boolean; timer: number } | null>(null);
+
+  const release = () => {
+    const r = rec.current;
+    if (!r) return;
+    window.clearInterval(r.timer);
+    for (const t of r.stream.getTracks()) t.stop();
+    rec.current = null;
+  };
+  // Leaving the page mid-recording turns the microphone off.
+  useEffect(() => () => {
+    if (rec.current) rec.current.cancelled = true;
+    if (rec.current?.recorder.state === 'recording') rec.current.recorder.stop();
+    release();
+  }, []);
+
+  const stop = (cancel = false) => {
+    const r = rec.current;
+    if (!r) return;
+    r.cancelled = cancel;
+    if (r.recorder.state === 'recording') r.recorder.stop();
+  };
+
+  const start = async () => {
+    if (!onDictate || state !== 'idle') return;
+    setError(null);
+    if (typeof MediaRecorder === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      setError('This browser can’t record. Type your message instead.');
+      return;
+    }
+    setState('starting');
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      setState('idle');
+      setError('I can’t hear you: the microphone is blocked. Allow it for this site in your browser, then try again.');
+      return;
+    }
+    const mimeType = RECORDER_TYPES.find((t) => MediaRecorder.isTypeSupported?.(t));
+    const recorder = new MediaRecorder(stream, mimeType ? { mimeType, audioBitsPerSecond: 32_000 } : undefined);
+    const began = Date.now();
+    const timer = window.setInterval(() => {
+      const s = Math.floor((Date.now() - began) / 1000);
+      setSeconds(s);
+      if (s >= maxSeconds) stop();
+    }, 250);
+    const r = { recorder, stream, chunks: [] as Blob[], cancelled: false, timer };
+    rec.current = r;
+    recorder.ondataavailable = (e) => {
+      if (e.data.size) r.chunks.push(e.data);
+    };
+    recorder.onstop = async () => {
+      release();
+      setSeconds(0);
+      if (r.cancelled || !r.chunks.length) {
+        setState('idle');
+        return;
+      }
+      setState('working');
+      try {
+        const text = (await onDictate(new Blob(r.chunks, { type: recorder.mimeType || mimeType || 'audio/webm' }))).trim();
+        if (text) onText(text);
+      } catch (e) {
+        setError(e instanceof Error && e.message ? e.message : 'I couldn’t turn that into text. Try again, or type it.');
+      }
+      setState('idle');
+    };
+    recorder.start(1000);
+    setSeconds(0);
+    setState('recording');
+  };
+
+  return { state, seconds, error, start, stop, maxSeconds };
+}
 
 /**
  * Message box with suggestions, context tag, Attach and Send.
@@ -135,6 +233,9 @@ export function Composer({
   clipSuggestions,
   error,
   onAttach,
+  attach = true,
+  onDictate,
+  maxDictateSeconds = 120,
   disabled,
   className,
   style,
@@ -142,6 +243,17 @@ export function Composer({
   const auto = useId();
   const inputId = id ?? `${auto}-msg`;
   const [text, setText] = useState(defaultText);
+  const box = useRef<HTMLTextAreaElement>(null);
+  // Spoken words join whatever is already typed, then the box takes focus so they can fix them.
+  const voice = useDictation(
+    (heard) => {
+      setText((t) => (t.trim() ? `${t.trimEnd()} ${heard}` : heard));
+      requestAnimationFrame(() => box.current?.focus());
+    },
+    onDictate,
+    maxDictateSeconds,
+  );
+  const shownError = voice.error ?? error;
   const chipTone = surface === 'trim' ? 'wall' : 'trim';
   const send = (value: string) => {
     const v = value.trim();
@@ -173,25 +285,55 @@ export function Composer({
         Message
       </label>
       <textarea
+        ref={box}
         id={inputId}
         rows={rows}
-        placeholder={placeholder}
+        placeholder={voice.state === 'recording' ? 'Listening… press Done when you’ve finished' : placeholder}
         value={text}
         disabled={disabled}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={onKeyDown}
-        aria-describedby={error ? `${inputId}-err` : undefined}
+        aria-describedby={shownError ? `${inputId}-err` : undefined}
       />
-      {error ? (
+      {shownError ? (
         <p id={`${inputId}-err`} className="err" style={{ marginBottom: 6 }}>
-          {error}
+          {shownError}
         </p>
       ) : null}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Chip size="sm" tone={chipTone} aria-label="Attach a file" onClick={onAttach} disabled={disabled && !!onAttach}>
-          Attach
-        </Chip>
-        <Button icon aria-label="Send" style={{ minHeight: 40, width: 40 }} onClick={() => send(text)} disabled={disabled}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {attach ? (
+            <Chip size="sm" tone={chipTone} aria-label="Attach a file" onClick={onAttach} disabled={disabled && !!onAttach}>
+              Attach
+            </Chip>
+          ) : null}
+          {onDictate ? (
+            voice.state === 'recording' ? (
+              <>
+                <Chip size="sm" tone={chipTone} aria-label="Done speaking: turn it into text" onClick={() => voice.stop()}>
+                  <span className="rec-dot" aria-hidden="true" /> Done · {clock(voice.seconds)}
+                </Chip>
+                <Chip size="sm" tone={chipTone} aria-label="Cancel recording" onClick={() => voice.stop(true)}>
+                  Cancel
+                </Chip>
+              </>
+            ) : (
+              <Chip
+                size="sm"
+                tone={chipTone}
+                aria-label="Speak your message"
+                onClick={voice.start}
+                disabled={disabled || voice.state !== 'idle'}
+              >
+                {voice.state === 'working' ? 'Writing it down…' : voice.state === 'starting' ? 'Opening mic…' : 'Speak'}
+              </Chip>
+            )
+          ) : null}
+          <span className="sr" aria-live="polite">
+            {voice.state === 'recording' ? 'Recording' : voice.state === 'working' ? 'Turning your recording into text' : ''}
+          </span>
+        </div>
+        <Button icon aria-label="Send" style={{ minHeight: 40, width: 40 }} onClick={() => send(text)} disabled={disabled || voice.state === 'recording' || voice.state === 'working'}>
           ↑
         </Button>
       </div>

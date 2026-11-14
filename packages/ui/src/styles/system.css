@@ -1,6 +1,8 @@
-/* Skystep 青云步 design system v0.3 (package @portrait/ui): 身高线 (structure, type, motion) × 晨光 (colour), plus the brand mark tokens (--sky-*).
-   Light "晨": cool painted wall, cream trim, gold chalk, blue-black pencil.
-   Dark "夜": deep blue wall, soft wine trim oklch(0.300 0.025 1), chosen Oct 19; boards can still override --trim/--warm via tweaks, gold chalk, chalk-white text. */
+/* Skystep 青云步 design system v0.4 (package @portrait/ui): 身高线 (structure, type, motion), neutral surfaces, plus the brand mark tokens (--sky-*).
+   Default, light: near-white wall, white trim, gold chalk, near-black pencil. Default, dark: dark grey wall, lighter grey trim, chalk-white text.
+   Surfaces carry a trace of hue (chroma 0.003 to 0.010) and are told apart by lightness, not by hue. Gold chalk is the one accent.
+   Optional theme 晨光 (`morning`): the v0.3 colours, cool painted wall and cream trim by day, deep blue wall and soft wine trim
+   oklch(0.300 0.025 1) by night (chosen Oct 19); boards can still override --trim/--warm via tweaks. */
 
 /* Ported verbatim from the Claude Design canvas ("页面 v2", shared stylesheet).
    Layering: tokens and resets sit in `base`, everything else in `components`,
@@ -11,9 +13,9 @@
 
 @layer base {
   .pv{
-    --wall:oklch(0.935 0.016 215);--wall-2:oklch(0.905 0.020 215);--trim:oklch(0.982 0.018 88);--warm:oklch(0.935 0.055 82);
-    --chalk:oklch(0.875 0.100 78);--on-chalk:oklch(0.270 0.035 240);
-    --ink:oklch(0.270 0.035 240);--ink-2:oklch(0.420 0.030 240);--ink-3:oklch(0.495 0.025 240);--edge:oklch(0.580 0.030 240);
+    --wall:oklch(0.968 0.003 200);--wall-2:oklch(0.940 0.004 200);--trim:oklch(1 0 0);--warm:oklch(0.945 0.004 200);
+    --chalk:oklch(0.875 0.100 78);--on-chalk:oklch(0.240 0.010 240);
+    --ink:oklch(0.240 0.010 240);--ink-2:oklch(0.410 0.010 240);--ink-3:oklch(0.490 0.010 240);--edge:oklch(0.580 0.010 240);
     --new:var(--ink);--me:oklch(0.50 0.10 168);--me-wash:oklch(0.93 0.035 168);
     /* brand: the Skystep 青云步 mark (three steps and a cloud), from the logo's #0E7C7B / #19A7A3 / #7FD6D2. Brand only, never a person's colour (--me). */
     --sky-1:oklch(0.532 0.088 194);--sky-2:oklch(0.660 0.109 192);--sky-3:oklch(0.770 0.095 192);
@@ -26,11 +28,23 @@
     -webkit-font-smoothing:antialiased;text-autospace:normal;text-spacing-trim:normal;
   }
   .pv.dark{
+    --wall:oklch(0.205 0.004 240);--wall-2:oklch(0.175 0.004 240);--trim:oklch(0.255 0.004 240);--warm:oklch(0.305 0.004 240);
+    --chalk:oklch(0.820 0.110 80);--on-chalk:oklch(0.205 0.004 240);
+    --ink:oklch(0.950 0.004 85);--ink-2:oklch(0.830 0.004 85);--ink-3:oklch(0.730 0.004 85);--edge:oklch(0.570 0.006 240);
+    --new:var(--chalk);--me:oklch(0.76 0.10 168);--me-wash:oklch(0.32 0.05 168);
+    --sky-1:oklch(0.660 0.109 192);--sky-2:oklch(0.760 0.100 192);--sky-3:oklch(0.880 0.070 192);
+  }
+  /* 晨光: the earlier cool wall, cream trim and wine night, kept as an optional theme.
+     Put `morning` on the .pv element itself or on any ancestor of it. */
+  .pv.morning,.morning .pv{
+    --wall:oklch(0.935 0.016 215);--wall-2:oklch(0.905 0.020 215);--trim:oklch(0.982 0.018 88);--warm:oklch(0.935 0.055 82);
+    --chalk:oklch(0.875 0.100 78);--on-chalk:oklch(0.270 0.035 240);
+    --ink:oklch(0.270 0.035 240);--ink-2:oklch(0.420 0.030 240);--ink-3:oklch(0.495 0.025 240);--edge:oklch(0.580 0.030 240);
+  }
+  .pv.morning.dark,.morning .pv.dark{
     --wall:oklch(0.245 0.030 250);--wall-2:oklch(0.210 0.028 250);--trim:oklch(0.300 0.025 1);--warm:oklch(0.350 0.033 1);
     --chalk:oklch(0.820 0.110 80);--on-chalk:oklch(0.210 0.028 250);
     --ink:oklch(0.950 0.018 85);--ink-2:oklch(0.830 0.020 85);--ink-3:oklch(0.730 0.020 85);--edge:oklch(0.570 0.025 250);
-    --new:var(--chalk);--me:oklch(0.76 0.10 168);--me-wash:oklch(0.32 0.05 168);
-    --sky-1:oklch(0.660 0.109 192);--sky-2:oklch(0.760 0.100 192);--sky-3:oklch(0.880 0.070 192);
   }
   .pv.dark.plum{--trim:oklch(0.300 0.065 352);--warm:oklch(0.350 0.085 352)}
   .pv.dark.garnet{--trim:oklch(0.300 0.065 22);--warm:oklch(0.350 0.085 22)}
@@ -48,15 +62,20 @@
   body{margin:0}
   /* app: no single word stranded on a paragraph's last line */
   :where(.pv) :is(p,li,blockquote,figcaption){text-wrap:pretty}
-  /* app: light 晨 by default; follows the system into dark 夜. A nested .pv.light or .pv.dark
+  /* app: light by default; follows the system into dark. A nested .pv.light or .pv.dark
      (one half of a light/dark comparison) keeps its own theme either way. */
   @media (prefers-color-scheme:dark){
     .pv:not(.light){
+      --wall:oklch(0.205 0.004 240);--wall-2:oklch(0.175 0.004 240);--trim:oklch(0.255 0.004 240);--warm:oklch(0.305 0.004 240);
+      --chalk:oklch(0.820 0.110 80);--on-chalk:oklch(0.205 0.004 240);
+      --ink:oklch(0.950 0.004 85);--ink-2:oklch(0.830 0.004 85);--ink-3:oklch(0.730 0.004 85);--edge:oklch(0.570 0.006 240);
+      --new:var(--chalk);--me:oklch(0.76 0.10 168);--me-wash:oklch(0.32 0.05 168);
+    --sky-1:oklch(0.660 0.109 192);--sky-2:oklch(0.760 0.100 192);--sky-3:oklch(0.880 0.070 192);
+    }
+    .pv.morning:not(.light),.morning .pv:not(.light){
       --wall:oklch(0.245 0.030 250);--wall-2:oklch(0.210 0.028 250);--trim:oklch(0.300 0.025 1);--warm:oklch(0.350 0.033 1);
       --chalk:oklch(0.820 0.110 80);--on-chalk:oklch(0.210 0.028 250);
       --ink:oklch(0.950 0.018 85);--ink-2:oklch(0.830 0.020 85);--ink-3:oklch(0.730 0.020 85);--edge:oklch(0.570 0.025 250);
-      --new:var(--chalk);--me:oklch(0.76 0.10 168);--me-wash:oklch(0.32 0.05 168);
-    --sky-1:oklch(0.660 0.109 192);--sky-2:oklch(0.760 0.100 192);--sky-3:oklch(0.880 0.070 192);
     }
   }
 }

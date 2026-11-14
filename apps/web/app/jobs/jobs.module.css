@@ -1,0 +1,49 @@
+/* Jobs for you: one card per posting, reasons under the title. The column stays readable;
+   cards sit in a single list so the reasons can be read top to bottom. */
+@layer theme, base, components, utilities;
+
+@layer components {
+  .main {
+    container: page / inline-size;
+  }
+  .list {
+    display: grid;
+    gap: 12px;
+    margin-top: 8px;
+    max-width: 760px;
+  }
+  .card {
+    border: 1px solid var(--edge);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .reasons {
+    display: grid;
+    gap: 6px;
+    margin-top: 10px;
+    padding-left: 16px;
+    list-style: disc;
+  }
+  .quote {
+    display: block;
+    margin-top: 2px;
+  }
+  .caution {
+    color: var(--ink);
+    border-left: 2px solid var(--edge);
+    padding-left: 8px;
+  }
+  .fit {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--edge);
+  }
+  .notice {
+    max-width: 62ch;
+  }
+  .description {
+    white-space: pre-line;
+    max-height: 320px;
+    overflow: auto;
+  }
+}

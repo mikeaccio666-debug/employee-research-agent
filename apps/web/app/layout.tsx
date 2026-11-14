@@ -15,6 +15,7 @@ import '@fontsource/noto-sans-sc/700.css';
 import 'lxgw-wenkai-webfont/lxgwwenkai-regular.css';
 import './globals.css';
 import { PreviewBadge } from '@/components/preview-badge';
+import { THEME_BOOT } from '@/lib/theme';
 
 export const metadata: Metadata = {
   title: { default: 'Skystep', template: '%s · Skystep' },
@@ -25,17 +26,19 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: 'oklch(0.935 0.016 215)' },
-    { media: '(prefers-color-scheme: dark)', color: 'oklch(0.245 0.030 250)' },
+    { media: '(prefers-color-scheme: light)', color: 'oklch(0.968 0.003 200)' },
+    { media: '(prefers-color-scheme: dark)', color: 'oklch(0.205 0.004 240)' },
   ],
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    // Light by default; system.css switches the tokens to 夜 when the system is in dark mode.
+    // Light by default; system.css switches the tokens to dark when the system is in dark mode.
     <html lang="en">
       {/* .pv sits on <body>, not <html>, so rem stays 16px as on the canvas. */}
-      <body className="pv">
+      {/* The boot script may add `morning` (the optional 晨光 theme) before React hydrates. */}
+      <body className="pv" suppressHydrationWarning>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT }} />
         {children}
         <PreviewBadge />
       </body>

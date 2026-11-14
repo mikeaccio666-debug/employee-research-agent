@@ -9,6 +9,7 @@ import { routes } from '@/lib/routes';
 import { accountFor, getViewer, supabaseServer } from '@/lib/supabase/server';
 import { LiveStudio } from './LiveStudio';
 import { Studio } from './Studio';
+import { voiceKey } from '@/lib/voice/transcribe';
 
 export const metadata: Metadata = { title: 'Studio' };
 
@@ -55,6 +56,7 @@ export default async function StudioPage({ searchParams }: { searchParams: Promi
       published={portrait.published}
       publishedRev={portrait.publishedRev}
       agentReady={agentEnv !== null}
+      voiceReady={voiceKey() !== null}
       apps={apps}
       appNotice={appNotice}
       anonymous={anonymous}
