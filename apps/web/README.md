@@ -33,13 +33,58 @@ everything still runs and `/login` says sign-in is not set up. To switch it on:
    redirect URI `https://YOUR-PROJECT-REF.supabase.co/auth/v1/callback`; paste its client ID and
    secret into Authentication → Sign In / Providers → Google.
 4. **URLs.** Authentication → URL Configuration: Site URL = the production URL; Redirect URLs =
-   `https://YOUR-DOMAIN/auth/callback`, `https://*-YOUR-VERCEL-TEAM.vercel.app/auth/callback`
-   (previews) and `http://localhost:3000/auth/callback`.
+   `https://YOUR-DOMAIN/auth/callback` and `http://localhost:3000/auth/callback`.
 5. **Vercel.** Add the two `NEXT_PUBLIC_…` variables to the project and redeploy (they are read at
    build time).
 
 `proxy.ts` refreshes the session on each request; `/auth/callback` turns Google's or the email
 link's one-time code into the session; `/auth/signout` (POST) ends it.
+
+### Previews: a separate test project
+
+Vercel builds every pull request and branch as a preview. Previews must not touch real people's
+data, so Vercel holds two sets of values under the same two names:
+
+| Vercel environment | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` |
+| --- | --- |
+| Production | the production project |
+| Preview | a separate test project |
+
+The code is the second lock (`lib/supabase/env.ts`): a Vercel deployment that is not production
+refuses the production project and runs on the example data with sign-in off. So if the
+production values are ever shared with Preview by mistake, previews lose their database instead
+of using the real one. The production project is named in `PRODUCTION_PROJECTS` there; when
+production moves to another project or gets a custom domain, add it in that same change.
+
+A tag at the top of every preview page says which it is: "Preview · test data · nsaopisw" (the
+start of the project's address), "Preview · production database refused · example data", or
+"Preview · example data, no sign-in". The build log has a line with the address too.
+
+To set it up:
+
+1. **Project.** Create a second Supabase project for tests. Only test accounts go in it.
+2. **Schema.** Run the same `supabase/migrations/*.sql` in it, in order. From then on every new
+   migration runs here first, then on production (`docs/release.md`).
+3. **Sign-in.** Email is on by default. Until the project has its own mail service (custom SMTP),
+   Supabase's built-in one writes only to the organization's members, a few emails an hour, and
+   its template can't be changed: the email carries the link, not the 6-digit code, so open the
+   link in the browser that asked for it. For Google, make a second OAuth client (Web
+   application) in the same Google Cloud project, with the redirect URI
+   `https://TEST-PROJECT-REF.supabase.co/auth/v1/callback`, and paste its client ID and secret
+   into the test project. A client of its own keeps production's secret out of the test project
+   (Google shows a secret only once, when it is made). Turn on here whatever else previews should
+   test: the other buttons in `NEXT_PUBLIC_AUTH_PROVIDERS`, and for `NEXT_PUBLIC_ANONYMOUS_TRIAL`,
+   "Allow anonymous sign-ins" and "Allow manual linking".
+4. **URLs.** In the test project: Site URL = `http://localhost:3000`; Redirect URLs =
+   `https://*-YOUR-VERCEL-TEAM.vercel.app/**` (every preview) and `http://localhost:3000/**`.
+   The production project's Redirect URLs should not carry the preview pattern.
+5. **Vercel.** Settings → Environment Variables. First edit `NEXT_PUBLIC_SUPABASE_URL` and
+   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` so that they apply to Production only. Then add the
+   same two names again, with the test project's URL and publishable key, for Preview only.
+   Previews built after that use the test project, previews of older branches included.
+
+Connecting GitHub (the /apps page) works only on the production address, since its OAuth app has
+one callback URL.
 
 ### Accounts in the screens
 

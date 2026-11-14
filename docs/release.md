@@ -4,7 +4,7 @@
 
 ## 一个改动怎么上线
 
-1. 开 PR。每个 PR 自动跑 CI 的 `check`：类型检查、单元测试、生产构建（`.github/workflows/ci.yml`）。改到 agent 代码时，另外跑 agent 评测（`.github/workflows/agent-evals.yml`）。Vercel 给每个 PR 一个预览网址。
+1. 开 PR。每个 PR 自动跑 CI 的 `check`：类型检查、单元测试、生产构建（`.github/workflows/ci.yml`）。改到 agent 代码时，另外跑 agent 评测（`.github/workflows/agent-evals.yml`）。Vercel 给每个 PR 一个预览网址。预览连的是单独的测试 Supabase 项目，碰不到正式数据。万一预览拿到的是正式库的配置，它会拒绝连接，只显示示例数据、不能登录。每个预览页面顶上有个标签，写着连的是哪个库（设置见 `apps/web/README.md` 的“Previews”一节）。
 2. 按风险等级做完下表要求的检查。
 3. Mike 合并。合并前都要先问 Mike；合并到默认分支就会自动部署生产。
 4. 合并后看一眼生产：Vercel Logs 里的报错，`model_calls` 表里的错误和耗时。
@@ -40,6 +40,7 @@
 
 Vercel 回滚和关 flag 都不会撤销数据库改动，所以每个迁移都要让上一个版本的代码还能正常跑。
 
+- **先在测试项目跑，再跑生产。** 新迁移先在测试 Supabase 项目里跑，用预览走一遍，确认没问题再在生产库上跑。两个项目的表结构要保持一致，否则预览测出来的结果不算数。
 - **先加后删。** 先发一个能兼容新结构、但还不用它的版本，再改表结构，最后发真正用新结构的版本。删列、改名放到之后的 PR，等没有代码再用旧结构时再做。
 - **回滚别退太远。** 改完表结构后，Instant Rollback 不要退到早于“能兼容当前表结构”的那个部署。
 - **已经进了生产的迁移不改文件，**写一个新的迁移向前修复。不要在生产库上跑 `supabase migration down` 或 `supabase db reset --remote`，它们会清空数据库再重建。

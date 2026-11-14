@@ -1,7 +1,22 @@
 import type { NextConfig } from 'next';
 import { withSentryConfig } from '@sentry/nextjs/config';
 
+// On Vercel, VERCEL_ENV is production, preview or development; it is empty elsewhere. A deployment
+// that is not production uses the test Supabase project and refuses the production one
+// (lib/supabase/env.ts). The build log says which address this build was given.
+const deployment = process.env.VERCEL_ENV ?? '';
+if (deployment && deployment !== 'production') {
+  console.log(
+    process.env.NEXT_PUBLIC_SUPABASE_URL
+      ? `${deployment} build: Supabase settings point at ${process.env.NEXT_PUBLIC_SUPABASE_URL}`
+      : `${deployment} build: no Supabase settings, so it runs on the example data, without sign-in`,
+  );
+}
+
 const nextConfig: NextConfig = {
+  // Written into the server and browser code at build time: production, preview, development, or
+  // empty off Vercel. Vercel sets VERCEL_ENV during the build.
+  env: { DEPLOY_ENV: deployment },
   // The design system ships as TypeScript source.
   transpilePackages: ['@portrait/ui'],
   // The dev badge sits on top of bottom-left UI (composer Attach) in reviews.

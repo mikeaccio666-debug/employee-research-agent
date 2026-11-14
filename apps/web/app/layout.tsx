@@ -14,6 +14,7 @@ import '@fontsource/noto-sans-sc/500.css';
 import '@fontsource/noto-sans-sc/700.css';
 import 'lxgw-wenkai-webfont/lxgwwenkai-regular.css';
 import './globals.css';
+import { PreviewBadge } from '@/components/preview-badge';
 import { THEME_BOOT } from '@/lib/theme';
 
 export const metadata: Metadata = {
@@ -39,6 +40,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="pv" suppressHydrationWarning>
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT }} />
         {children}
+        <PreviewBadge />
       </body>
     </html>
   );

@@ -4,7 +4,7 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": [".next/**", "!.next/cache/**"],
-      "env": ["NEXT_PUBLIC_*", "SUPABASE_*", "OPENAI_*", "ANTHROPIC_*", "AGENT_*", "GITHUB_TOKEN", "CONNECTOR_*", "LEGAL_*", "SENTRY_*", "THD_*", "JOBS_*"],
+      "env": ["NEXT_PUBLIC_*", "SUPABASE_*", "OPENAI_*", "ANTHROPIC_*", "AGENT_*", "GITHUB_TOKEN", "CONNECTOR_*", "LEGAL_*", "SENTRY_*", "THD_*", "JOBS_*", "VERCEL_ENV"],
       "passThroughEnv": ["VERCEL_*", "CI"]
     },
     "typecheck": { "dependsOn": ["^typecheck"] },
