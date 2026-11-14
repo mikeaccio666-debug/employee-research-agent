@@ -3,7 +3,7 @@
 import { loadPortrait } from '@/lib/agent/store';
 import { headers } from 'next/headers';
 import { emptySpec } from '@/lib/portrait/spec';
-import { defaultStyle, docFromPortrait, MAX, ResumeDoc, ResumeStyle } from '@/lib/resume/doc';
+import { defaultStyle, docFromPortrait, MAX, ResumeDoc, ResumeLetter, ResumeStyle } from '@/lib/resume/doc';
 import { insertVersion, versionOf, type ResumeVersion } from '@/lib/resume/store';
 import { routes } from '@/lib/routes';
 import { getViewer, supabaseServer } from '@/lib/supabase/server';
@@ -50,19 +50,21 @@ export async function createVersion(input: { name: string; from: 'portrait' | 'b
     let doc: ResumeDoc;
     let style: ResumeStyle = defaultStyle();
     let target = '';
+    let letter: ResumeLetter | undefined;
     if (typeof input.from === 'object') {
       const source = await versionOf(supabase, user.id, input.from.copy);
       if (!source) return { ok: false, error: 'That version isn’t there any more.' };
       doc = source.doc;
       style = source.style;
       target = source.target;
+      letter = source.letter;
     } else if (input.from === 'portrait') {
       const { spec } = await loadPortrait(supabase, user.id);
       doc = docFromPortrait(spec, await who());
     } else {
       doc = docFromPortrait(emptySpec(), await who());
     }
-    const made = await insertVersion(supabase, user.id, { name, isDefault: (count ?? 0) === 0, target, doc, style });
+    const made = await insertVersion(supabase, user.id, { name, isDefault: (count ?? 0) === 0, target, doc, style, letter });
     return { ok: true, value: made };
   } catch {
     return { ok: false, error: FAILED };
@@ -74,18 +76,19 @@ export async function createVersion(input: { name: string; from: 'portrait' | 'b
  * tab saved), nothing is written and the person is told, so one tab never silently drops the
  * other's work.
  */
-export async function saveVersion(input: { id: string; since: string; name: string; target: string; doc: unknown; style: unknown }): Promise<ActionResult<{ updatedAt: string }>> {
+export async function saveVersion(input: { id: string; since: string; name: string; target: string; doc: unknown; style: unknown; letter: unknown }): Promise<ActionResult<{ updatedAt: string }>> {
   const session = await signedIn();
   if (!session) return { ok: false, error: NOT_SIGNED_IN };
   const doc = ResumeDoc.safeParse(input.doc);
   const style = ResumeStyle.safeParse(input.style);
-  if (!doc.success || !style.success) return { ok: false, error: 'Some of this version is too long to save. Shorten the highlighted field and try again.' };
+  const letter = ResumeLetter.safeParse(input.letter);
+  if (!doc.success || !style.success || !letter.success) return { ok: false, error: 'Some of this version is too long to save. Shorten the highlighted field and try again.' };
   const name = cleanName(input.name);
   if (!name) return { ok: false, error: 'Give this version a name.' };
   const updatedAt = new Date().toISOString();
   const { data, error } = await session.supabase
     .from('resumes')
-    .update({ name, target: input.target.trim().slice(0, 120), doc: doc.data, style: style.data, updated_at: updatedAt })
+    .update({ name, target: input.target.trim().slice(0, 120), doc: doc.data, style: style.data, letter: letter.data, updated_at: updatedAt })
     .eq('owner_id', session.user.id)
     .eq('id', input.id)
     .eq('updated_at', input.since)

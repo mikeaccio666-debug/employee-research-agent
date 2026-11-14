@@ -56,6 +56,31 @@ describe('résumé editor: a first version from the portrait', () => {
     assert.ok(!shown(doc).some((s) => s.kind === 'certifications'));
   });
 
+  it('keeps one organisation in one entry, and puts sentence-like skills under Highlights', () => {
+    const s: Spec = {
+      ...emptySpec(),
+      claims: [
+        claim({ id: 'clm_org0000001', org: '蔓藤', title: 'Founder', statement: 'Founder of 蔓藤.' }),
+        claim({ id: 'clm_org0000002', org: '蔓藤', title: 'Team management', statement: 'Managed team members at 蔓藤.' }),
+        claim({ id: 'clm_org0000003', org: '蔓藤', title: 'Engineering guidance', statement: 'Guided a colleague through merging pull requests.' }),
+        claim({ id: 'clm_org0000004', org: 'Quest Abroad', title: 'Marketing Manager', when: '2025 — 2026', statement: 'Automated pricing research.' }),
+        claim({ id: 'clm_org0000005', org: 'Quest Abroad', title: 'Analyst', when: '2023 — 2024', statement: 'Wrote weekly reports.' }),
+        claim({ id: 'clm_cap0000001', layer: 'capability', kind: 'skill', statement: 'Python' }),
+        claim({ id: 'clm_cap0000002', layer: 'capability', kind: 'skill', statement: 'Implemented dev/prod Supabase separation, versioned SQL migrations, and CI/CD.' }),
+      ],
+    };
+    const doc = docFromPortrait(s, who);
+    const work = doc.sections.find((x) => x.kind === 'experience')!.entries;
+    assert.equal(work.filter((e) => e.title === '蔓藤').length, 1);
+    assert.equal(work.find((e) => e.title === '蔓藤')!.subtitle, 'Founder');
+    assert.equal(work.find((e) => e.title === '蔓藤')!.bullets.length, 3);
+    // Different dates at the same place are different stints.
+    assert.equal(work.filter((e) => e.title === 'Quest Abroad').length, 2);
+    const text = docText(doc);
+    assert.match(text, /HIGHLIGHTS\n• Implemented dev\/prod Supabase separation, versioned SQL migrations, and CI\/CD\./);
+    assert.match(text, /SKILLS\nSkills: Python$/m);
+  });
+
   it('starts blank from an empty portrait', () => {
     const doc = docFromPortrait(emptySpec(), who);
     assert.equal(shown(doc).length, 0);

@@ -291,6 +291,8 @@ Gently squared corners: 4px for buttons, inputs, chips and panels; 2–3px for s
 ### Résumé sheet (the one exception to the wall)
 The résumé editor (`/resume`, `components/resume`) shows a sheet of paper: always white with near-black ink (`#18181b`, muted `#55555c`), by day and by night, because it is the page that gets printed and sent. Its type is the résumé's own, not ours: Arimo, Carlito, Tinos and Gelasio (open fonts drawn to the widths of Arial, Calibri, Times and Georgia) or Atkinson, set in points so the sheet matches the PDF line for line; its section headings are uppercase because that is résumé convention, not a UI label. Everything that edits the sheet speaks the app's language: pencil ink (`#3a3f47`) for hover underlines, dashed-underlined "+ Add" links and margin tools; a chalk wash for the field being typed in and for selected text; a dashed ink line where page one ends. No shadow under the sheet: white on the shaded wall is enough.
 
+The assistant sits in a column to the left of the desk (a third view, "Assistant", up to 900px wide screens) and uses the studio's conversation parts: messages, a receipt per change with its own Undo, and a status line while it works. What it changed is marked on the sheet the way drafts are marked everywhere: a chalk wash with a dashed pencil underline on changed words, a dashed pencil outline round a bullet, entry or section it added or moved. Pointing at a receipt lights its change in full chalk. A mark goes once the person clicks into that field, undoes the change, or sends the next message; marks never print.
+
 ## Do's and Don'ts
 
 ### Do:

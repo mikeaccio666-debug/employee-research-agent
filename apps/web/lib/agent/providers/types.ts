@@ -41,3 +41,12 @@ export type Adapter = {
 
 /** An image as the APIs take it: base64 bytes and their type. */
 export type Image = { mime: 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif'; data: string };
+
+/** A tool as the model reads it: name, what it does, and its arguments as JSON schema. */
+export type ToolDef = { name: string; description: string; parameters: Record<string, unknown> };
+
+/**
+ * Which agent an adapter speaks for: its standing instructions and its tools. Without one, the
+ * adapter is the studio's (lib/agent/prompt.ts, lib/agent/tools.ts).
+ */
+export type Kit = { instructions: string; tools: ToolDef[] };
